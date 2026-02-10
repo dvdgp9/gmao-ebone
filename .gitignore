@@ -1,0 +1,11 @@
+/vendor/
+.env
+/storage/logs/*.log
+/storage/import_*
+/public/uploads/*
+!public/uploads/.gitkeep
+.DS_Store
+*.swp
+*.xlsx
+*.xls
+.cursor/
