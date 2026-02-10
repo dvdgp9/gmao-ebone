@@ -1,4 +1,8 @@
-/vendor/
+# /vendor/ — included in git because server has no SSH/composer access
+/vendor/bin/
+/vendor/*/test/
+/vendor/*/tests/
+/vendor/*/Tests/
 .env
 /storage/logs/*.log
 /storage/import_*

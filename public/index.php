@@ -21,11 +21,11 @@ $dotenv->load();
 App::init();
 
 // Helpers
-require_once __DIR__ . '/../app/helpers/functions.php';
+require_once __DIR__ . '/../app/Helpers/functions.php';
 
 // Router
 $router = new Router();
-require_once __DIR__ . '/../app/config/routes.php';
+require_once __DIR__ . '/../app/Config/routes.php';
 
 $url = $_GET['url'] ?? '';
 $router->dispatch($url);
