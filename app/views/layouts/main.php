@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($title ?? 'Dashboard') ?> - <?= e(\App\Config\App::name()) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{colors:{brand:{DEFAULT:'#23AAC5',dark:'#1B8FA6',light:'#E8F7FA',50:'#E8F7FA',100:'#C5EDF3',200:'#8DDBE7',300:'#55C9DB',400:'#23AAC5',500:'#1B8FA6',600:'#167487',700:'#115A68',800:'#0C3F49',900:'#07252A'}}}}}</script>
     <style>
         [x-cloak] { display: none !important; }
-        .sidebar-link.active { background-color: rgb(37 99 235); color: white; }
+        .sidebar-link.active { background-color: #23AAC5; color: white; }
         .sidebar-link:hover:not(.active) { background-color: rgb(243 244 246); }
     </style>
 </head>
@@ -37,7 +38,7 @@
                 <form method="POST" action="<?= url('switch-instalacio') ?>" id="switchForm">
                     <?= csrf_field() ?>
                     <select name="instalacio_id" onchange="document.getElementById('switchForm').submit()"
-                            class="mt-1 w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                            class="mt-1 w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-brand outline-none">
                         <?php foreach ($_SESSION['assignacions'] as $a): ?>
                             <option value="<?= $a['instalacio_id'] ?>" <?= ($a['instalacio_id'] == ($_SESSION['instalacio_id'] ?? '')) ? 'selected' : '' ?>>
                                 <?= e($a['instalacio_nom']) ?>
@@ -123,7 +124,7 @@
 
             <div class="p-4 border-t border-gray-200">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                    <div class="w-8 h-8 bg-brand rounded-full flex items-center justify-center text-white text-sm font-medium">
                         <?= strtoupper(substr($_SESSION['user_nom'] ?? 'U', 0, 1)) ?>
                     </div>
                     <div class="flex-1 min-w-0">
@@ -160,7 +161,7 @@
             <main class="p-6">
                 <?php $flash = $flash ?? flash(); ?>
                 <?php if ($flash): ?>
-                    <div class="mb-4 p-3 rounded-lg text-sm <?= $flash['type'] === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : ($flash['type'] === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-blue-50 text-blue-700 border border-blue-200') ?>">
+                    <div class="mb-4 p-3 rounded-lg text-sm <?= $flash['type'] === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : ($flash['type'] === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-brand-light text-brand-dark border border-brand-light') ?>">
                         <?= e($flash['message']) ?>
                     </div>
                 <?php endif; ?>

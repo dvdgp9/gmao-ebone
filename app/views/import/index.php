@@ -17,7 +17,7 @@ ob_start();
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tipus d'importació</label>
-                <select name="import_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                <select name="import_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
                     <option value="tasques_cataleg">Tasques al Catàleg (global)</option>
                     <option value="tasques_pla">Tasques al Pla de Manteniment (instal·lació actual)</option>
                 </select>
@@ -26,10 +26,10 @@ ob_start();
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Fitxer Excel (.xlsx / .xls)</label>
                 <input type="file" name="excel_file" accept=".xlsx,.xls" required
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-brand-light file:text-brand-dark hover:file:bg-brand-light">
             </div>
 
-            <button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
+            <button type="submit" class="bg-brand text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-dark transition">
                 Pujar i previsualitzar
             </button>
         </form>

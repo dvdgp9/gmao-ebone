@@ -28,19 +28,19 @@ ob_start();
         </a>
         <?php if ($setmanaOffset !== 0): ?>
         <a href="<?= url('setmana' . ($tornActual ? '?torn=' . $tornActual : '')) ?>"
-           class="text-sm text-blue-600 hover:text-blue-800 transition ml-2">Avui</a>
+           class="text-sm text-brand hover:text-brand-dark transition ml-2">Avui</a>
         <?php endif; ?>
     </div>
 
     <div class="flex items-center gap-2">
         <span class="text-sm text-gray-500">Torn:</span>
         <a href="<?= url('setmana?setmana=' . $setmanaOffset) ?>"
-           class="px-3 py-1.5 text-sm rounded-lg <?= !$tornActual ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
+           class="px-3 py-1.5 text-sm rounded-lg <?= !$tornActual ? 'bg-brand text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
             Tots
         </a>
         <?php foreach ($torns as $t): ?>
         <a href="<?= url('setmana?setmana=' . $setmanaOffset . '&torn=' . $t['id']) ?>"
-           class="px-3 py-1.5 text-sm rounded-lg <?= $tornActual == $t['id'] ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
+           class="px-3 py-1.5 text-sm rounded-lg <?= $tornActual == $t['id'] ? 'bg-brand text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
             <?= e($t['nom']) ?>
         </a>
         <?php endforeach; ?>
@@ -72,7 +72,7 @@ ob_start();
                         $avui = $t['data_propera_realitzacio'] === date('Y-m-d');
                     ?>
                     <tr class="hover:bg-gray-50 transition <?= $vencuda ? 'bg-red-50' : ($avui ? 'bg-yellow-50' : '') ?>">
-                        <td class="px-4 py-3 font-mono text-xs text-blue-600"><?= e($t['tasca_codi'] ?? '-') ?></td>
+                        <td class="px-4 py-3 font-mono text-xs text-brand"><?= e($t['tasca_codi'] ?? '-') ?></td>
                         <td class="px-4 py-3 text-gray-500 text-xs"><?= e($t['espai_nom'] ?? '-') ?></td>
                         <td class="px-4 py-3">
                             <div class="max-w-sm truncate" title="<?= e($t['tasca_nom']) ?>"><?= e($t['tasca_nom']) ?></div>

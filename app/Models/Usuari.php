@@ -61,13 +61,21 @@ class Usuari extends Model
     {
         if ($instalacioId) {
             return static::query('
-                SELECT u.*, r.nom AS rol_nom, ui.instalacio_id
+                SELECT u.*, r.nom AS rol_nom, ui.instalacio_id, i.nom AS instalacio_nom
                 FROM usuaris u
                 JOIN usuari_instalacio ui ON ui.usuari_id = u.id AND ui.instalacio_id = ?
                 JOIN rols r ON r.id = ui.rol_id
+                JOIN instalacions i ON i.id = ui.instalacio_id
                 ORDER BY u.nom
             ', [$instalacioId]);
         }
-        return static::all([], 'nom ASC');
+        return static::query('
+            SELECT u.*, r.nom AS rol_nom, ui.instalacio_id, i.nom AS instalacio_nom
+            FROM usuaris u
+            LEFT JOIN usuari_instalacio ui ON ui.usuari_id = u.id
+            LEFT JOIN rols r ON r.id = ui.rol_id
+            LEFT JOIN instalacions i ON i.id = ui.instalacio_id
+            ORDER BY u.nom
+        ');
     }
 }

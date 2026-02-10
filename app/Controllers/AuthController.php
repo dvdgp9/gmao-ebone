@@ -12,6 +12,18 @@ class AuthController extends Controller
         if (!empty($_SESSION['user_id'])) {
             $this->redirect('dashboard');
         }
+
+        // Auto-login via remember token cookie
+        if (isset($_COOKIE['remember_token'])) {
+            $user = self::loginFromRememberToken($_COOKIE['remember_token']);
+            if ($user) {
+                self::buildSession($user);
+                $this->redirect('dashboard');
+            } else {
+                setcookie('remember_token', '', time() - 3600, '/', '', true, true);
+            }
+        }
+
         $this->view('auth.login', ['flash' => $this->getFlash()]);
     }
 
@@ -41,7 +53,54 @@ class AuthController extends Controller
             $this->redirect('login');
         }
 
-        // Obtener instalaciones y roles del usuario
+        self::buildSession($user);
+
+        // Remember me
+        if (!empty($_POST['remember'])) {
+            $token = bin2hex(random_bytes(32));
+            $expires = date('Y-m-d H:i:s', time() + 60 * 86400); // 60 days
+            $db->prepare('INSERT INTO remember_tokens (usuari_id, token, expires_at) VALUES (?, ?, ?)')->execute([$user['id'], $token, $expires]);
+            setcookie('remember_token', $token, time() + 60 * 86400, '/', '', true, true);
+        }
+
+        $this->redirect('dashboard');
+    }
+
+    public function logout(): void
+    {
+        $db = Database::getInstance();
+
+        // Delete remember token
+        if (isset($_COOKIE['remember_token'])) {
+            $db->prepare('DELETE FROM remember_tokens WHERE token = ?')->execute([$_COOKIE['remember_token']]);
+            setcookie('remember_token', '', time() - 3600, '/', '', true, true);
+        }
+
+        // Cleanup expired tokens
+        $db->exec('DELETE FROM remember_tokens WHERE expires_at < NOW()');
+
+        session_destroy();
+        $this->redirect('login');
+    }
+
+    private static function loginFromRememberToken(string $token): ?array
+    {
+        $db = Database::getInstance();
+        $stmt = $db->prepare('
+            SELECT u.* FROM remember_tokens rt
+            JOIN usuaris u ON u.id = rt.usuari_id AND u.actiu = 1
+            WHERE rt.token = ? AND rt.expires_at > NOW()
+            LIMIT 1
+        ');
+        $stmt->execute([$token]);
+        $user = $stmt->fetch();
+        return $user ?: null;
+    }
+
+    private static function buildSession(array $user): void
+    {
+        $db = Database::getInstance();
+
         $stmt = $db->prepare('
             SELECT ui.instalacio_id, ui.rol_id, i.nom AS instalacio_nom, r.nom AS rol_nom
             FROM usuari_instalacio ui
@@ -53,8 +112,6 @@ class AuthController extends Controller
         $stmt->execute([$user['id']]);
         $assignacions = $stmt->fetchAll();
 
-        // Comprobar si es superadmin (puede no tener asignaciones)
-        $isSuperadmin = false;
         $stmt = $db->prepare('
             SELECT 1 FROM usuari_instalacio ui
             JOIN rols r ON r.id = ui.rol_id
@@ -62,9 +119,7 @@ class AuthController extends Controller
             LIMIT 1
         ');
         $stmt->execute([$user['id']]);
-        if ($stmt->fetch()) {
-            $isSuperadmin = true;
-        }
+        $isSuperadmin = (bool)$stmt->fetch();
 
         $_SESSION['user_id'] = (int)$user['id'];
         $_SESSION['user_nom'] = $user['nom'] . ' ' . ($user['cognoms'] ?? '');
@@ -72,7 +127,6 @@ class AuthController extends Controller
         $_SESSION['is_superadmin'] = $isSuperadmin;
         $_SESSION['assignacions'] = $assignacions;
 
-        // Si tiene asignaciones, establecer la primera como activa
         if (!empty($assignacions)) {
             $_SESSION['instalacio_id'] = (int)$assignacions[0]['instalacio_id'];
             $_SESSION['instalacio_nom'] = $assignacions[0]['instalacio_nom'];
@@ -82,13 +136,5 @@ class AuthController extends Controller
             $_SESSION['instalacio_nom'] = 'Totes';
             $_SESSION['current_role'] = 'superadmin';
         }
-
-        $this->redirect('dashboard');
-    }
-
-    public function logout(): void
-    {
-        session_destroy();
-        $this->redirect('login');
     }
 }

@@ -78,6 +78,7 @@ $router->get('usuaris/create', UsuariController::class, 'create');
 $router->post('usuaris/store', UsuariController::class, 'store');
 $router->get('usuaris/edit/{id}', UsuariController::class, 'edit');
 $router->post('usuaris/update/{id}', UsuariController::class, 'update');
+$router->post('usuaris/toggle/{id}', UsuariController::class, 'toggle');
 
 // Importar Excel
 $router->get('import', ImportController::class, 'index');

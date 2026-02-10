@@ -9,7 +9,7 @@ ob_start();
         <p class="text-gray-500 text-sm mt-1">Inventari d'equips de la instal·lació</p>
     </div>
     <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment'])): ?>
-    <a href="<?= url('equips/create') ?>" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center gap-2">
+    <a href="<?= url('equips/create') ?>" class="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition flex items-center gap-2">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         Nou Equip
     </a>
@@ -20,8 +20,8 @@ ob_start();
 <div class="mb-4">
     <form method="GET" action="<?= url('equips') ?>" class="flex flex-col sm:flex-row gap-2">
         <input type="text" name="q" value="<?= e($search ?? '') ?>" placeholder="Cercar per codi, nom, model..."
-               class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-        <select name="sistema" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+               class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+        <select name="sistema" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
             <option value="">Tots els sistemes</option>
             <?php foreach ($sistemes ?? [] as $s): ?>
                 <option value="<?= $s['id'] ?>" <?= ($sistemaFilter ?? '') == $s['id'] ? 'selected' : '' ?>><?= e($s['codi']) ?> — <?= e($s['nom']) ?></option>
@@ -57,11 +57,11 @@ ob_start();
                 <?php else: ?>
                     <?php foreach ($equips as $equip): ?>
                     <tr class="hover:bg-gray-50 transition">
-                        <td class="px-4 py-3 font-mono text-xs text-blue-600"><?= e($equip['nom_mn']) ?></td>
+                        <td class="px-4 py-3 font-mono text-xs text-brand"><?= e($equip['nom_mn']) ?></td>
                         <td class="px-4 py-3"><?= e($equip['nom_equip']) ?></td>
                         <td class="px-4 py-3">
                             <?php if ($equip['sistema_codi']): ?>
-                                <span class="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded"><?= e($equip['sistema_codi']) ?></span>
+                                <span class="inline-block bg-brand-light text-brand-dark text-xs px-2 py-0.5 rounded"><?= e($equip['sistema_codi']) ?></span>
                             <?php endif; ?>
                         </td>
                         <td class="px-4 py-3 text-gray-500 text-xs"><?= e($equip['tipus_nom'] ?? '-') ?></td>
@@ -71,7 +71,7 @@ ob_start();
                             <?php
                             $estatColors = [
                                 'MB' => 'bg-green-50 text-green-700',
-                                'B' => 'bg-blue-50 text-blue-700',
+                                'B' => 'bg-brand-light text-brand-dark',
                                 'R' => 'bg-yellow-50 text-yellow-700',
                                 'D' => 'bg-red-50 text-red-700',
                                 'BAIXA' => 'bg-gray-100 text-gray-500',
@@ -82,7 +82,7 @@ ob_start();
                         </td>
                         <td class="px-4 py-3 text-right">
                             <div class="flex items-center justify-end gap-2">
-                                <a href="<?= url('equips/edit/' . $equip['id']) ?>" class="text-gray-400 hover:text-blue-600 transition" title="Editar">
+                                <a href="<?= url('equips/edit/' . $equip['id']) ?>" class="text-gray-400 hover:text-brand transition" title="Editar">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                 </a>
                                 <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
@@ -110,7 +110,7 @@ ob_start();
         <div class="flex gap-1">
             <?php for ($i = 1; $i <= $pagination['total_pages']; $i++): ?>
                 <a href="<?= url('equips?page=' . $i) ?>"
-                   class="px-3 py-1 text-sm rounded <?= $i === $pagination['current_page'] ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?> transition">
+                   class="px-3 py-1 text-sm rounded <?= $i === $pagination['current_page'] ? 'bg-brand text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?> transition">
                     <?= $i ?>
                 </a>
             <?php endfor; ?>

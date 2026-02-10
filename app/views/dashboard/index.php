@@ -32,7 +32,7 @@ ob_start();
     </div>
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
         <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Equips actius</p>
-        <p class="text-2xl font-bold text-blue-600 mt-2"><?= $s['equips_actius'] ?></p>
+        <p class="text-2xl font-bold text-brand mt-2"><?= $s['equips_actius'] ?></p>
     </div>
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
         <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Execucions (mes)</p>
@@ -51,7 +51,7 @@ ob_start();
     <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
             <h3 class="font-semibold text-gray-800">Properes tasques</h3>
-            <a href="<?= url('pla') ?>" class="text-xs text-blue-600 hover:text-blue-800 transition">Veure tot</a>
+            <a href="<?= url('pla') ?>" class="text-xs text-brand hover:text-brand-dark transition">Veure tot</a>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -77,7 +77,7 @@ ob_start();
                             <td class="px-4 py-2 text-xs <?= $vencuda ? 'text-red-600 font-medium' : ($avui ? 'text-yellow-600 font-medium' : 'text-gray-500') ?>">
                                 <?= format_date($t['data_propera_realitzacio']) ?>
                             </td>
-                            <td class="px-4 py-2 font-mono text-xs text-blue-600"><?= e($t['tasca_codi'] ?? '') ?></td>
+                            <td class="px-4 py-2 font-mono text-xs text-brand"><?= e($t['tasca_codi'] ?? '') ?></td>
                             <td class="px-4 py-2 text-xs max-w-xs truncate"><?= e($t['tasca_nom']) ?></td>
                             <td class="px-4 py-2 text-xs text-gray-500"><?= e($t['espai_nom'] ?? '-') ?></td>
                             <td class="px-4 py-2">
@@ -135,7 +135,7 @@ ob_start();
                     <?php foreach ($s['tasques_per_sistema'] as $ts): ?>
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
-                            <span class="inline-block bg-blue-50 text-blue-700 text-xs px-1.5 py-0.5 rounded font-mono"><?= e($ts['sistema_codi'] ?? '?') ?></span>
+                            <span class="inline-block bg-brand-light text-brand-dark text-xs px-1.5 py-0.5 rounded font-mono"><?= e($ts['sistema_codi'] ?? '?') ?></span>
                             <span class="text-sm text-gray-600 truncate max-w-[140px]"><?= e($ts['sistema_nom'] ?? 'Altres') ?></span>
                         </div>
                         <span class="text-sm font-medium text-gray-800"><?= $ts['total'] ?></span>

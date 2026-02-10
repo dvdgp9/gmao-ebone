@@ -138,6 +138,32 @@ class UsuariController extends Controller
         $this->redirect('usuaris');
     }
 
+    public function toggle(string $id): void
+    {
+        $this->requireRole(['superadmin', 'admin_instalacio']);
+        if (!verify_csrf()) {
+            $this->setFlash('error', 'Token de seguretat invàlid.');
+            $this->redirect('usuaris');
+        }
+
+        $usuari = Usuari::find((int)$id);
+        if (!$usuari) {
+            $this->setFlash('error', 'Usuari no trobat.');
+            $this->redirect('usuaris');
+        }
+
+        // Cannot deactivate yourself
+        if ((int)$id === (int)$_SESSION['user_id']) {
+            $this->setFlash('error', 'No pots desactivar el teu propi compte.');
+            $this->redirect('usuaris');
+        }
+
+        Usuari::update((int)$id, ['actiu' => $usuari['actiu'] ? 0 : 1]);
+
+        $this->setFlash('success', $usuari['actiu'] ? 'Usuari desactivat.' : 'Usuari activat.');
+        $this->redirect('usuaris');
+    }
+
     private function getInstalacionsDisponibles(): array
     {
         if ($_SESSION['is_superadmin'] ?? false) {

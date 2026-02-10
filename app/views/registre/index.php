@@ -30,7 +30,7 @@ ob_start();
                     <?php foreach ($registres as $r): ?>
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap"><?= format_date($r['data_execucio']) ?></td>
-                        <td class="px-4 py-3 font-mono text-xs text-blue-600"><?= e($r['tasca_codi'] ?? '-') ?></td>
+                        <td class="px-4 py-3 font-mono text-xs text-brand"><?= e($r['tasca_codi'] ?? '-') ?></td>
                         <td class="px-4 py-3">
                             <div class="max-w-xs truncate" title="<?= e($r['tasca_nom'] ?? '') ?>"><?= e($r['tasca_nom'] ?? '-') ?></div>
                         </td>
@@ -74,7 +74,7 @@ ob_start();
             ?>
             <?php for ($i = $start; $i <= $end; $i++): ?>
                 <a href="<?= url('registre?page=' . $i) ?>"
-                   class="px-3 py-1 text-sm rounded <?= $i === $pagination['current_page'] ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?> transition">
+                   class="px-3 py-1 text-sm rounded <?= $i === $pagination['current_page'] ? 'bg-brand text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' ?> transition">
                     <?= $i ?>
                 </a>
             <?php endfor; ?>

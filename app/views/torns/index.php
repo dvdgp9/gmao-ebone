@@ -9,7 +9,7 @@ ob_start();
         <p class="text-gray-500 text-sm mt-1">Gestió de torns de la instal·lació</p>
     </div>
     <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
-    <a href="<?= url('torns/create') ?>" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center gap-2">
+    <a href="<?= url('torns/create') ?>" class="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition flex items-center gap-2">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         Nou Torn
     </a>
@@ -39,14 +39,14 @@ ob_start();
             </div>
             <div class="flex gap-1 mb-4">
                 <?php foreach ($diesNoms as $key => $label): ?>
-                    <span class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium <?= in_array($key, $dies) ? 'bg-blue-100 text-blue-700' : 'bg-gray-50 text-gray-300' ?>">
+                    <span class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium <?= in_array($key, $dies) ? 'bg-brand-light text-brand-dark' : 'bg-gray-50 text-gray-300' ?>">
                         <?= $label ?>
                     </span>
                 <?php endforeach; ?>
             </div>
             <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
             <div class="flex gap-3 pt-3 border-t border-gray-100">
-                <a href="<?= url('torns/edit/' . $torn['id']) ?>" class="text-sm text-blue-600 hover:text-blue-800 transition">Editar</a>
+                <a href="<?= url('torns/edit/' . $torn['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
                 <form method="POST" action="<?= url('torns/delete/' . $torn['id']) ?>" onsubmit="return confirm('Segur que vols desactivar aquest torn?')">
                     <?= csrf_field() ?>
                     <button type="submit" class="text-sm text-red-500 hover:text-red-700 transition">Desactivar</button>
