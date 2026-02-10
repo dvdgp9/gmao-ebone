@@ -1,2 +1,3 @@
-RewriteEngine On
-RewriteRule ^(.*)$ public/$1 [L]
+# Solo necesario si el dominio NO apunta directamente a /public
+# RewriteEngine On
+# RewriteRule ^(.*)$ public/$1 [L]
