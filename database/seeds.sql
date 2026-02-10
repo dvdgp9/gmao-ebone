@@ -17,8 +17,8 @@ INSERT INTO `rols` (`nom`, `descripcio`) VALUES
 -- -----------------------------------------------------------
 -- USUARI SUPERADMIN INICIAL (password: admin123)
 -- -----------------------------------------------------------
-INSERT INTO `usuaris` (`nom`, `cognoms`, `email`, `password_hash`, `actiu`) VALUES
-('Admin', 'GMAO', 'admin@gmao.local', '$2y$12$1yuu90N1PHMVzuh1Fw7DEuhF6Ff0ebBFw2pC5ifuK0eHNX/VCvsYa', 1);
+INSERT INTO `usuaris` (`nom`, `cognoms`, `email`, `password_hash`, `actiu`, `is_superadmin`) VALUES
+('Admin', 'GMAO', 'admin@gmao.local', '$2y$12$1yuu90N1PHMVzuh1Fw7DEuhF6Ff0ebBFw2pC5ifuK0eHNX/VCvsYa', 1, 1);
 
 -- -----------------------------------------------------------
 -- ESTATS EQUIP

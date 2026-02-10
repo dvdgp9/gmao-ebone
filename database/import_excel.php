@@ -48,15 +48,9 @@ $stmt->execute(['CEMCERVERA', 'Cem Cervera']);
 $instalacioId = (int)$pdo->lastInsertId();
 echo "  Instal·lació creada: ID={$instalacioId}\n";
 
-// Assignar superadmin (usuari ID=1) a la instal·lació
-$stmtRol = $pdo->prepare('SELECT id FROM rols WHERE nom = "superadmin" LIMIT 1');
-$stmtRol->execute();
-$rolSuperadmin = $stmtRol->fetch();
-if ($rolSuperadmin) {
-    $pdo->prepare('INSERT IGNORE INTO usuari_instalacio (usuari_id, instalacio_id, rol_id) VALUES (1, ?, ?)')
-        ->execute([$instalacioId, $rolSuperadmin['id']]);
-    echo "  Superadmin assignat a la instal·lació\n";
-}
+// Nota: El superadmin té accés global via columna is_superadmin a usuaris.
+// No cal fila a usuari_instalacio.
+echo "  (Superadmin té accés global automàtic)\n";
 
 // =====================================================================
 // 2. Crear Torns

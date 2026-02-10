@@ -30,13 +30,8 @@ class Usuari extends Model
 
     public static function isSuperadmin(int $usuariId): bool
     {
-        $result = static::query('
-            SELECT 1 FROM usuari_instalacio ui
-            JOIN rols r ON r.id = ui.rol_id
-            WHERE ui.usuari_id = ? AND r.nom = "superadmin"
-            LIMIT 1
-        ', [$usuariId]);
-        return !empty($result);
+        $result = static::query('SELECT is_superadmin FROM usuaris WHERE id = ? LIMIT 1', [$usuariId]);
+        return !empty($result) && !empty($result[0]['is_superadmin']);
     }
 
     public static function assignInstalacio(int $usuariId, int $instalacioId, int $rolId): int

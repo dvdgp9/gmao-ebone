@@ -100,41 +100,61 @@ class AuthController extends Controller
     private static function buildSession(array $user): void
     {
         $db = Database::getInstance();
-
-        $stmt = $db->prepare('
-            SELECT ui.instalacio_id, ui.rol_id, i.nom AS instalacio_nom, r.nom AS rol_nom
-            FROM usuari_instalacio ui
-            JOIN instalacions i ON i.id = ui.instalacio_id AND i.activa = 1
-            JOIN rols r ON r.id = ui.rol_id
-            WHERE ui.usuari_id = ?
-            ORDER BY i.nom
-        ');
-        $stmt->execute([$user['id']]);
-        $assignacions = $stmt->fetchAll();
-
-        $stmt = $db->prepare('
-            SELECT 1 FROM usuari_instalacio ui
-            JOIN rols r ON r.id = ui.rol_id
-            WHERE ui.usuari_id = ? AND r.nom = "superadmin"
-            LIMIT 1
-        ');
-        $stmt->execute([$user['id']]);
-        $isSuperadmin = (bool)$stmt->fetch();
+        $isSuperadmin = !empty($user['is_superadmin']);
 
         $_SESSION['user_id'] = (int)$user['id'];
         $_SESSION['user_nom'] = $user['nom'] . ' ' . ($user['cognoms'] ?? '');
         $_SESSION['user_email'] = $user['email'];
         $_SESSION['is_superadmin'] = $isSuperadmin;
-        $_SESSION['assignacions'] = $assignacions;
 
-        if (!empty($assignacions)) {
-            $_SESSION['instalacio_id'] = (int)$assignacions[0]['instalacio_id'];
-            $_SESSION['instalacio_nom'] = $assignacions[0]['instalacio_nom'];
-            $_SESSION['current_role'] = $assignacions[0]['rol_nom'];
-        } elseif ($isSuperadmin) {
-            $_SESSION['instalacio_id'] = null;
-            $_SESSION['instalacio_nom'] = 'Totes';
+        if ($isSuperadmin) {
+            // Superadmin: accés a TOTES les instal·lacions actives
+            $stmt = $db->query('SELECT id AS instalacio_id, nom AS instalacio_nom FROM instalacions WHERE activa = 1 ORDER BY nom');
+            $allInstalacions = $stmt->fetchAll();
+
+            $assignacions = [];
+            foreach ($allInstalacions as $inst) {
+                $assignacions[] = [
+                    'instalacio_id' => $inst['instalacio_id'],
+                    'instalacio_nom' => $inst['instalacio_nom'],
+                    'rol_nom' => 'superadmin',
+                ];
+            }
+
+            $_SESSION['assignacions'] = $assignacions;
             $_SESSION['current_role'] = 'superadmin';
+
+            if (!empty($assignacions)) {
+                $_SESSION['instalacio_id'] = (int)$assignacions[0]['instalacio_id'];
+                $_SESSION['instalacio_nom'] = $assignacions[0]['instalacio_nom'];
+            } else {
+                $_SESSION['instalacio_id'] = null;
+                $_SESSION['instalacio_nom'] = 'Sense instal·lacions';
+            }
+        } else {
+            // Usuari normal: assignacions via usuari_instalacio
+            $stmt = $db->prepare('
+                SELECT ui.instalacio_id, i.nom AS instalacio_nom, r.nom AS rol_nom
+                FROM usuari_instalacio ui
+                JOIN instalacions i ON i.id = ui.instalacio_id AND i.activa = 1
+                JOIN rols r ON r.id = ui.rol_id
+                WHERE ui.usuari_id = ?
+                ORDER BY i.nom
+            ');
+            $stmt->execute([$user['id']]);
+            $assignacions = $stmt->fetchAll();
+
+            $_SESSION['assignacions'] = $assignacions;
+
+            if (!empty($assignacions)) {
+                $_SESSION['instalacio_id'] = (int)$assignacions[0]['instalacio_id'];
+                $_SESSION['instalacio_nom'] = $assignacions[0]['instalacio_nom'];
+                $_SESSION['current_role'] = $assignacions[0]['rol_nom'];
+            } else {
+                $_SESSION['instalacio_id'] = null;
+                $_SESSION['instalacio_nom'] = '';
+                $_SESSION['current_role'] = '';
+            }
         }
     }
 }

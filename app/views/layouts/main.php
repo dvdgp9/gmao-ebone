@@ -95,7 +95,7 @@
                     Registre
                 </a>
 
-                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
+                <?php if (!empty($_SESSION['is_superadmin']) || in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
                 <p class="text-xs font-medium text-gray-400 uppercase tracking-wider pt-4 pb-1 px-3">Administració</p>
 
                 <a href="<?= url('usuaris') ?>" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 <?= is_active('usuaris') ?>">
@@ -103,7 +103,7 @@
                     Usuaris
                 </a>
 
-                <?php if (($_SESSION['current_role'] ?? '') === 'superadmin'): ?>
+                <?php if (!empty($_SESSION['is_superadmin'])): ?>
                 <a href="<?= url('instalacions') ?>" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 <?= is_active('instalacions') ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
                     Instal·lacions

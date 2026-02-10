@@ -61,6 +61,9 @@ class Controller
     protected function requireRole(array $allowedRoles): void
     {
         $this->requireAuth();
+        if (!empty($_SESSION['is_superadmin'])) {
+            return;
+        }
         $userRole = $_SESSION['current_role'] ?? '';
         if (!in_array($userRole, $allowedRoles)) {
             http_response_code(403);
