@@ -40,9 +40,24 @@ $spreadsheet = IOFactory::load($excelPath);
 echo "Excel carregat correctament.\n\n";
 
 // =====================================================================
+// 0. Neteja prèvia (per reimportació segura)
+// =====================================================================
+echo "=== 0. Netejant dades anteriors ===\n";
+$pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+$pdo->exec('DELETE FROM registre_tasques');
+$pdo->exec('DELETE FROM tasques_pla');
+$pdo->exec('DELETE FROM tasques_cataleg');
+$pdo->exec('DELETE FROM equips');
+$pdo->exec('DELETE FROM espais');
+$pdo->exec('DELETE FROM torns');
+$pdo->exec('DELETE FROM instalacions');
+$pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+echo "  Dades anteriors eliminades.\n";
+
+// =====================================================================
 // 1. Crear instal·lació inicial
 // =====================================================================
-echo "=== 1. Creant instal·lació ===\n";
+echo "\n=== 1. Creant instal·lació ===\n";
 $stmt = $pdo->prepare('INSERT INTO instalacions (nom, adreca, activa) VALUES (?, ?, 1)');
 $stmt->execute(['CEMCERVERA', 'Cem Cervera']);
 $instalacioId = (int)$pdo->lastInsertId();
@@ -266,6 +281,38 @@ $stmtPla = $pdo->prepare('
 $plaCount = 0;
 $plaSkipped = 0;
 
+// Helper per parsejar dates (pot ser serial Excel, DateTime, o string dd-mm-yy / dd/mm/yyyy)
+function parseExcelDate($cell): ?string {
+    // Primer intentar valor calculat (per fórmules)
+    try {
+        $val = $cell->getCalculatedValue();
+    } catch (\Throwable $e) {
+        $val = $cell->getValue();
+    }
+    if ($val === null || $val === '' || $val === 0) return null;
+    
+    if ($val instanceof \DateTimeInterface) {
+        return $val->format('Y-m-d');
+    }
+    if (is_numeric($val) && (float)$val > 1000) {
+        try {
+            return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float)$val)->format('Y-m-d');
+        } catch (\Throwable $e) {}
+    }
+    // String date: dd-mm-yy, dd/mm/yy, dd-mm-yyyy, dd/mm/yyyy
+    $str = trim((string)$val);
+    if (preg_match('#^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$#', $str, $m)) {
+        $day = (int)$m[1];
+        $month = (int)$m[2];
+        $year = (int)$m[3];
+        if ($year < 100) $year += 2000;
+        if ($month >= 1 && $month <= 12 && $day >= 1 && $day <= 31) {
+            return sprintf('%04d-%02d-%02d', $year, $month, $day);
+        }
+    }
+    return null;
+}
+
 for ($row = 2; $row <= $wsPla->getHighestRow(); $row++) {
     $nomTasca = trim((string)$wsPla->getCell("B{$row}")->getValue());
     if (empty($nomTasca)) continue;
@@ -273,7 +320,6 @@ for ($row = 2; $row <= $wsPla->getHighestRow(); $row++) {
     // Buscar tasca al catàleg
     $tascaCatalegId = $tascaCatalegMap[mb_strtolower(mb_substr($nomTasca, 0, 80))] ?? null;
     if (!$tascaCatalegId) {
-        // Busqueda parcial
         $nomLow = mb_strtolower($nomTasca);
         foreach ($tascaCatalegMap as $key => $tcId) {
             if (str_contains($nomLow, mb_substr($key, 0, 40)) || str_contains($key, mb_substr($nomLow, 0, 40))) {
@@ -292,44 +338,59 @@ for ($row = 2; $row <= $wsPla->getHighestRow(); $row++) {
     $periodicitat = trim((string)$wsPla->getCell("J{$row}")->getValue());
     $torn = trim((string)$wsPla->getCell("P{$row}")->getValue());
     $observacions = trim((string)$wsPla->getCell("Q{$row}")->getValue());
-    $enCurs = $wsPla->getCell("O{$row}")->getValue();
     $comentaris = trim((string)$wsPla->getCell("U{$row}")->getValue());
     
-    // Dates
-    $dataDarrera = $wsPla->getCell("G{$row}")->getValue();
-    $dataPropera = $wsPla->getCell("H{$row}")->getValue();
+    // Dates: usar getCalculatedValue per fórmules
+    $dataDarreraStr = parseExcelDate($wsPla->getCell("G{$row}"));
+    $dataProperaStr = parseExcelDate($wsPla->getCell("H{$row}"));
     
-    $dataDarreraStr = null;
-    if ($dataDarrera) {
-        if (is_numeric($dataDarrera)) {
-            $dataDarreraStr = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float)$dataDarrera)->format('Y-m-d');
-        } elseif ($dataDarrera instanceof \DateTimeInterface) {
-            $dataDarreraStr = $dataDarrera->format('Y-m-d');
-        }
+    // En curs: fórmula, intentar calcular
+    try {
+        $enCurs = $wsPla->getCell("O{$row}")->getCalculatedValue();
+    } catch (\Throwable $e) {
+        $enCurs = true;
     }
-    $dataProperaStr = null;
-    if ($dataPropera) {
-        if (is_numeric($dataPropera)) {
-            $dataProperaStr = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float)$dataPropera)->format('Y-m-d');
-        } elseif ($dataPropera instanceof \DateTimeInterface) {
-            $dataProperaStr = $dataPropera->format('Y-m-d');
-        }
-    }
+    $enCursVal = ($enCurs === false || $enCurs === 'FALSE' || $enCurs === 0 || $enCurs === '0') ? 0 : 1;
     
     $espaiId = $espaiMap[mb_strtolower($espaiNom)] ?? null;
     $periodicitatId = $periodicitatMap[mb_strtolower($periodicitat)] ?? null;
     $tornId = $tornMap[$torn] ?? null;
     
+    // Fallback: heretar periodicitat del catàleg
+    if (!$periodicitatId && $tascaCatalegId) {
+        $stmtFallback = $pdo->prepare('SELECT periodicitat_normativa_id FROM tasques_cataleg WHERE id = ?');
+        $stmtFallback->execute([$tascaCatalegId]);
+        $fb = $stmtFallback->fetch();
+        if ($fb && $fb['periodicitat_normativa_id']) {
+            $periodicitatId = (int)$fb['periodicitat_normativa_id'];
+        }
+    }
+    
     $stmtPla->execute([
         $instalacioId, $tascaCatalegId, null, $espaiId, $tornId,
         $periodicitatId, $observacions ?: null,
         $dataDarreraStr, $dataProperaStr,
-        ($enCurs === false || $enCurs === 'FALSE' || $enCurs === 0 || $enCurs === '0') ? 0 : 1,
+        $enCursVal,
         $comentaris ?: null
     ]);
     $plaCount++;
 }
 echo "  {$plaCount} tasques al pla importades ({$plaSkipped} omeses per no trobar catàleg)\n";
+
+// Recalcular data_propera per les que tenen data_darrera + periodicitat però no data_propera
+echo "  Recalculant dates properes...\n";
+$pdo->exec('
+    UPDATE tasques_pla tp
+    JOIN periodicitats p ON p.id = tp.periodicitat_id
+    SET tp.data_propera_realitzacio = DATE_ADD(tp.data_darrera_realitzacio, INTERVAL p.dies_interval DAY)
+    WHERE tp.data_darrera_realitzacio IS NOT NULL
+      AND tp.periodicitat_id IS NOT NULL
+      AND tp.data_propera_realitzacio IS NULL
+      AND tp.instalacio_id = ' . $instalacioId . '
+');
+$stmtCheck = $pdo->query("SELECT COUNT(*) AS total, SUM(CASE WHEN data_propera_realitzacio IS NOT NULL THEN 1 ELSE 0 END) AS amb_propera FROM tasques_pla WHERE instalacio_id = {$instalacioId}");
+$check = $stmtCheck->fetch();
+echo "  Resultat: {$check['amb_propera']}/{$check['total']} tasques amb data propera\n";
 
 // =====================================================================
 // 8. Importar Registre de Tasques
@@ -359,8 +420,6 @@ for ($row = 2; $row <= $wsReg->getHighestRow(); $row++) {
     $nomTasca = trim((string)$wsReg->getCell("B{$row}")->getValue());
     if (empty($nomTasca)) continue;
     
-    $dataExec = $wsReg->getCell("E{$row}")->getValue();
-    $dataNoExec = $wsReg->getCell("F{$row}")->getValue();
     $comentaris = trim((string)$wsReg->getCell("G{$row}")->getValue());
     
     // Buscar tasca_pla
@@ -381,23 +440,11 @@ for ($row = 2; $row <= $wsReg->getHighestRow(); $row++) {
     }
     
     $realitzada = 1;
-    $dataStr = null;
+    $dataStr = parseExcelDate($wsReg->getCell("E{$row}"));
     
-    if ($dataExec) {
-        if (is_numeric($dataExec)) {
-            $dataStr = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float)$dataExec)->format('Y-m-d');
-        } elseif ($dataExec instanceof \DateTimeInterface) {
-            $dataStr = $dataExec->format('Y-m-d');
-        }
-    }
-    
-    if (!$dataStr && $dataNoExec) {
+    if (!$dataStr) {
         $realitzada = 0;
-        if (is_numeric($dataNoExec)) {
-            $dataStr = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float)$dataNoExec)->format('Y-m-d');
-        } elseif ($dataNoExec instanceof \DateTimeInterface) {
-            $dataStr = $dataNoExec->format('Y-m-d');
-        }
+        $dataStr = parseExcelDate($wsReg->getCell("F{$row}"));
     }
     
     if (!$dataStr) {
