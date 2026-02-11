@@ -64,7 +64,7 @@ ob_start();
             </thead>
             <tbody class="divide-y divide-gray-100">
                 <?php if (empty($tasques)): ?>
-                    <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No hi ha tasques programades per a aquesta setmana.</td></tr>
+                    <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No hi ha tasques pendents ni programades per a aquesta setmana.</td></tr>
                 <?php else: ?>
                     <?php foreach ($tasques as $t): ?>
                     <?php
@@ -111,7 +111,14 @@ ob_start();
         </table>
     </div>
     <div class="px-4 py-3 border-t border-gray-200 text-sm text-gray-500">
-        <?= count($tasques) ?> tasques programades
+        <?php
+        $nVencudes = count(array_filter($tasques, fn($t) => $t['data_propera_realitzacio'] < $dilluns->format('Y-m-d')));
+        $nSetmana = count($tasques) - $nVencudes;
+        ?>
+        <?= count($tasques) ?> tasques
+        <?php if ($nVencudes > 0): ?>
+            <span class="text-red-500 font-medium">(<?= $nVencudes ?> vençudes)</span>
+        <?php endif; ?>
     </div>
 </div>
 

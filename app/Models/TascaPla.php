@@ -42,15 +42,16 @@ class TascaPla extends Model
             LEFT JOIN torns t ON t.id = tp.torn_id
             LEFT JOIN periodicitats p ON p.id = tp.periodicitat_id
             WHERE tp.instalacio_id = ? AND tp.en_curs = 1
-              AND tp.data_propera_realitzacio BETWEEN ? AND ?';
-        $params = [$instalacioId, $dilluns, $diumenge];
+              AND tp.data_propera_realitzacio IS NOT NULL
+              AND tp.data_propera_realitzacio <= ?';
+        $params = [$instalacioId, $diumenge];
 
         if ($tornId) {
             $sql .= ' AND tp.torn_id = ?';
             $params[] = $tornId;
         }
 
-        $sql .= ' ORDER BY es.nom ASC, tc.codi ASC';
+        $sql .= ' ORDER BY tp.data_propera_realitzacio ASC, es.nom ASC, tc.codi ASC';
 
         return static::query($sql, $params);
     }

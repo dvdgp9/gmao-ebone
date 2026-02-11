@@ -65,7 +65,7 @@ class DashboardController extends Controller
                 WHERE tp.instalacio_id = ? AND tp.en_curs = 1
                   AND tp.data_propera_realitzacio IS NOT NULL
                 ORDER BY tp.data_propera_realitzacio ASC
-                LIMIT 10
+                LIMIT 15
             ', [$instalacioId]);
 
             $stats['tasques_per_torn'] = TascaPla::query('
