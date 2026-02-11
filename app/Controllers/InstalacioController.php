@@ -90,6 +90,15 @@ class InstalacioController extends Controller
         }
 
         $instalacioId = (int)$this->post('instalacio_id');
+
+        // Superadmin: tornar a vista global
+        if ($instalacioId === 0 && !empty($_SESSION['is_superadmin'])) {
+            $_SESSION['instalacio_id'] = null;
+            $_SESSION['instalacio_nom'] = 'Totes les instal·lacions';
+            $_SESSION['current_role'] = 'superadmin';
+            $this->redirect('dashboard');
+        }
+
         $assignacions = $_SESSION['assignacions'] ?? [];
 
         foreach ($assignacions as $a) {

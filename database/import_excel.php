@@ -324,7 +324,7 @@ for ($row = 2; $row <= $wsPla->getHighestRow(); $row++) {
         $instalacioId, $tascaCatalegId, null, $espaiId, $tornId,
         $periodicitatId, $observacions ?: null,
         $dataDarreraStr, $dataProperaStr,
-        ($enCurs === true || $enCurs === 'TRUE' || $enCurs === 1) ? 1 : 0,
+        ($enCurs === false || $enCurs === 'FALSE' || $enCurs === 0 || $enCurs === '0') ? 0 : 1,
         $comentaris ?: null
     ]);
     $plaCount++;

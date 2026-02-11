@@ -123,14 +123,8 @@ class AuthController extends Controller
 
             $_SESSION['assignacions'] = $assignacions;
             $_SESSION['current_role'] = 'superadmin';
-
-            if (!empty($assignacions)) {
-                $_SESSION['instalacio_id'] = (int)$assignacions[0]['instalacio_id'];
-                $_SESSION['instalacio_nom'] = $assignacions[0]['instalacio_nom'];
-            } else {
-                $_SESSION['instalacio_id'] = null;
-                $_SESSION['instalacio_nom'] = 'Sense instal·lacions';
-            }
+            $_SESSION['instalacio_id'] = null;
+            $_SESSION['instalacio_nom'] = 'Totes les instal·lacions';
         } else {
             // Usuari normal: assignacions via usuari_instalacio
             $stmt = $db->prepare('

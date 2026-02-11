@@ -32,13 +32,16 @@
                 <p class="text-xs text-gray-400 mt-0.5">Gestió de Manteniment</p>
             </div>
 
-            <?php if (!empty($_SESSION['assignacions']) && count($_SESSION['assignacions']) > 1): ?>
+            <?php if (!empty($_SESSION['assignacions']) && (count($_SESSION['assignacions']) > 1 || !empty($_SESSION['is_superadmin']))): ?>
             <div class="px-4 py-3 border-b border-gray-200">
                 <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">Instal·lació</label>
                 <form method="POST" action="<?= url('switch-instalacio') ?>" id="switchForm">
                     <?= csrf_field() ?>
                     <select name="instalacio_id" onchange="document.getElementById('switchForm').submit()"
                             class="mt-1 w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-brand outline-none">
+                        <?php if (!empty($_SESSION['is_superadmin'])): ?>
+                            <option value="0" <?= empty($_SESSION['instalacio_id']) ? 'selected' : '' ?>>🌐 Totes les instal·lacions</option>
+                        <?php endif; ?>
                         <?php foreach ($_SESSION['assignacions'] as $a): ?>
                             <option value="<?= $a['instalacio_id'] ?>" <?= ($a['instalacio_id'] == ($_SESSION['instalacio_id'] ?? '')) ? 'selected' : '' ?>>
                                 <?= e($a['instalacio_nom']) ?>

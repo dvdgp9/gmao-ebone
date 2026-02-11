@@ -15,6 +15,12 @@ class DashboardController extends Controller
         $this->requireAuth();
         $instalacioId = $this->currentInstalacioId();
 
+        // Superadmin sense instal·lació seleccionada: vista global
+        if (!$instalacioId && !empty($_SESSION['is_superadmin'])) {
+            $this->globalDashboard();
+            return;
+        }
+
         $stats = [
             'equips_actius' => 0,
             'tasques_pla' => 0,
@@ -88,6 +94,36 @@ class DashboardController extends Controller
             'flash' => $this->getFlash(),
             'stats' => $stats,
             'instalacioId' => $instalacioId,
+        ]);
+    }
+
+    private function globalDashboard(): void
+    {
+        $db = Database::getInstance();
+
+        $instalacions = $db->query('
+            SELECT i.id, i.nom, i.adreca,
+                   (SELECT COUNT(*) FROM equips e WHERE e.instalacio_id = i.id AND e.actiu = 1) AS equips,
+                   (SELECT COUNT(*) FROM tasques_pla tp WHERE tp.instalacio_id = i.id AND tp.en_curs = 1) AS tasques_pla,
+                   (SELECT COUNT(*) FROM tasques_pla tp WHERE tp.instalacio_id = i.id AND tp.en_curs = 1 AND tp.data_propera_realitzacio < CURDATE()) AS tasques_vencudes,
+                   (SELECT COUNT(*) FROM tasques_pla tp WHERE tp.instalacio_id = i.id AND tp.en_curs = 1 AND tp.data_propera_realitzacio <= CURDATE()) AS tasques_pendents,
+                   (SELECT COUNT(*) FROM espais es WHERE es.instalacio_id = i.id AND es.actiu = 1) AS espais
+            FROM instalacions i
+            WHERE i.activa = 1
+            ORDER BY i.nom
+        ')->fetchAll();
+
+        $totals = [
+            'instalacions' => count($instalacions),
+            'equips' => array_sum(array_column($instalacions, 'equips')),
+            'tasques_pla' => array_sum(array_column($instalacions, 'tasques_pla')),
+            'tasques_vencudes' => array_sum(array_column($instalacions, 'tasques_vencudes')),
+        ];
+
+        $this->view('dashboard.global', [
+            'flash' => $this->getFlash(),
+            'instalacions' => $instalacions,
+            'totals' => $totals,
         ]);
     }
 }
