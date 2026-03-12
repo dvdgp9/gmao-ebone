@@ -3,9 +3,9 @@ $title = 'Catàleg de Tasques';
 ob_start();
 ?>
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
     <div>
-        <h2 class="text-2xl font-bold text-gray-800">Catàleg de Tasques</h2>
+        <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Catàleg de Tasques</h2>
         <p class="text-gray-500 text-sm mt-1">Base de dades global de tasques de manteniment</p>
     </div>
     <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
@@ -18,7 +18,7 @@ ob_start();
 
 <!-- Buscador -->
 <div class="mb-4">
-    <form method="GET" action="<?= url('tasques-cataleg') ?>" class="flex gap-2">
+    <form method="GET" action="<?= url('tasques-cataleg') ?>" class="flex flex-col sm:flex-row gap-2">
         <input type="text" name="q" value="<?= e($search) ?>" placeholder="Cercar per nom, codi o sistema..."
                class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
         <button type="submit" class="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 transition">Cercar</button>

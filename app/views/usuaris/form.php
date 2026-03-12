@@ -9,7 +9,7 @@ ob_start();
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         Tornar a usuaris
     </a>
-    <h2 class="text-2xl font-bold text-gray-800 mt-2"><?= e($title) ?></h2>
+    <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mt-2"><?= e($title) ?></h2>
 </div>
 
 <form method="POST" action="<?= $action ?>" class="space-y-6">
@@ -93,7 +93,7 @@ ob_start();
         </div>
     </div>
 
-    <div class="flex items-center gap-3">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <button type="submit" class="bg-brand text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-dark transition">
             <?= $usuari ? 'Actualitzar' : 'Crear usuari' ?>
         </button>

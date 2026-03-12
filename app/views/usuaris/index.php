@@ -3,9 +3,9 @@ $title = 'Usuaris';
 ob_start();
 ?>
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
     <div>
-        <h2 class="text-2xl font-bold text-gray-800">Usuaris</h2>
+        <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Usuaris</h2>
         <p class="text-gray-500 text-sm mt-1">Gestió d'usuaris i permisos</p>
     </div>
     <a href="<?= url('usuaris/create') ?>" class="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition flex items-center gap-2">

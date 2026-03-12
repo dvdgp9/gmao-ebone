@@ -4,7 +4,7 @@ ob_start();
 ?>
 
 <div class="mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">Registre de Tasques</h2>
+    <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Registre de Tasques</h2>
     <p class="text-gray-500 text-sm mt-1">Historial d'execucions de tasques de manteniment</p>
 </div>
 
@@ -59,7 +59,7 @@ ob_start();
     </div>
 
     <?php if ($pagination['total_pages'] > 1): ?>
-    <div class="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+    <div class="px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <p class="text-sm text-gray-500">
             Mostrant <?= count($registres) ?> de <?= $pagination['total'] ?> registres
         </p>

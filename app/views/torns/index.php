@@ -3,9 +3,9 @@ $title = 'Torns';
 ob_start();
 ?>
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
     <div>
-        <h2 class="text-2xl font-bold text-gray-800">Torns</h2>
+        <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Torns</h2>
         <p class="text-gray-500 text-sm mt-1">Gestió de torns de la instal·lació</p>
     </div>
     <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>

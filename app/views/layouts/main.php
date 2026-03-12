@@ -152,7 +152,7 @@
         <!-- Main content -->
         <div class="flex-1 lg:ml-64">
             <!-- Topbar -->
-            <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-20">
+            <header class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-20">
                 <button id="sidebarToggle" class="lg:hidden text-gray-500 hover:text-gray-700">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
@@ -169,7 +169,7 @@
             </header>
 
             <!-- Page content -->
-            <main class="p-6">
+            <main class="p-4 sm:p-6">
                 <?php $flash = $flash ?? flash(); ?>
                 <?php if ($flash): ?>
                     <div class="mb-4 p-3 rounded-lg text-sm <?= $flash['type'] === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : ($flash['type'] === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-brand-light text-brand-dark border border-brand-light') ?>">

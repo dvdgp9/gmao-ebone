@@ -5,7 +5,7 @@ ob_start();
 ?>
 
 <div class="mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">Vista Setmanal</h2>
+    <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Vista Setmanal</h2>
     <p class="text-gray-500 text-sm mt-1">Tasques programades per setmana i torn</p>
 </div>
 
