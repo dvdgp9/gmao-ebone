@@ -16,6 +16,22 @@ ob_start();
     <?php endif; ?>
 </div>
 
+<div class="mb-4">
+    <form method="GET" action="<?= url('pla') ?>" class="flex flex-col sm:flex-row gap-2">
+        <input
+            type="text"
+            name="q"
+            value="<?= e($search ?? '') ?>"
+            placeholder="Cercar per codi, tasca, equip, espai o torn..."
+            class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none"
+        >
+        <button type="submit" class="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 transition">Filtrar</button>
+        <?php if (!empty($search)): ?>
+            <a href="<?= url('pla') ?>" class="bg-gray-100 text-gray-500 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 transition text-center">Netejar</a>
+        <?php endif; ?>
+    </form>
+</div>
+
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -90,6 +106,9 @@ ob_start();
     </div>
     <div class="px-4 py-3 border-t border-gray-200 text-sm text-gray-500">
         <?= count($tasques) ?> tasques al pla
+        <?php if (!empty($search)): ?>
+            <span>per a "<?= e($search) ?>"</span>
+        <?php endif; ?>
     </div>
 </div>
 
