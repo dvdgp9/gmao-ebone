@@ -28,6 +28,40 @@ class TascaPla extends Model
         );
     }
 
+    public static function searchByInstalacio(int $instalacioId, string $search = '', string $orderBy = 'data_propera_realitzacio ASC'): array
+    {
+        $sql = '
+            SELECT tp.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
+                   eq.nom_mn AS equip_nom, es.nom AS espai_nom,
+                   t.nom AS torn_nom, p.nom AS periodicitat_nom,
+                   n.nom AS normativa_nom
+            FROM tasques_pla tp
+            JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
+            LEFT JOIN equips eq ON eq.id = tp.equip_id
+            LEFT JOIN espais es ON es.id = tp.espai_id
+            LEFT JOIN torns t ON t.id = tp.torn_id
+            LEFT JOIN periodicitats p ON p.id = tp.periodicitat_id
+            LEFT JOIN normatives n ON n.id = tp.normativa_id
+            WHERE tp.instalacio_id = ? AND tp.en_curs = 1';
+        $params = [$instalacioId];
+
+        if ($search !== '') {
+            $sql .= ' AND (
+                tc.codi LIKE ?
+                OR tc.nom LIKE ?
+                OR eq.nom_mn LIKE ?
+                OR es.nom LIKE ?
+                OR t.nom LIKE ?
+            )';
+            $like = "%{$search}%";
+            $params = array_merge($params, [$like, $like, $like, $like, $like]);
+        }
+
+        $sql .= ' ORDER BY ' . $orderBy;
+
+        return static::query($sql, $params);
+    }
+
     public static function getSetmana(int $instalacioId, string $dilluns, string $diumenge, ?int $tornId = null): array
     {
         $sql = '

@@ -22,10 +22,15 @@ class TascaPlaController extends Controller
             $this->redirect('dashboard');
         }
 
-        $tasques = TascaPla::allByInstalacio($instalacioId);
+        $search = trim($this->get('q', ''));
+        $tasques = $search !== ''
+            ? TascaPla::searchByInstalacio($instalacioId, $search)
+            : TascaPla::allByInstalacio($instalacioId);
+
         $this->view('pla.index', [
             'title' => 'Pla de Manteniment',
             'tasques' => $tasques,
+            'search' => $search,
             'flash' => $this->getFlash(),
         ]);
     }
