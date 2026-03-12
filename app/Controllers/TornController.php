@@ -42,7 +42,7 @@ class TornController extends Controller
             $this->redirect('torns');
         }
 
-        Torn::create([
+        $data = Torn::sanitizeWriteData([
             'instalacio_id' => $this->currentInstalacioId(),
             'nom' => trim($this->post('nom', '')),
             'dies_setmana' => $this->buildDiesJson(),
@@ -50,6 +50,7 @@ class TornController extends Controller
             'hora_fi' => $this->post('hora_fi') ?: null,
             'actiu' => $this->post('actiu', 1) ? 1 : 0,
         ]);
+        Torn::create($data);
         $this->setFlash('success', 'Torn creat correctament.');
         $this->redirect('torns');
     }
@@ -84,13 +85,14 @@ class TornController extends Controller
             $this->redirect('torns');
         }
 
-        Torn::update((int)$id, [
+        $data = Torn::sanitizeWriteData([
             'nom' => trim($this->post('nom', '')),
             'dies_setmana' => $this->buildDiesJson(),
             'hora_inici' => $this->post('hora_inici') ?: null,
             'hora_fi' => $this->post('hora_fi') ?: null,
             'actiu' => $this->post('actiu', 1) ? 1 : 0,
         ]);
+        Torn::update((int)$id, $data);
         $this->setFlash('success', 'Torn actualitzat correctament.');
         $this->redirect('torns');
     }

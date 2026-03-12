@@ -177,6 +177,37 @@ class TascaPlaController extends Controller
         ]);
     }
 
+    public function dia(): void
+    {
+        $this->requireAuth();
+        $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            $this->setFlash('error', 'Selecciona una instal·lació.');
+            $this->redirect('dashboard');
+        }
+
+        $tornId = $this->get('torn') ? (int)$this->get('torn') : null;
+        $dataParam = $this->get('data', date('Y-m-d'));
+        $dataSeleccionada = \DateTime::createFromFormat('Y-m-d', $dataParam) ?: new \DateTime();
+
+        $tasques = TascaPla::getDia(
+            $instalacioId,
+            $dataSeleccionada->format('Y-m-d'),
+            $tornId
+        );
+
+        $torns = Torn::allByInstalacio($instalacioId);
+
+        $this->view('dia.index', [
+            'title' => 'Vista Diària',
+            'tasques' => $tasques,
+            'torns' => $torns,
+            'tornActual' => $tornId,
+            'dataSeleccionada' => $dataSeleccionada,
+            'flash' => $this->getFlash(),
+        ]);
+    }
+
     private function getFormData(): array
     {
         return [

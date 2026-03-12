@@ -67,6 +67,7 @@ $router->post('pla/delete/{id}', TascaPlaController::class, 'delete');
 
 // Vista Setmanal
 $router->get('setmana', TascaPlaController::class, 'setmana');
+$router->get('dia', TascaPlaController::class, 'dia');
 
 // Registre de Tasques
 $router->get('registre', RegistreController::class, 'index');
