@@ -34,7 +34,67 @@ ob_start();
     </form>
 </div>
 
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+<div class="space-y-4 md:hidden">
+    <?php if (empty($equips)): ?>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-400">No hi ha equips registrats.</div>
+    <?php else: ?>
+        <?php foreach ($equips as $equip): ?>
+        <?php
+        $estatColors = [
+            'MB' => 'bg-green-50 text-green-700',
+            'B' => 'bg-brand-light text-brand-dark',
+            'R' => 'bg-yellow-50 text-yellow-700',
+            'D' => 'bg-red-50 text-red-700',
+            'BAIXA' => 'bg-gray-100 text-gray-500',
+        ];
+        $color = $estatColors[$equip['estat_nom'] ?? ''] ?? 'bg-gray-50 text-gray-500';
+        ?>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="font-mono text-xs text-brand"><?= e($equip['nom_mn']) ?></div>
+                    <h3 class="text-sm font-semibold text-gray-800 mt-1"><?= e($equip['nom_equip']) ?></h3>
+                    <?php if (!empty($equip['model'])): ?>
+                        <div class="text-xs text-gray-400 mt-0.5"><?= e($equip['model']) ?></div>
+                    <?php endif; ?>
+                </div>
+                <span class="inline-block text-xs px-2 py-0.5 rounded whitespace-nowrap <?= $color ?>"><?= e($equip['estat_nom'] ?? '-') ?></span>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
+                <div>
+                    <div class="text-gray-400">Sistema</div>
+                    <div class="mt-0.5">
+                        <?php if ($equip['sistema_codi']): ?>
+                            <span class="inline-block bg-brand-light text-brand-dark text-xs px-2 py-0.5 rounded"><?= e($equip['sistema_codi']) ?></span>
+                        <?php else: ?>
+                            <span class="text-gray-500">-</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Tipus</div>
+                    <div class="text-gray-700 mt-0.5"><?= e($equip['tipus_nom'] ?? '-') ?></div>
+                </div>
+                <div class="col-span-2">
+                    <div class="text-gray-400">Espai</div>
+                    <div class="text-gray-700 mt-0.5"><?= e($equip['espai_nom'] ?? '-') ?></div>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 mt-4 pt-3 border-t border-gray-100">
+                <a href="<?= url('equips/edit/' . $equip['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
+                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
+                <form method="POST" action="<?= url('equips/delete/' . $equip['id']) ?>" onsubmit="return confirm('Segur que vols eliminar aquest equip?')">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="text-sm text-red-600 hover:text-red-700 transition">Eliminar</button>
+                </form>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</div>
+
+<div class="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
@@ -103,7 +163,7 @@ ob_start();
     </div>
 
     <?php if ($pagination['total_pages'] > 1): ?>
-    <div class="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+    <div class="px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <p class="text-sm text-gray-500">
             Mostrant <?= count($equips) ?> de <?= $pagination['total'] ?> equips
         </p>

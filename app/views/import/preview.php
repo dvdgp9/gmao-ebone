@@ -8,14 +8,30 @@ ob_start();
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         Tornar
     </a>
-    <h2 class="text-2xl font-bold text-gray-800 mt-2">Vista prèvia</h2>
+    <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mt-2">Vista prèvia</h2>
     <p class="text-gray-500 text-sm mt-1">
         Tipus: <span class="font-medium"><?= $importType === 'tasques_cataleg' ? 'Tasques al Catàleg' : 'Tasques al Pla' ?></span>
         — <?= $totalRows ?> files detectades
     </p>
 </div>
 
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+<div class="space-y-3 md:hidden mb-6">
+    <?php foreach ($preview as $i => $row): ?>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div class="text-xs font-semibold text-gray-500 mb-3">Fila <?= $i + 1 ?></div>
+        <div class="space-y-2 text-xs">
+            <?php foreach ($headers as $col => $h): ?>
+            <div>
+                <div class="text-gray-400"><?= e($h ?: "Col {$col}") ?></div>
+                <div class="text-gray-700 mt-0.5 break-words"><?= e($row[$col] ?? '') ?></div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endforeach; ?>
+</div>
+
+<div class="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
@@ -45,7 +61,7 @@ ob_start();
     <?php endif; ?>
 </div>
 
-<form method="POST" action="<?= url('import/process') ?>" class="flex items-center gap-3">
+<form method="POST" action="<?= url('import/process') ?>" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
     <?= csrf_field() ?>
     <button type="submit" class="bg-green-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition"
             onclick="return confirm('Segur que vols importar <?= $totalRows ?> registres?')">

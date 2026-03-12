@@ -50,7 +50,74 @@ ob_start();
     </div>
 </div>
 
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+<div class="space-y-4 md:hidden">
+    <?php if (empty($usuaris)): ?>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-400">No hi ha usuaris registrats.</div>
+    <?php else: ?>
+        <?php foreach ($usuaris as $u): ?>
+        <?php
+        $rolColors = [
+            'admin_instalacio' => 'bg-orange-50 text-orange-700',
+            'cap_manteniment' => 'bg-brand-light text-brand-dark',
+            'tecnic' => 'bg-green-50 text-green-700',
+            'lectura' => 'bg-gray-100 text-gray-600',
+        ];
+        $color = $rolColors[$u['rol_nom'] ?? ''] ?? 'bg-gray-50 text-gray-600';
+        ?>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 <?= !$u['actiu'] ? 'opacity-70' : '' ?>">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-8 h-8 bg-brand/10 rounded-full flex items-center justify-center text-brand text-sm font-bold flex-shrink-0">
+                        <?= strtoupper(substr($u['nom'], 0, 1)) ?>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="font-medium text-gray-800 truncate"><?= e($u['nom'] . ' ' . ($u['cognoms'] ?? '')) ?></p>
+                        <p class="text-xs text-gray-400 truncate"><?= e($u['email']) ?></p>
+                    </div>
+                </div>
+                <?php if ($u['actiu']): ?>
+                    <span class="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full whitespace-nowrap"><span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Actiu</span>
+                <?php else: ?>
+                    <span class="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap"><span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span> Inactiu</span>
+                <?php endif; ?>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
+                <div>
+                    <div class="text-gray-400">Rol</div>
+                    <div class="mt-0.5">
+                        <?php if (!empty($u['is_superadmin'])): ?>
+                            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-red-50 text-red-700">Superadmin</span>
+                        <?php elseif (!empty($u['rol_nom'])): ?>
+                            <span class="inline-block text-xs px-2 py-0.5 rounded-full font-medium <?= $color ?>"><?= e(ucfirst(str_replace('_', ' ', $u['rol_nom']))) ?></span>
+                        <?php else: ?>
+                            <span class="text-gray-500">Sense rol</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Creat</div>
+                    <div class="text-gray-700 mt-0.5"><?= date('d/m/Y', strtotime($u['created_at'] ?? 'now')) ?></div>
+                </div>
+                <div class="col-span-2">
+                    <div class="text-gray-400">Instal·lació</div>
+                    <div class="text-gray-700 mt-0.5"><?= e($u['instalacio_nom'] ?? '—') ?></div>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 mt-4 pt-3 border-t border-gray-100">
+                <a href="<?= url('usuaris/edit/' . $u['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
+                <?php if (($u['id'] ?? 0) != ($_SESSION['user_id'] ?? 0)): ?>
+                <form method="POST" action="<?= url('usuaris/toggle/' . $u['id']) ?>" onsubmit="return confirm('<?= $u['actiu'] ? 'Desactivar' : 'Activar' ?> aquest usuari?')">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="text-sm <?= $u['actiu'] ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700' ?> transition"><?= $u['actiu'] ? 'Desactivar' : 'Activar' ?></button>
+                </form>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</div>
+
+<div class="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>

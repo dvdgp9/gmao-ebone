@@ -28,7 +28,46 @@ ob_start();
     </form>
 </div>
 
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+<div class="space-y-4 md:hidden">
+    <?php if (empty($tasques)): ?>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-400">No hi ha tasques al catàleg.</div>
+    <?php else: ?>
+        <?php foreach ($tasques as $tasca): ?>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="font-mono text-xs text-brand"><?= e($tasca['codi'] ?? '-') ?></div>
+                    <h3 class="text-sm font-semibold text-gray-800 mt-1"><?= e($tasca['nom']) ?></h3>
+                </div>
+                <?php if (!empty($tasca['sistema_codi'])): ?>
+                    <span class="inline-block bg-brand-light text-brand-dark text-xs px-2 py-0.5 rounded whitespace-nowrap"><?= e($tasca['sistema_codi']) ?></span>
+                <?php endif; ?>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
+                <div>
+                    <div class="text-gray-400">Periodicitat</div>
+                    <div class="text-gray-700 mt-0.5"><?= e($tasca['periodicitat_nom'] ?? '-') ?></div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Normativa</div>
+                    <div class="text-gray-700 mt-0.5"><?= e($tasca['normativa_nom'] ?? '-') ?></div>
+                </div>
+            </div>
+            <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
+            <div class="flex items-center justify-end gap-3 mt-4 pt-3 border-t border-gray-100">
+                <a href="<?= url('tasques-cataleg/edit/' . $tasca['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
+                <form method="POST" action="<?= url('tasques-cataleg/delete/' . $tasca['id']) ?>" onsubmit="return confirm('Segur que vols desactivar aquesta tasca?')">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="text-sm text-red-600 hover:text-red-700 transition">Desactivar</button>
+                </form>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</div>
+
+<div class="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>

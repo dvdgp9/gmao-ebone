@@ -4,7 +4,7 @@ ob_start();
 ?>
 
 <div class="mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">Importar Excel</h2>
+    <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Importar Excel</h2>
     <p class="text-gray-500 text-sm mt-1">Puja un fitxer Excel per importar dades al sistema</p>
 </div>
 
@@ -29,7 +29,7 @@ ob_start();
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-brand-light file:text-brand-dark hover:file:bg-brand-light">
             </div>
 
-            <button type="submit" class="bg-brand text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-dark transition">
+            <button type="submit" class="w-full sm:w-auto bg-brand text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-dark transition">
                 Pujar i previsualitzar
             </button>
         </form>

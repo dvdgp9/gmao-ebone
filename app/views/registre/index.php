@@ -8,7 +8,57 @@ ob_start();
     <p class="text-gray-500 text-sm mt-1">Historial d'execucions de tasques de manteniment</p>
 </div>
 
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+<div class="space-y-4 md:hidden">
+    <?php if (empty($registres)): ?>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-400">No hi ha registres d'execucions.</div>
+    <?php else: ?>
+        <?php foreach ($registres as $r): ?>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="font-mono text-xs text-brand"><?= e($r['tasca_codi'] ?? '-') ?></div>
+                    <h3 class="text-sm font-semibold text-gray-800 mt-1"><?= e($r['tasca_nom'] ?? '-') ?></h3>
+                </div>
+                <?php if ($r['realitzada']): ?>
+                    <span class="inline-block bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded">Fet</span>
+                <?php else: ?>
+                    <span class="inline-block bg-red-50 text-red-700 text-xs px-2 py-0.5 rounded">No fet</span>
+                <?php endif; ?>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
+                <div>
+                    <div class="text-gray-400">Data</div>
+                    <div class="text-gray-700 mt-0.5"><?= format_date($r['data_execucio']) ?></div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Tècnic</div>
+                    <div class="text-gray-700 mt-0.5"><?= e($r['usuari_nom'] ?? '-') ?></div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Espai</div>
+                    <div class="text-gray-700 mt-0.5"><?= e($r['espai_nom'] ?? '-') ?></div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Torn</div>
+                    <div class="mt-0.5">
+                        <?php if (!empty($r['torn_nom'])): ?>
+                            <span class="inline-block bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded"><?= e($r['torn_nom']) ?></span>
+                        <?php else: ?>
+                            <span class="text-gray-500">-</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="col-span-2">
+                    <div class="text-gray-400">Comentaris</div>
+                    <div class="text-gray-700 mt-0.5"><?= e($r['comentaris'] ?? '-') ?></div>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</div>
+
+<div class="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>

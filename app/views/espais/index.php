@@ -16,7 +16,41 @@ ob_start();
     <?php endif; ?>
 </div>
 
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+<div class="space-y-4 md:hidden">
+    <?php if (empty($espais)): ?>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-400">No hi ha espais registrats.</div>
+    <?php else: ?>
+        <?php foreach ($espais as $espai): ?>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div class="min-w-0">
+                <div class="font-mono text-xs text-brand"><?= e($espai['codi'] ?? '-') ?></div>
+                <h3 class="text-sm font-semibold text-gray-800 mt-1"><?= e($espai['nom']) ?></h3>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
+                <div>
+                    <div class="text-gray-400">Planta</div>
+                    <div class="text-gray-700 mt-0.5"><?= e($espai['planta'] ?? '-') ?></div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Zona</div>
+                    <div class="text-gray-700 mt-0.5"><?= e($espai['zona'] ?? '-') ?></div>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 mt-4 pt-3 border-t border-gray-100">
+                <a href="<?= url('espais/edit/' . $espai['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
+                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
+                <form method="POST" action="<?= url('espais/delete/' . $espai['id']) ?>" onsubmit="return confirm('Segur que vols eliminar aquest espai?')">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="text-sm text-red-600 hover:text-red-700 transition">Eliminar</button>
+                </form>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</div>
+
+<div class="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>

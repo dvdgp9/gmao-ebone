@@ -26,7 +26,7 @@
     ?>
     <div class="flex min-h-screen">
         <!-- Sidebar -->
-        <aside id="sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full z-30 transition-transform -translate-x-full lg:translate-x-0">
+        <aside id="sidebar" class="w-[86vw] max-w-72 bg-white border-r border-gray-200 flex flex-col fixed h-full z-30 transition-transform -translate-x-full lg:w-64 lg:max-w-none lg:translate-x-0">
             <div class="p-5 border-b border-gray-200">
                 <h1 class="text-xl font-bold text-gray-800">GMAO</h1>
                 <p class="text-xs text-gray-400 mt-0.5">Gestió de Manteniment</p>
@@ -152,18 +152,21 @@
         <!-- Main content -->
         <div class="flex-1 lg:ml-64">
             <!-- Topbar -->
-            <header class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-20">
-                <button id="sidebarToggle" class="lg:hidden text-gray-500 hover:text-gray-700">
+            <header class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 sticky top-0 z-20">
+                <div class="flex items-center gap-3 min-w-0">
+                <button id="sidebarToggle" class="lg:hidden text-gray-500 hover:text-gray-700 flex-shrink-0">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="lg:hidden text-sm font-semibold text-gray-800 truncate"><?= e($title ?? 'GMAO') ?></span>
                     <?php if (!empty($_SESSION['instalacio_nom'])): ?>
-                        <span class="text-sm text-gray-500">
+                        <span class="hidden sm:inline text-sm text-gray-500 truncate">
                             <span class="font-medium text-gray-700"><?= e($_SESSION['instalacio_nom'] ?? '') ?></span>
                         </span>
                     <?php endif; ?>
                 </div>
-                <div class="text-sm text-gray-400">
+                </div>
+                <div class="hidden sm:block text-sm text-gray-400 flex-shrink-0">
                     <?= date('d/m/Y H:i') ?>
                 </div>
             </header>
