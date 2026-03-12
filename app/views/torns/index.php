@@ -24,13 +24,15 @@ ob_start();
         <?php
             $dies = json_decode($torn['dies_setmana'] ?? '[]', true) ?: [];
             $diesNoms = ['dll' => 'Dl', 'dm' => 'Dm', 'dx' => 'Dx', 'dj' => 'Dj', 'dv' => 'Dv', 'ds' => 'Ds', 'dg' => 'Dg'];
+            $horaInici = $torn['hora_inici'] ?? null;
+            $horaFi = $torn['hora_fi'] ?? null;
         ?>
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div class="flex items-start justify-between mb-3">
                 <div>
                     <h3 class="text-lg font-semibold text-gray-800"><?= e($torn['nom']) ?></h3>
-                    <?php if ($torn['hora_inici'] || $torn['hora_fi']): ?>
-                        <p class="text-sm text-gray-500 mt-0.5"><?= e($torn['hora_inici'] ?? '?') ?> — <?= e($torn['hora_fi'] ?? '?') ?></p>
+                    <?php if ($horaInici || $horaFi): ?>
+                        <p class="text-sm text-gray-500 mt-0.5"><?= e($horaInici ?? '?') ?> — <?= e($horaFi ?? '?') ?></p>
                     <?php endif; ?>
                 </div>
                 <span class="inline-block px-2 py-0.5 rounded text-xs <?= $torn['actiu'] ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500' ?>">
