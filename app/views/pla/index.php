@@ -32,61 +32,78 @@ ob_start();
     </form>
 </div>
 
-<div class="space-y-4 md:hidden">
+<?php $limitMobile = 15; ?>
+<!-- Mobile: cards compactes amb expand + mostrar més -->
+<div class="md:hidden" x-data="{ showAll: false, expanded: {} }">
     <?php if (empty($tasques)): ?>
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-400">No hi ha tasques al pla de manteniment.</div>
     <?php else: ?>
-        <?php foreach ($tasques as $t): ?>
+        <div class="space-y-2">
+        <?php foreach ($tasques as $idx => $t): ?>
         <?php
             $vencuda = $t['data_propera_realitzacio'] && $t['data_propera_realitzacio'] < date('Y-m-d');
             $avui = $t['data_propera_realitzacio'] === date('Y-m-d');
         ?>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($avui ? 'border-yellow-200 bg-yellow-50/70' : '') ?>">
-            <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                    <div class="font-mono text-xs text-brand"><?= e($t['tasca_codi'] ?? '-') ?></div>
-                    <h3 class="text-sm font-semibold text-gray-800 mt-1"><?= e($t['tasca_nom']) ?></h3>
-                    <?php if ($t['equip_nom']): ?>
-                        <div class="text-xs text-gray-400 mt-0.5"><?= e($t['equip_nom']) ?></div>
+        <div x-show="showAll || <?= $idx ?> < <?= $limitMobile ?>" 
+             class="bg-white rounded-lg shadow-sm border p-3 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($avui ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
+            <!-- Fila compacta -->
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                    <span class="font-mono text-[11px] text-brand shrink-0"><?= e($t['tasca_codi'] ?? '-') ?></span>
+                    <span class="text-sm text-gray-800 truncate"><?= e($t['tasca_nom']) ?></span>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                    <?php if ($vencuda): ?>
+                        <span class="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-medium">Vençuda</span>
+                    <?php elseif ($avui): ?>
+                        <span class="bg-yellow-100 text-yellow-700 text-[10px] px-1.5 py-0.5 rounded font-medium">Avui</span>
+                    <?php endif; ?>
+                    <?php if ($t['torn_nom']): ?>
+                        <span class="bg-purple-50 text-purple-700 text-[10px] px-1.5 py-0.5 rounded"><?= e($t['torn_nom']) ?></span>
                     <?php endif; ?>
                 </div>
-                <?php if ($t['torn_nom']): ?>
-                    <span class="inline-block bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded whitespace-nowrap"><?= e($t['torn_nom']) ?></span>
-                <?php endif; ?>
             </div>
-
-            <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
-                <div>
-                    <div class="text-gray-400">Espai</div>
-                    <div class="text-gray-700 mt-0.5"><?= e($t['espai_nom'] ?? '-') ?></div>
-                </div>
-                <div>
-                    <div class="text-gray-400">Periodicitat</div>
-                    <div class="text-gray-700 mt-0.5"><?= e($t['periodicitat_nom'] ?? '-') ?></div>
-                </div>
-                <div>
-                    <div class="text-gray-400">Darrera</div>
-                    <div class="text-gray-700 mt-0.5"><?= $t['data_darrera_realitzacio'] ? format_date($t['data_darrera_realitzacio']) : '-' ?></div>
-                </div>
-                <div>
-                    <div class="text-gray-400">Propera</div>
-                    <div class="mt-0.5 <?= $vencuda ? 'text-red-600 font-medium' : ($avui ? 'text-yellow-700 font-medium' : 'text-gray-700') ?>">
-                        <?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?>
-                    </div>
-                </div>
+            <!-- Info secundària -->
+            <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
+                <span class="truncate"><?= e($t['espai_nom'] ?? '-') ?><?= $t['equip_nom'] ? ' · ' . e($t['equip_nom']) : '' ?></span>
+                <button type="button" @click="expanded[<?= $t['id'] ?>] = !expanded[<?= $t['id'] ?>]" class="text-brand hover:text-brand-dark text-[11px] ml-2 shrink-0">
+                    <span x-show="!expanded[<?= $t['id'] ?>]">+ Detalls</span>
+                    <span x-show="expanded[<?= $t['id'] ?>]">- Tancar</span>
+                </button>
             </div>
-
-            <div class="flex items-center justify-end gap-3 mt-4 pt-3 border-t border-gray-100">
-                <a href="<?= url('pla/edit/' . $t['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
-                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
-                <form method="POST" action="<?= url('pla/delete/' . $t['id']) ?>" onsubmit="return confirm('Segur que vols eliminar aquesta tasca del pla?')">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="text-sm text-red-600 hover:text-red-700 transition">Eliminar</button>
-                </form>
-                <?php endif; ?>
+            <!-- Detalls expandibles -->
+            <div x-show="expanded[<?= $t['id'] ?>]" x-collapse class="mt-3 pt-2 border-t border-gray-100 text-xs space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Periodicitat</span>
+                    <span class="text-gray-700"><?= e($t['periodicitat_nom'] ?? '-') ?></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Darrera</span>
+                    <span class="text-gray-700"><?= $t['data_darrera_realitzacio'] ? format_date($t['data_darrera_realitzacio']) : '-' ?></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Propera</span>
+                    <span class="<?= $vencuda ? 'text-red-600 font-medium' : 'text-gray-700' ?>"><?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?></span>
+                </div>
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <a href="<?= url('pla/edit/' . $t['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
+                    <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
+                    <form method="POST" action="<?= url('pla/delete/' . $t['id']) ?>" onsubmit="return confirm('Segur que vols eliminar aquesta tasca del pla?')">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="text-sm text-red-600 hover:text-red-700 transition">Eliminar</button>
+                    </form>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
         <?php endforeach; ?>
+        </div>
+        <?php if (count($tasques) > $limitMobile): ?>
+        <button x-show="!showAll" @click="showAll = true" type="button"
+                class="w-full mt-3 bg-white border border-gray-300 text-gray-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+            Mostrar <?= count($tasques) - $limitMobile ?> tasques més
+        </button>
+        <?php endif; ?>
     <?php endif; ?>
 </div>
 

@@ -1,20 +1,40 @@
 <?php
 $title = 'Vista Setmanal';
 $diesNom = ['dl.', 'dt.', 'dc.', 'dj.', 'dv.', 'ds.', 'dg.'];
+$queryBase = 'setmana=' . $setmanaOffset . ($tornActual ? '&torn=' . $tornActual : '') . ($search ? '&q=' . urlencode($search) : '');
+$nVencudes = count(array_filter($tasques, fn($t) => $t['data_propera_realitzacio'] < $dilluns->format('Y-m-d')));
+$nSetmana = count($tasques) - $nVencudes;
+$limitMobile = 15;
 ob_start();
 ?>
 
-<div class="mb-6">
+<div class="mb-4">
     <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Vista Setmanal</h2>
     <p class="text-gray-500 text-sm mt-1">Tasques programades per setmana i torn</p>
 </div>
 
-<!-- Navegació de setmana + filtre torn -->
-<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-    <div class="flex items-center gap-2">
-        <a href="<?= url('setmana?setmana=' . ($setmanaOffset - 1) . ($tornActual ? '&torn=' . $tornActual : '')) ?>"
+<!-- Buscador -->
+<div class="mb-4">
+    <form method="GET" action="<?= url('setmana') ?>" class="flex flex-col sm:flex-row gap-2">
+        <input type="hidden" name="setmana" value="<?= $setmanaOffset ?>">
+        <?php if ($tornActual): ?>
+            <input type="hidden" name="torn" value="<?= e((string)$tornActual) ?>">
+        <?php endif; ?>
+        <input type="text" name="q" value="<?= e($search ?? '') ?>" placeholder="Cercar tasca, codi, espai, equip..."
+               class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+        <button type="submit" class="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 transition">Cercar</button>
+        <?php if ($search): ?>
+            <a href="<?= url('setmana?setmana=' . $setmanaOffset . ($tornActual ? '&torn=' . $tornActual : '')) ?>" class="bg-gray-100 text-gray-500 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 transition text-center">Netejar</a>
+        <?php endif; ?>
+    </form>
+</div>
+
+<!-- Navegació + filtres -->
+<div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 mb-4">
+    <div class="flex flex-wrap items-center gap-2">
+        <a href="<?= url('setmana?setmana=' . ($setmanaOffset - 1) . ($tornActual ? '&torn=' . $tornActual : '') . ($search ? '&q=' . urlencode($search) : '')) ?>"
            class="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm hover:bg-gray-50 transition">
-            &larr; Anterior
+            &larr;
         </a>
         <div class="bg-white border border-gray-200 rounded-lg px-4 py-2 text-center">
             <div class="text-sm font-semibold text-gray-800">Setmana <?= $setmanaNum ?></div>
@@ -22,24 +42,24 @@ ob_start();
                 <?= $dilluns->format('d/m/Y') ?> — <?= $diumenge->format('d/m/Y') ?>
             </div>
         </div>
-        <a href="<?= url('setmana?setmana=' . ($setmanaOffset + 1) . ($tornActual ? '&torn=' . $tornActual : '')) ?>"
+        <a href="<?= url('setmana?setmana=' . ($setmanaOffset + 1) . ($tornActual ? '&torn=' . $tornActual : '') . ($search ? '&q=' . urlencode($search) : '')) ?>"
            class="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm hover:bg-gray-50 transition">
-            Següent &rarr;
+            &rarr;
         </a>
         <?php if ($setmanaOffset !== 0): ?>
-        <a href="<?= url('setmana' . ($tornActual ? '?torn=' . $tornActual : '')) ?>"
-           class="text-sm text-brand hover:text-brand-dark transition ml-2">Avui</a>
+        <a href="<?= url('setmana' . ($tornActual ? '?torn=' . $tornActual : '') . ($search ? ($tornActual ? '&' : '?') . 'q=' . urlencode($search) : '')) ?>"
+           class="text-sm text-brand hover:text-brand-dark transition ml-1">Avui</a>
         <?php endif; ?>
     </div>
 
     <div class="flex flex-wrap items-center gap-2">
         <span class="text-sm text-gray-500">Torn:</span>
-        <a href="<?= url('setmana?setmana=' . $setmanaOffset) ?>"
+        <a href="<?= url('setmana?setmana=' . $setmanaOffset . ($search ? '&q=' . urlencode($search) : '')) ?>"
            class="px-3 py-1.5 text-sm rounded-lg <?= !$tornActual ? 'bg-brand text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
             Tots
         </a>
         <?php foreach ($torns as $t): ?>
-        <a href="<?= url('setmana?setmana=' . $setmanaOffset . '&torn=' . $t['id']) ?>"
+        <a href="<?= url('setmana?setmana=' . $setmanaOffset . '&torn=' . $t['id'] . ($search ? '&q=' . urlencode($search) : '')) ?>"
            class="px-3 py-1.5 text-sm rounded-lg <?= $tornActual == $t['id'] ? 'bg-brand text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
             <?= e($t['nom']) ?>
         </a>
@@ -47,64 +67,90 @@ ob_start();
     </div>
 </div>
 
-<!-- Tabla de tasques -->
-<div class="space-y-4 md:hidden">
+<!-- Resum ràpid -->
+<?php if (!empty($tasques)): ?>
+<div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
+    <span class="text-gray-500"><?= count($tasques) ?> tasques</span>
+    <?php if ($nVencudes > 0): ?>
+        <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-medium"><?= $nVencudes ?> vençudes</span>
+    <?php endif; ?>
+    <?php if ($nSetmana > 0): ?>
+        <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-medium"><?= $nSetmana ?> de la setmana</span>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<!-- Mobile: cards compactes amb expand + mostrar més -->
+<div class="md:hidden" x-data="{ showAll: false, expanded: {} }">
     <?php if (empty($tasques)): ?>
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-400">No hi ha tasques pendents ni programades per a aquesta setmana.</div>
     <?php else: ?>
-        <?php foreach ($tasques as $t): ?>
+        <div class="space-y-2">
+        <?php foreach ($tasques as $idx => $t): ?>
         <?php
             $vencuda = $t['data_propera_realitzacio'] && $t['data_propera_realitzacio'] < date('Y-m-d');
             $avui = $t['data_propera_realitzacio'] === date('Y-m-d');
         ?>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($avui ? 'border-yellow-200 bg-yellow-50/70' : '') ?>">
-            <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                    <div class="font-mono text-xs text-brand"><?= e($t['tasca_codi'] ?? '-') ?></div>
-                    <h3 class="text-sm font-semibold text-gray-800 mt-1"><?= e($t['tasca_nom']) ?></h3>
-                    <?php if ($t['equip_nom']): ?>
-                        <div class="text-xs text-gray-400 mt-0.5"><?= e($t['equip_nom']) ?></div>
+        <div x-show="showAll || <?= $idx ?> < <?= $limitMobile ?>" 
+             class="bg-white rounded-lg shadow-sm border p-3 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($avui ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
+            <!-- Fila compacta -->
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                    <span class="font-mono text-[11px] text-brand shrink-0"><?= e($t['tasca_codi'] ?? '-') ?></span>
+                    <span class="text-sm text-gray-800 truncate"><?= e($t['tasca_nom']) ?></span>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                    <?php if ($vencuda): ?>
+                        <span class="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-medium">Vençuda</span>
+                    <?php elseif ($avui): ?>
+                        <span class="bg-yellow-100 text-yellow-700 text-[10px] px-1.5 py-0.5 rounded font-medium">Avui</span>
+                    <?php endif; ?>
+                    <?php if ($t['torn_nom']): ?>
+                        <span class="bg-purple-50 text-purple-700 text-[10px] px-1.5 py-0.5 rounded"><?= e($t['torn_nom']) ?></span>
                     <?php endif; ?>
                 </div>
-                <?php if ($t['torn_nom']): ?>
-                    <span class="inline-block bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded whitespace-nowrap"><?= e($t['torn_nom']) ?></span>
-                <?php endif; ?>
             </div>
-
-            <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
-                <div>
-                    <div class="text-gray-400">Espai</div>
-                    <div class="text-gray-700 mt-0.5"><?= e($t['espai_nom'] ?? '-') ?></div>
-                </div>
-                <div>
-                    <div class="text-gray-400">Periodicitat</div>
-                    <div class="text-gray-700 mt-0.5"><?= e($t['periodicitat_nom'] ?? '-') ?></div>
-                </div>
-                <div class="col-span-2">
-                    <div class="text-gray-400">Data propera</div>
-                    <div class="mt-0.5 <?= $vencuda ? 'text-red-600 font-medium' : ($avui ? 'text-yellow-700 font-medium' : 'text-gray-700') ?>">
-                        <?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?>
-                    </div>
-                </div>
+            <!-- Info secundària -->
+            <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
+                <span class="truncate"><?= e($t['espai_nom'] ?? '-') ?><?= $t['equip_nom'] ? ' · ' . e($t['equip_nom']) : '' ?></span>
+                <button type="button" @click="expanded[<?= $t['id'] ?>] = !expanded[<?= $t['id'] ?>]" class="text-brand hover:text-brand-dark text-[11px] ml-2 shrink-0">
+                    <span x-show="!expanded[<?= $t['id'] ?>]">+ Detalls</span>
+                    <span x-show="expanded[<?= $t['id'] ?>]">- Tancar</span>
+                </button>
             </div>
-
-            <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
-            <div class="mt-4 pt-3 border-t border-gray-100">
-                <form method="POST" action="<?= url('registre/store') ?>">
+            <!-- Detalls expandibles -->
+            <div x-show="expanded[<?= $t['id'] ?>]" x-collapse class="mt-3 pt-2 border-t border-gray-100 text-xs space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Periodicitat</span>
+                    <span class="text-gray-700"><?= e($t['periodicitat_nom'] ?? '-') ?></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Data propera</span>
+                    <span class="<?= $vencuda ? 'text-red-600 font-medium' : 'text-gray-700' ?>"><?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?></span>
+                </div>
+                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
+                <form method="POST" action="<?= url('registre/store') ?>" class="pt-2">
                     <?= csrf_field() ?>
                     <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">
                     <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
                     <input type="hidden" name="realitzada" value="1">
-                    <input type="hidden" name="redirect" value="setmana?setmana=<?= $setmanaOffset ?><?= $tornActual ? '&torn=' . $tornActual : '' ?>">
+                    <input type="hidden" name="redirect" value="setmana?<?= $queryBase ?>">
                     <button type="submit" class="w-full bg-green-50 text-green-700 hover:bg-green-100 px-3 py-2 rounded-lg text-sm font-medium transition"
                             onclick="return confirm('Marcar com a realitzada?')">
                         Fet
                     </button>
                 </form>
+                <?php endif; ?>
             </div>
-            <?php endif; ?>
         </div>
         <?php endforeach; ?>
+        </div>
+        <?php if (count($tasques) > $limitMobile): ?>
+        <button x-show="!showAll" @click="showAll = true" type="button"
+                class="w-full mt-3 bg-white border border-gray-300 text-gray-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+            Mostrar <?= count($tasques) - $limitMobile ?> tasques més
+        </button>
+        <?php endif; ?>
     <?php endif; ?>
 </div>
 
@@ -171,10 +217,6 @@ ob_start();
         </table>
     </div>
     <div class="px-4 py-3 border-t border-gray-200 text-sm text-gray-500">
-        <?php
-        $nVencudes = count(array_filter($tasques, fn($t) => $t['data_propera_realitzacio'] < $dilluns->format('Y-m-d')));
-        $nSetmana = count($tasques) - $nVencudes;
-        ?>
         <?= count($tasques) ?> tasques
         <?php if ($nVencudes > 0): ?>
             <span class="text-red-500 font-medium">(<?= $nVencudes ?> vençudes)</span>

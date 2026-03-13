@@ -6,6 +6,8 @@
     <title><?= e($title ?? 'Dashboard') ?> - <?= e(\App\Config\App::name()) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config={theme:{extend:{colors:{brand:{DEFAULT:'#23AAC5',dark:'#1B8FA6',light:'#E8F7FA',50:'#E8F7FA',100:'#C5EDF3',200:'#8DDBE7',300:'#55C9DB',400:'#23AAC5',500:'#1B8FA6',600:'#167487',700:'#115A68',800:'#0C3F49',900:'#07252A'}}}}}</script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
     <style>
         [x-cloak] { display: none !important; }
         .sidebar-link.active { background-color: #23AAC5; color: white; }

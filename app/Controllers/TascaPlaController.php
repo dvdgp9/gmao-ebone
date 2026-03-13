@@ -154,17 +154,19 @@ class TascaPlaController extends Controller
 
         $tornId = $this->get('torn') ? (int)$this->get('torn') : null;
         $setmanaOffset = (int)$this->get('setmana', 0);
+        $search = trim($this->get('q', ''));
 
         $dilluns = new \DateTime('monday this week');
         $dilluns->modify("{$setmanaOffset} weeks");
         $diumenge = clone $dilluns;
         $diumenge->modify('+6 days');
 
-        $tasques = TascaPla::getSetmana(
+        $tasques = TascaPla::getSetmanaSearch(
             $instalacioId,
             $dilluns->format('Y-m-d'),
             $diumenge->format('Y-m-d'),
-            $tornId
+            $tornId,
+            $search
         );
 
         $torns = Torn::allByInstalacio($instalacioId);
@@ -178,6 +180,7 @@ class TascaPlaController extends Controller
             'diumenge' => $diumenge,
             'setmanaOffset' => $setmanaOffset,
             'setmanaNum' => (int)$dilluns->format('W'),
+            'search' => $search,
             'flash' => $this->getFlash(),
         ]);
     }
@@ -194,11 +197,13 @@ class TascaPlaController extends Controller
         $tornId = $this->get('torn') ? (int)$this->get('torn') : null;
         $dataParam = $this->get('data', date('Y-m-d'));
         $dataSeleccionada = \DateTime::createFromFormat('Y-m-d', $dataParam) ?: new \DateTime();
+        $search = trim($this->get('q', ''));
 
         $tasques = TascaPla::getDia(
             $instalacioId,
             $dataSeleccionada->format('Y-m-d'),
-            $tornId
+            $tornId,
+            $search
         );
 
         $torns = Torn::allByInstalacio($instalacioId);
@@ -209,6 +214,7 @@ class TascaPlaController extends Controller
             'torns' => $torns,
             'tornActual' => $tornId,
             'dataSeleccionada' => $dataSeleccionada,
+            'search' => $search,
             'flash' => $this->getFlash(),
         ]);
     }
