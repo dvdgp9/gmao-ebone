@@ -16,14 +16,14 @@ ob_start();
     <?php endif; ?>
 </div>
 
-<div class="mb-4">
+<div class="mb-3">
     <form method="GET" action="<?= url('pla') ?>" class="flex flex-col sm:flex-row gap-2">
         <input
             type="text"
             name="q"
             value="<?= e($search ?? '') ?>"
             placeholder="Cercar per codi, tasca, equip, espai o torn..."
-            class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none"
+            class="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none"
         >
         <button type="submit" class="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 transition">Filtrar</button>
         <?php if (!empty($search)): ?>
@@ -45,14 +45,13 @@ ob_start();
             $avui = $t['data_propera_realitzacio'] === date('Y-m-d');
         ?>
         <div x-show="showAll || <?= $idx ?> < <?= $limitMobile ?>" 
-             class="bg-white rounded-lg shadow-sm border p-3 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($avui ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
-            <!-- Fila compacta -->
-            <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2 min-w-0 flex-1">
-                    <span class="font-mono text-[11px] text-brand shrink-0"><?= e($t['tasca_codi'] ?? '-') ?></span>
-                    <span class="text-sm text-gray-800 truncate"><?= e($t['tasca_nom']) ?></span>
+             class="bg-white rounded-lg shadow-sm border px-3 py-2.5 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($avui ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
+            <div class="min-w-0">
+                <div class="flex items-start gap-2 min-w-0">
+                    <span class="font-mono text-[11px] text-brand shrink-0 pt-0.5"><?= e($t['tasca_codi'] ?? '-') ?></span>
+                    <span class="text-sm leading-5 text-gray-800 break-words min-w-0"><?= e($t['tasca_nom']) ?></span>
                 </div>
-                <div class="flex items-center gap-1 shrink-0">
+                <div class="flex flex-wrap items-center gap-1 mt-2">
                     <?php if ($vencuda): ?>
                         <span class="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-medium">Vençuda</span>
                     <?php elseif ($avui): ?>
@@ -63,27 +62,25 @@ ob_start();
                     <?php endif; ?>
                 </div>
             </div>
-            <!-- Info secundària -->
-            <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
-                <span class="truncate"><?= e($t['espai_nom'] ?? '-') ?><?= $t['equip_nom'] ? ' · ' . e($t['equip_nom']) : '' ?></span>
-                <button type="button" @click="expanded[<?= $t['id'] ?>] = !expanded[<?= $t['id'] ?>]" class="text-brand hover:text-brand-dark text-[11px] ml-2 shrink-0">
+            <div class="flex items-start justify-between gap-2 mt-2 text-xs text-gray-500">
+                <span class="min-w-0 break-words leading-4"><?= e($t['espai_nom'] ?? '-') ?><?= $t['equip_nom'] ? ' · ' . e($t['equip_nom']) : '' ?></span>
+                <button type="button" @click="expanded[<?= $t['id'] ?>] = !expanded[<?= $t['id'] ?>]" class="text-brand hover:text-brand-dark text-[11px] ml-2 shrink-0 whitespace-nowrap">
                     <span x-show="!expanded[<?= $t['id'] ?>]">+ Detalls</span>
                     <span x-show="expanded[<?= $t['id'] ?>]">- Tancar</span>
                 </button>
             </div>
-            <!-- Detalls expandibles -->
             <div x-show="expanded[<?= $t['id'] ?>]" x-collapse class="mt-3 pt-2 border-t border-gray-100 text-xs space-y-2">
-                <div class="flex justify-between">
+                <div class="flex items-start justify-between gap-3">
                     <span class="text-gray-400">Periodicitat</span>
-                    <span class="text-gray-700"><?= e($t['periodicitat_nom'] ?? '-') ?></span>
+                    <span class="text-right text-gray-700 break-words"><?= e($t['periodicitat_nom'] ?? '-') ?></span>
                 </div>
-                <div class="flex justify-between">
+                <div class="flex items-start justify-between gap-3">
                     <span class="text-gray-400">Darrera</span>
-                    <span class="text-gray-700"><?= $t['data_darrera_realitzacio'] ? format_date($t['data_darrera_realitzacio']) : '-' ?></span>
+                    <span class="text-right text-gray-700"><?= $t['data_darrera_realitzacio'] ? format_date($t['data_darrera_realitzacio']) : '-' ?></span>
                 </div>
-                <div class="flex justify-between">
+                <div class="flex items-start justify-between gap-3">
                     <span class="text-gray-400">Propera</span>
-                    <span class="<?= $vencuda ? 'text-red-600 font-medium' : 'text-gray-700' ?>"><?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?></span>
+                    <span class="text-right <?= $vencuda ? 'text-red-600 font-medium' : 'text-gray-700' ?>"><?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?></span>
                 </div>
                 <div class="flex items-center justify-end gap-3 pt-2">
                     <a href="<?= url('pla/edit/' . $t['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>

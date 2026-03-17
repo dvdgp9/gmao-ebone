@@ -21,7 +21,7 @@ ob_start();
             <input type="hidden" name="torn" value="<?= e((string)$tornActual) ?>">
         <?php endif; ?>
         <input type="text" name="q" value="<?= e($search ?? '') ?>" placeholder="Cercar tasca, codi, espai, equip..."
-               class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+               class="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
         <button type="submit" class="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 transition">Cercar</button>
         <?php if ($search): ?>
             <a href="<?= url('setmana?setmana=' . $setmanaOffset . ($tornActual ? '&torn=' . $tornActual : '')) ?>" class="bg-gray-100 text-gray-500 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 transition text-center">Netejar</a>
@@ -30,15 +30,15 @@ ob_start();
 </div>
 
 <!-- Navegació + filtres -->
-<div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 mb-4">
-    <div class="flex flex-wrap items-center gap-2">
+<div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3 mb-3">
+    <div class="flex items-stretch gap-2 w-full sm:w-auto">
         <a href="<?= url('setmana?setmana=' . ($setmanaOffset - 1) . ($tornActual ? '&torn=' . $tornActual : '') . ($search ? '&q=' . urlencode($search) : '')) ?>"
            class="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm hover:bg-gray-50 transition">
             &larr;
         </a>
-        <div class="bg-white border border-gray-200 rounded-lg px-4 py-2 text-center">
+        <div class="min-w-0 flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-center">
             <div class="text-sm font-semibold text-gray-800">Setmana <?= $setmanaNum ?></div>
-            <div class="text-xs text-gray-500">
+            <div class="text-[11px] sm:text-xs text-gray-500 leading-tight">
                 <?= $dilluns->format('d/m/Y') ?> — <?= $diumenge->format('d/m/Y') ?>
             </div>
         </div>
@@ -48,19 +48,23 @@ ob_start();
         </a>
         <?php if ($setmanaOffset !== 0): ?>
         <a href="<?= url('setmana' . ($tornActual ? '?torn=' . $tornActual : '') . ($search ? ($tornActual ? '&' : '?') . 'q=' . urlencode($search) : '')) ?>"
-           class="text-sm text-brand hover:text-brand-dark transition ml-1">Avui</a>
+           class="hidden sm:inline text-sm text-brand hover:text-brand-dark transition ml-1">Avui</a>
         <?php endif; ?>
     </div>
+    <?php if ($setmanaOffset !== 0): ?>
+    <a href="<?= url('setmana' . ($tornActual ? '?torn=' . $tornActual : '') . ($search ? ($tornActual ? '&' : '?') . 'q=' . urlencode($search) : '')) ?>"
+       class="sm:hidden text-sm text-brand hover:text-brand-dark transition">Avui</a>
+    <?php endif; ?>
 
-    <div class="flex flex-wrap items-center gap-2">
-        <span class="text-sm text-gray-500">Torn:</span>
+    <div class="flex flex-wrap items-center gap-2 w-full">
+        <span class="text-sm text-gray-500 shrink-0">Torn:</span>
         <a href="<?= url('setmana?setmana=' . $setmanaOffset . ($search ? '&q=' . urlencode($search) : '')) ?>"
-           class="px-3 py-1.5 text-sm rounded-lg <?= !$tornActual ? 'bg-brand text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
+           class="px-3 py-1.5 text-sm rounded-2xl <?= !$tornActual ? 'bg-brand text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
             Tots
         </a>
         <?php foreach ($torns as $t): ?>
         <a href="<?= url('setmana?setmana=' . $setmanaOffset . '&torn=' . $t['id'] . ($search ? '&q=' . urlencode($search) : '')) ?>"
-           class="px-3 py-1.5 text-sm rounded-lg <?= $tornActual == $t['id'] ? 'bg-brand text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
+           class="px-3 py-1.5 text-sm rounded-2xl <?= $tornActual == $t['id'] ? 'bg-brand text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
             <?= e($t['nom']) ?>
         </a>
         <?php endforeach; ?>
@@ -69,7 +73,7 @@ ob_start();
 
 <!-- Resum ràpid -->
 <?php if (!empty($tasques)): ?>
-<div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
+<div class="flex flex-wrap items-center gap-2 mb-3 text-sm">
     <span class="text-gray-500"><?= count($tasques) ?> tasques</span>
     <?php if ($nVencudes > 0): ?>
         <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-medium"><?= $nVencudes ?> vençudes</span>
@@ -92,14 +96,13 @@ ob_start();
             $avui = $t['data_propera_realitzacio'] === date('Y-m-d');
         ?>
         <div x-show="showAll || <?= $idx ?> < <?= $limitMobile ?>" 
-             class="bg-white rounded-lg shadow-sm border p-3 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($avui ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
-            <!-- Fila compacta -->
-            <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2 min-w-0 flex-1">
-                    <span class="font-mono text-[11px] text-brand shrink-0"><?= e($t['tasca_codi'] ?? '-') ?></span>
-                    <span class="text-sm text-gray-800 truncate"><?= e($t['tasca_nom']) ?></span>
+             class="bg-white rounded-lg shadow-sm border px-3 py-2.5 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($avui ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
+            <div class="min-w-0">
+                <div class="flex items-start gap-2 min-w-0">
+                    <span class="font-mono text-[11px] text-brand shrink-0 pt-0.5"><?= e($t['tasca_codi'] ?? '-') ?></span>
+                    <span class="text-sm leading-5 text-gray-800 break-words min-w-0"><?= e($t['tasca_nom']) ?></span>
                 </div>
-                <div class="flex items-center gap-1 shrink-0">
+                <div class="flex flex-wrap items-center gap-1 mt-2">
                     <?php if ($vencuda): ?>
                         <span class="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-medium">Vençuda</span>
                     <?php elseif ($avui): ?>
@@ -111,22 +114,22 @@ ob_start();
                 </div>
             </div>
             <!-- Info secundària -->
-            <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
-                <span class="truncate"><?= e($t['espai_nom'] ?? '-') ?><?= $t['equip_nom'] ? ' · ' . e($t['equip_nom']) : '' ?></span>
-                <button type="button" @click="expanded[<?= $t['id'] ?>] = !expanded[<?= $t['id'] ?>]" class="text-brand hover:text-brand-dark text-[11px] ml-2 shrink-0">
+            <div class="flex items-start justify-between gap-2 mt-2 text-xs text-gray-500">
+                <span class="min-w-0 break-words leading-4"><?= e($t['espai_nom'] ?? '-') ?><?= $t['equip_nom'] ? ' · ' . e($t['equip_nom']) : '' ?></span>
+                <button type="button" @click="expanded[<?= $t['id'] ?>] = !expanded[<?= $t['id'] ?>]" class="text-brand hover:text-brand-dark text-[11px] ml-2 shrink-0 whitespace-nowrap">
                     <span x-show="!expanded[<?= $t['id'] ?>]">+ Detalls</span>
                     <span x-show="expanded[<?= $t['id'] ?>]">- Tancar</span>
                 </button>
             </div>
             <!-- Detalls expandibles -->
             <div x-show="expanded[<?= $t['id'] ?>]" x-collapse class="mt-3 pt-2 border-t border-gray-100 text-xs space-y-2">
-                <div class="flex justify-between">
+                <div class="flex items-start justify-between gap-3">
                     <span class="text-gray-400">Periodicitat</span>
-                    <span class="text-gray-700"><?= e($t['periodicitat_nom'] ?? '-') ?></span>
+                    <span class="text-right text-gray-700 break-words"><?= e($t['periodicitat_nom'] ?? '-') ?></span>
                 </div>
-                <div class="flex justify-between">
+                <div class="flex items-start justify-between gap-3">
                     <span class="text-gray-400">Data propera</span>
-                    <span class="<?= $vencuda ? 'text-red-600 font-medium' : 'text-gray-700' ?>"><?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?></span>
+                    <span class="text-right <?= $vencuda ? 'text-red-600 font-medium' : 'text-gray-700' ?>"><?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?></span>
                 </div>
                 <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
                 <form method="POST" action="<?= url('registre/store') ?>" class="pt-2">
