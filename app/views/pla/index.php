@@ -16,7 +16,7 @@ ob_start();
     <?php endif; ?>
 </div>
 
-<div class="mb-3">
+<div class="mb-3 max-w-full overflow-x-hidden">
     <form method="GET" action="<?= url('pla') ?>" class="flex flex-col sm:flex-row gap-2">
         <input
             type="text"
@@ -34,18 +34,18 @@ ob_start();
 
 <?php $limitMobile = 15; ?>
 <!-- Mobile: cards compactes amb expand + mostrar més -->
-<div class="md:hidden" x-data="{ showAll: false, expanded: {} }">
+<div class="md:hidden w-full max-w-full overflow-x-hidden" x-data="{ showAll: false, expanded: {} }">
     <?php if (empty($tasques)): ?>
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-400">No hi ha tasques al pla de manteniment.</div>
     <?php else: ?>
-        <div class="space-y-2">
+        <div class="space-y-2 w-full max-w-full">
         <?php foreach ($tasques as $idx => $t): ?>
         <?php
             $vencuda = $t['data_propera_realitzacio'] && $t['data_propera_realitzacio'] < date('Y-m-d');
             $avui = $t['data_propera_realitzacio'] === date('Y-m-d');
         ?>
         <div x-show="showAll || <?= $idx ?> < <?= $limitMobile ?>" 
-             class="bg-white rounded-lg shadow-sm border px-3 py-2.5 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($avui ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
+             class="w-full max-w-full overflow-hidden bg-white rounded-lg shadow-sm border px-3 py-2.5 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($avui ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
             <div class="min-w-0">
                 <div class="flex items-start gap-2 min-w-0">
                     <span class="font-mono text-[11px] text-brand shrink-0 pt-0.5"><?= e($t['tasca_codi'] ?? '-') ?></span>

@@ -14,7 +14,7 @@
         .sidebar-link:hover:not(.active) { background-color: rgb(243 244 246); }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen overflow-x-hidden">
     <?php
     $__badgeVencudes = 0;
     if (!empty($_SESSION['instalacio_id'])) {
@@ -26,7 +26,7 @@
         } catch (\Throwable $e) {}
     }
     ?>
-    <div class="flex min-h-screen">
+    <div class="flex min-h-screen max-w-full overflow-x-hidden">
         <!-- Sidebar -->
         <aside id="sidebar" class="w-[86vw] max-w-72 bg-white border-r border-gray-200 flex flex-col fixed h-full z-30 transition-transform -translate-x-full lg:w-64 lg:max-w-none lg:translate-x-0">
             <div class="p-5 border-b border-gray-200">
@@ -152,7 +152,7 @@
         </aside>
 
         <!-- Main content -->
-        <div class="flex-1 lg:ml-64">
+        <div class="flex-1 min-w-0 max-w-full lg:ml-64">
             <!-- Topbar -->
             <header class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 sticky top-0 z-20">
                 <div class="flex items-center gap-3 min-w-0">
@@ -174,7 +174,7 @@
             </header>
 
             <!-- Page content -->
-            <main class="p-4 sm:p-6">
+            <main class="p-4 sm:p-6 min-w-0 max-w-full overflow-x-hidden">
                 <?php $flash = $flash ?? flash(); ?>
                 <?php if ($flash): ?>
                     <div class="mb-4 p-3 rounded-lg text-sm <?= $flash['type'] === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : ($flash['type'] === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-brand-light text-brand-dark border border-brand-light') ?>">

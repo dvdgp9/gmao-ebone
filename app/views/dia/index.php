@@ -11,13 +11,13 @@ $limitMobile = 15;
 ob_start();
 ?>
 
-<div class="mb-4">
+<div class="mb-4 max-w-full overflow-x-hidden">
     <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Vista Diària</h2>
     <p class="text-gray-500 text-sm mt-1">Tasques del dia seleccionat i vencides pendents</p>
 </div>
 
 <!-- Buscador -->
-<div class="mb-4">
+<div class="mb-4 max-w-full overflow-x-hidden">
     <form method="GET" action="<?= url('dia') ?>" class="flex flex-col sm:flex-row gap-2">
         <input type="hidden" name="data" value="<?= e($dataIso) ?>">
         <?php if ($tornActual): ?>
@@ -33,8 +33,8 @@ ob_start();
 </div>
 
 <!-- Navegació + filtres -->
-<div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3 mb-3">
-    <div class="flex flex-wrap items-stretch gap-2 w-full sm:w-auto">
+<div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3 mb-3 max-w-full overflow-x-hidden">
+    <div class="flex flex-wrap items-stretch gap-2 w-full sm:w-auto min-w-0 max-w-full">
         <a href="<?= url('dia?data=' . $dataAnterior . $queryBase) ?>"
            class="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm hover:bg-gray-50 transition">
             &larr;
@@ -60,7 +60,7 @@ ob_start();
         </form>
     </div>
 
-    <div class="flex flex-wrap items-center gap-2 w-full">
+    <div class="flex flex-wrap items-center gap-2 w-full min-w-0 max-w-full">
         <span class="text-sm text-gray-500 shrink-0">Torn:</span>
         <a href="<?= url('dia?data=' . $dataIso . ($search ? '&q=' . urlencode($search) : '')) ?>"
            class="px-3 py-1.5 text-sm rounded-2xl <?= !$tornActual ? 'bg-brand text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
@@ -89,18 +89,18 @@ ob_start();
 <?php endif; ?>
 
 <!-- Mobile: cards compactes amb expand + mostrar més -->
-<div class="md:hidden" x-data="{ showAll: false, expanded: {} }">
+<div class="md:hidden w-full max-w-full overflow-x-hidden" x-data="{ showAll: false, expanded: {} }">
     <?php if (empty($tasques)): ?>
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-400">No hi ha tasques pendents per a aquest dia.</div>
     <?php else: ?>
-        <div class="space-y-2">
+        <div class="space-y-2 w-full max-w-full">
         <?php foreach ($tasques as $idx => $t): ?>
         <?php
             $vencuda = ($t['data_propera_realitzacio'] ?? null) < $dataIso;
             $esDia = ($t['data_propera_realitzacio'] ?? null) === $dataIso;
         ?>
         <div x-show="showAll || <?= $idx ?> < <?= $limitMobile ?>" 
-             class="bg-white rounded-lg shadow-sm border px-3 py-2.5 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($esDia ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
+             class="w-full max-w-full overflow-hidden bg-white rounded-lg shadow-sm border px-3 py-2.5 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($esDia ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
             <div class="min-w-0">
                 <div class="flex items-start gap-2 min-w-0">
                     <span class="font-mono text-[11px] text-brand shrink-0 pt-0.5"><?= e($t['tasca_codi'] ?? '-') ?></span>
