@@ -101,21 +101,41 @@ ob_start();
         ?>
         <div x-show="showAll || <?= $idx ?> < <?= $limitMobile ?>" 
              class="w-full max-w-full overflow-hidden bg-white rounded-lg shadow-sm border px-3 py-2.5 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($esDia ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
-            <div class="min-w-0">
-                <div class="flex items-start gap-2 min-w-0">
-                    <span class="font-mono text-[11px] text-brand shrink-0 pt-0.5"><?= e($t['tasca_codi'] ?? '-') ?></span>
-                    <span class="text-sm leading-5 text-gray-800 break-words min-w-0"><?= e($t['tasca_nom']) ?></span>
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-start gap-2 min-w-0">
+                        <span class="font-mono text-[11px] text-brand shrink-0 pt-0.5"><?= e($t['tasca_codi'] ?? '-') ?></span>
+                        <span class="text-sm leading-5 text-gray-800 break-words min-w-0"><?= e($t['tasca_nom']) ?></span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-1 mt-2">
+                        <?php if ($vencuda): ?>
+                            <span class="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-medium">Vençuda</span>
+                        <?php elseif ($esDia): ?>
+                            <span class="bg-yellow-100 text-yellow-700 text-[10px] px-1.5 py-0.5 rounded font-medium">Avui</span>
+                        <?php endif; ?>
+                        <?php if ($t['torn_nom']): ?>
+                            <span class="bg-purple-50 text-purple-700 text-[10px] px-1.5 py-0.5 rounded"><?= e($t['torn_nom']) ?></span>
+                        <?php endif; ?>
+                    </div>
                 </div>
-                <div class="flex flex-wrap items-center gap-1 mt-2">
-                    <?php if ($vencuda): ?>
-                        <span class="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-medium">Vençuda</span>
-                    <?php elseif ($esDia): ?>
-                        <span class="bg-yellow-100 text-yellow-700 text-[10px] px-1.5 py-0.5 rounded font-medium">Avui</span>
-                    <?php endif; ?>
-                    <?php if ($t['torn_nom']): ?>
-                        <span class="bg-purple-50 text-purple-700 text-[10px] px-1.5 py-0.5 rounded"><?= e($t['torn_nom']) ?></span>
-                    <?php endif; ?>
-                </div>
+                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
+                <form method="POST" action="<?= url('registre/store') ?>" class="shrink-0">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">
+                    <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
+                    <input type="hidden" name="realitzada" value="1">
+                    <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?>">
+                    <button type="submit"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition"
+                            onclick="return confirm('Marcar com a realitzada?')"
+                            title="Marcar com a realitzada"
+                            aria-label="Marcar com a realitzada">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </button>
+                </form>
+                <?php endif; ?>
             </div>
             <div class="flex items-start justify-between gap-2 mt-2 text-xs text-gray-500">
                 <span class="min-w-0 break-words leading-4"><?= e($t['espai_nom'] ?? '-') ?><?= $t['equip_nom'] ? ' · ' . e($t['equip_nom']) : '' ?></span>
