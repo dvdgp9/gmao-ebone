@@ -30,6 +30,7 @@ $router->post('switch-instalacio', InstalacioController::class, 'switchInstalaci
 $router->get('instalacions', InstalacioController::class, 'index');
 $router->get('instalacions/create', InstalacioController::class, 'create');
 $router->post('instalacions/store', InstalacioController::class, 'store');
+$router->get('instalacions/onboarding/{id}', InstalacioController::class, 'onboarding');
 $router->get('instalacions/edit/{id}', InstalacioController::class, 'edit');
 $router->post('instalacions/update/{id}', InstalacioController::class, 'update');
 $router->post('instalacions/delete/{id}', InstalacioController::class, 'delete');

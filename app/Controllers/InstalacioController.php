@@ -37,7 +37,7 @@ class InstalacioController extends Controller
             $this->redirect('instalacions');
         }
 
-        Instalacio::create([
+        $instalacioId = Instalacio::create([
             'nom' => trim($this->post('nom', '')),
             'adreca' => trim($this->post('adreca', '')) ?: null,
             'telefon' => trim($this->post('telefon', '')) ?: null,
@@ -45,8 +45,37 @@ class InstalacioController extends Controller
             'activa' => $this->post('activa', 1) ? 1 : 0,
         ]);
         $this->refreshSuperadminAssignacions();
+        $this->switchSuperadminContext($instalacioId);
         $this->setFlash('success', 'Instal·lació creada correctament.');
-        $this->redirect('instalacions');
+        $this->redirect('instalacions/onboarding/' . $instalacioId);
+    }
+
+    public function onboarding(string $id): void
+    {
+        $this->requireRole(['superadmin']);
+
+        $instalacio = Instalacio::find((int)$id);
+        if (!$instalacio) {
+            $this->setFlash('error', 'Instal·lació no trobada.');
+            $this->redirect('instalacions');
+        }
+
+        $this->switchSuperadminContext((int)$id);
+
+        $db = Database::getInstance();
+        $stats = [
+            'espais' => $this->countByInstalacio($db, 'SELECT COUNT(*) FROM espais WHERE instalacio_id = ?', (int)$id),
+            'torns' => $this->countByInstalacio($db, 'SELECT COUNT(*) FROM torns WHERE instalacio_id = ?', (int)$id),
+            'equips' => $this->countByInstalacio($db, 'SELECT COUNT(*) FROM equips WHERE instalacio_id = ?', (int)$id),
+            'tasques_pla' => $this->countByInstalacio($db, 'SELECT COUNT(*) FROM tasques_pla WHERE instalacio_id = ?', (int)$id),
+        ];
+
+        $this->view('instalacions.onboarding', [
+            'title' => 'Configurar Instal·lació',
+            'instalacio' => $instalacio,
+            'stats' => $stats,
+            'flash' => $this->getFlash(),
+        ]);
     }
 
     public function edit(string $id): void
@@ -187,6 +216,31 @@ class InstalacioController extends Controller
             'instalacio_nom' => $inst['instalacio_nom'],
             'rol_nom' => 'superadmin',
         ], $allInstalacions);
+    }
+
+    private function switchSuperadminContext(int $instalacioId): void
+    {
+        if (empty($_SESSION['is_superadmin'])) {
+            return;
+        }
+
+        $db = Database::getInstance();
+        $stmt = $db->prepare('SELECT id, nom FROM instalacions WHERE id = ? LIMIT 1');
+        $stmt->execute([$instalacioId]);
+        $instalacio = $stmt->fetch();
+
+        if ($instalacio) {
+            $_SESSION['instalacio_id'] = (int)$instalacio['id'];
+            $_SESSION['instalacio_nom'] = $instalacio['nom'];
+            $_SESSION['current_role'] = 'superadmin';
+        }
+    }
+
+    private function countByInstalacio($db, string $sql, int $instalacioId): int
+    {
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$instalacioId]);
+        return (int)$stmt->fetchColumn();
     }
 
     private function getDeletionDependencyCounts(int $instalacioId): array
