@@ -16,6 +16,11 @@ ob_start();
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">Pujar fitxer</h3>
+        <?php if (!empty($currentInstalacioId ?? null)): ?>
+            <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                La importació completa s'aplicarà sobre la <span class="font-semibold">instal·lació activa</span> actual.
+            </div>
+        <?php endif; ?>
 
         <form method="POST" action="<?= url('import/upload') ?>" enctype="multipart/form-data" class="space-y-4">
             <?= csrf_field() ?>
@@ -28,7 +33,11 @@ ob_start();
                 <select name="import_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
                     <option value="tasques_cataleg">Tasques al Catàleg (global)</option>
                     <option value="tasques_pla">Tasques al Pla de Manteniment (instal·lació actual)</option>
+                    <option value="completa_instalacio" <?= empty($currentInstalacioId ?? null) ? 'disabled' : '' ?>>Importació completa de la instal·lació activa</option>
                 </select>
+                <?php if (empty($currentInstalacioId ?? null)): ?>
+                    <p class="text-xs text-amber-600 mt-1">Per usar la importació completa cal tenir una instal·lació activa seleccionada.</p>
+                <?php endif; ?>
             </div>
 
             <div>
@@ -62,6 +71,15 @@ ob_start();
                     A: Codi | B: Nom tasca | C: Equipament | D: Espai | E: Periodicitat | F: Torn
                 </div>
                 <p class="text-xs text-gray-400 mt-1">Les tasques s'han de trobar al catàleg pel nom.</p>
+            </div>
+
+            <div>
+                <p class="font-medium text-gray-800 mb-1">Importació completa de la instal·lació</p>
+                <p>Per onboarding o reimportació inicial. El llibre Excel ha de contenir aquestes fulles:</p>
+                <div class="mt-2 bg-gray-50 rounded-lg p-3 text-xs font-mono">
+                    LLISTES | INVENTARI | BD TASQUES | TASQUES PLA_M | REGISTRE TASQUES
+                </div>
+                <p class="text-xs text-gray-400 mt-1">Afegeix espais, equips, catàleg, pla i registre sobre la instal·lació activa.</p>
             </div>
         </div>
     </div>
