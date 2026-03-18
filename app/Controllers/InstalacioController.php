@@ -85,6 +85,46 @@ class InstalacioController extends Controller
         $this->redirect('instalacions');
     }
 
+    public function delete(string $id): void
+    {
+        $this->requireRole(['superadmin']);
+        if (!verify_csrf()) {
+            $this->setFlash('error', 'Token de seguretat invàlid.');
+            $this->redirect('instalacions');
+        }
+
+        $instalacioId = (int)$id;
+        $instalacio = Instalacio::find($instalacioId);
+        if (!$instalacio) {
+            $this->setFlash('error', 'Instal·lació no trobada.');
+            $this->redirect('instalacions');
+        }
+
+        $dependencias = $this->getDeletionDependencyCounts($instalacioId);
+        $bloquejos = array_filter($dependencias, static fn(int $count): bool => $count > 0);
+
+        if (!empty($bloquejos)) {
+            $parts = [];
+            foreach ($bloquejos as $label => $count) {
+                $parts[] = $count . ' ' . $label;
+            }
+            $this->setFlash('error', 'No es pot eliminar la instal·lació perquè encara té dades relacionades: ' . implode(', ', $parts) . '.');
+            $this->redirect('instalacions');
+        }
+
+        Instalacio::delete($instalacioId);
+        $this->refreshSuperadminAssignacions();
+
+        if ((int)($_SESSION['instalacio_id'] ?? 0) === $instalacioId) {
+            $_SESSION['instalacio_id'] = null;
+            $_SESSION['instalacio_nom'] = 'Totes les instal·lacions';
+            $_SESSION['current_role'] = 'superadmin';
+        }
+
+        $this->setFlash('success', 'Instal·lació eliminada correctament.');
+        $this->redirect('instalacions');
+    }
+
     public function switchInstalacio(): void
     {
         $this->requireAuth();
@@ -147,5 +187,24 @@ class InstalacioController extends Controller
             'instalacio_nom' => $inst['instalacio_nom'],
             'rol_nom' => 'superadmin',
         ], $allInstalacions);
+    }
+
+    private function getDeletionDependencyCounts(int $instalacioId): array
+    {
+        $db = Database::getInstance();
+
+        $count = static function ($db, string $sql, int $instalacioId): int {
+            $stmt = $db->prepare($sql);
+            $stmt->execute([$instalacioId]);
+            return (int)$stmt->fetchColumn();
+        };
+
+        return [
+            'usuaris assignats' => $count($db, 'SELECT COUNT(*) FROM usuari_instalacio WHERE instalacio_id = ?', $instalacioId),
+            'equips' => $count($db, 'SELECT COUNT(*) FROM equips WHERE instalacio_id = ?', $instalacioId),
+            'espais' => $count($db, 'SELECT COUNT(*) FROM espais WHERE instalacio_id = ?', $instalacioId),
+            'torns' => $count($db, 'SELECT COUNT(*) FROM torns WHERE instalacio_id = ?', $instalacioId),
+            'tasques del pla' => $count($db, 'SELECT COUNT(*) FROM tasques_pla WHERE instalacio_id = ?', $instalacioId),
+        ];
     }
 }

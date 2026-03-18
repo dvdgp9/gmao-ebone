@@ -32,6 +32,7 @@ $router->get('instalacions/create', InstalacioController::class, 'create');
 $router->post('instalacions/store', InstalacioController::class, 'store');
 $router->get('instalacions/edit/{id}', InstalacioController::class, 'edit');
 $router->post('instalacions/update/{id}', InstalacioController::class, 'update');
+$router->post('instalacions/delete/{id}', InstalacioController::class, 'delete');
 
 // Equips
 $router->get('equips', EquipController::class, 'index');

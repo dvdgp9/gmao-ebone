@@ -41,6 +41,10 @@ ob_start();
             </div>
             <div class="mt-4 pt-4 border-t border-gray-100 flex gap-3">
                 <a href="<?= url('instalacions/edit/' . $inst['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
+                <form method="POST" action="<?= url('instalacions/delete/' . $inst['id']) ?>" onsubmit="return confirm('Segur que vols eliminar aquesta instal·lació?')">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="text-sm text-red-600 hover:text-red-700 transition">Eliminar</button>
+                </form>
             </div>
         </div>
         <?php endforeach; ?>
