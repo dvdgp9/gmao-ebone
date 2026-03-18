@@ -33,6 +33,7 @@ $router->post('instalacions/store', InstalacioController::class, 'store');
 $router->get('instalacions/onboarding/{id}', InstalacioController::class, 'onboarding');
 $router->get('instalacions/edit/{id}', InstalacioController::class, 'edit');
 $router->post('instalacions/update/{id}', InstalacioController::class, 'update');
+$router->post('instalacions/clear-data/{id}', InstalacioController::class, 'clearData');
 $router->post('instalacions/delete/{id}', InstalacioController::class, 'delete');
 
 // Equips

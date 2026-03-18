@@ -39,8 +39,15 @@ ob_start();
                     <p><?= e($inst['email']) ?></p>
                 <?php endif; ?>
             </div>
+            <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Neteja dades operatives per permetre una reimportació, però conserva la instal·lació i els usuaris assignats.
+            </div>
             <div class="mt-4 pt-4 border-t border-gray-100 flex gap-3">
                 <a href="<?= url('instalacions/edit/' . $inst['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
+                <form method="POST" action="<?= url('instalacions/clear-data/' . $inst['id']) ?>" onsubmit="return confirm('Segur que vols netejar totes les dades operatives d\'aquesta instal·lació? Es conservarà la instal·lació, però s\'eliminaran torns, espais, equips, tasques del pla i registres.')">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="text-sm text-amber-600 hover:text-amber-700 transition">Netejar dades</button>
+                </form>
                 <form method="POST" action="<?= url('instalacions/delete/' . $inst['id']) ?>" onsubmit="return confirm('Segur que vols eliminar aquesta instal·lació?')">
                     <?= csrf_field() ?>
                     <button type="submit" class="text-sm text-red-600 hover:text-red-700 transition">Eliminar</button>

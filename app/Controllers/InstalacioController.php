@@ -154,6 +154,65 @@ class InstalacioController extends Controller
         $this->redirect('instalacions');
     }
 
+    public function clearData(string $id): void
+    {
+        $this->requireRole(['superadmin']);
+        if (!verify_csrf()) {
+            $this->setFlash('error', 'Token de seguretat invàlid.');
+            $this->redirect('instalacions');
+        }
+
+        $instalacioId = (int)$id;
+        $instalacio = Instalacio::find($instalacioId);
+        if (!$instalacio) {
+            $this->setFlash('error', 'Instal·lació no trobada.');
+            $this->redirect('instalacions');
+        }
+
+        $db = Database::getInstance();
+
+        try {
+            $db->beginTransaction();
+
+            $counts = $this->getClearableDataCounts($instalacioId);
+
+            $stmt = $db->prepare('DELETE FROM registre_tasques WHERE instalacio_id = ?');
+            $stmt->execute([$instalacioId]);
+
+            $stmt = $db->prepare('DELETE FROM tasques_pla WHERE instalacio_id = ?');
+            $stmt->execute([$instalacioId]);
+
+            $stmt = $db->prepare('DELETE FROM equips WHERE instalacio_id = ?');
+            $stmt->execute([$instalacioId]);
+
+            $stmt = $db->prepare('DELETE FROM espais WHERE instalacio_id = ?');
+            $stmt->execute([$instalacioId]);
+
+            $stmt = $db->prepare('DELETE FROM torns WHERE instalacio_id = ?');
+            $stmt->execute([$instalacioId]);
+
+            $db->commit();
+
+            $parts = [];
+            foreach ($counts as $label => $count) {
+                if ($count > 0) {
+                    $parts[] = $count . ' ' . $label;
+                }
+            }
+
+            $suffix = empty($parts) ? 'No hi havia dades per netejar.' : 'S\'han eliminat: ' . implode(', ', $parts) . '.';
+            $this->setFlash('success', 'Dades de la instal·lació netejades correctament. ' . $suffix);
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            $this->setFlash('error', 'No s\'han pogut netejar les dades de la instal·lació: ' . $e->getMessage());
+        }
+
+        $this->redirect('instalacions');
+    }
+
     public function switchInstalacio(): void
     {
         $this->requireAuth();
@@ -259,6 +318,25 @@ class InstalacioController extends Controller
             'espais' => $count($db, 'SELECT COUNT(*) FROM espais WHERE instalacio_id = ?', $instalacioId),
             'torns' => $count($db, 'SELECT COUNT(*) FROM torns WHERE instalacio_id = ?', $instalacioId),
             'tasques del pla' => $count($db, 'SELECT COUNT(*) FROM tasques_pla WHERE instalacio_id = ?', $instalacioId),
+        ];
+    }
+
+    private function getClearableDataCounts(int $instalacioId): array
+    {
+        $db = Database::getInstance();
+
+        $count = static function ($db, string $sql, int $instalacioId): int {
+            $stmt = $db->prepare($sql);
+            $stmt->execute([$instalacioId]);
+            return (int)$stmt->fetchColumn();
+        };
+
+        return [
+            'registres' => $count($db, 'SELECT COUNT(*) FROM registre_tasques WHERE instalacio_id = ?', $instalacioId),
+            'tasques del pla' => $count($db, 'SELECT COUNT(*) FROM tasques_pla WHERE instalacio_id = ?', $instalacioId),
+            'equips' => $count($db, 'SELECT COUNT(*) FROM equips WHERE instalacio_id = ?', $instalacioId),
+            'espais' => $count($db, 'SELECT COUNT(*) FROM espais WHERE instalacio_id = ?', $instalacioId),
+            'torns' => $count($db, 'SELECT COUNT(*) FROM torns WHERE instalacio_id = ?', $instalacioId),
         ];
     }
 }
