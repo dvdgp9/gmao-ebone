@@ -1,12 +1,13 @@
 <?php
 $title = 'Vista prèvia importació';
+$backUrl = !empty($returnTo ?? '') ? url($returnTo) : url('import');
 ob_start();
 ?>
 
 <div class="mb-6">
-    <a href="<?= url('import') ?>" class="text-sm text-gray-500 hover:text-brand transition flex items-center gap-1">
+    <a href="<?= $backUrl ?>" class="text-sm text-gray-500 hover:text-brand transition flex items-center gap-1">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-        Tornar
+        <?= !empty($returnTo ?? '') ? 'Tornar a onboarding' : 'Tornar' ?>
     </a>
     <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mt-2">Vista prèvia</h2>
     <p class="text-gray-500 text-sm mt-1">
@@ -63,11 +64,14 @@ ob_start();
 
 <form method="POST" action="<?= url('import/process') ?>" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
     <?= csrf_field() ?>
+    <?php if (!empty($returnTo ?? '')): ?>
+        <input type="hidden" name="return_to" value="<?= e($returnTo) ?>">
+    <?php endif; ?>
     <button type="submit" class="bg-green-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition"
             onclick="return confirm('Segur que vols importar <?= $totalRows ?> registres?')">
         Confirmar importació (<?= $totalRows ?> registres)
     </button>
-    <a href="<?= url('import') ?>" class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition">
+    <a href="<?= $backUrl ?>" class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition">
         Cancel·lar
     </a>
 </form>

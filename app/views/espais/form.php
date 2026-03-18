@@ -1,19 +1,23 @@
 <?php
 $title = $espai ? 'Editar Espai' : 'Nou Espai';
 $action = $espai ? url('espais/update/' . $espai['id']) : url('espais/store');
+$backUrl = !empty($returnTo ?? '') ? url($returnTo) : url('espais');
 ob_start();
 ?>
 
 <div class="mb-6">
-    <a href="<?= url('espais') ?>" class="text-sm text-gray-500 hover:text-brand transition flex items-center gap-1">
+    <a href="<?= $backUrl ?>" class="text-sm text-gray-500 hover:text-brand transition flex items-center gap-1">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-        Tornar a espais
+        <?= !empty($returnTo ?? '') ? 'Tornar a onboarding' : 'Tornar a espais' ?>
     </a>
     <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mt-2"><?= e($title) ?></h2>
 </div>
 
 <form method="POST" action="<?= $action ?>" class="space-y-6">
     <?= csrf_field() ?>
+    <?php if (!empty($returnTo ?? '')): ?>
+        <input type="hidden" name="return_to" value="<?= e($returnTo) ?>">
+    <?php endif; ?>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -44,7 +48,7 @@ ob_start();
         <button type="submit" class="bg-brand text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-dark transition">
             <?= $espai ? 'Actualitzar' : 'Crear espai' ?>
         </button>
-        <a href="<?= url('espais') ?>" class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition">
+        <a href="<?= $backUrl ?>" class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition">
             Cancel·lar
         </a>
     </div>

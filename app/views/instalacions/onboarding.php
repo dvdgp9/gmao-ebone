@@ -1,32 +1,33 @@
 <?php
 $title = 'Configurar Instal·lació';
+$returnTo = 'instalacions/onboarding/' . (int)$instalacio['id'];
 $items = [
     [
         'title' => 'Espais',
         'description' => 'Defineix les àrees, plantes i zones de la instal·lació.',
         'count' => (int)($stats['espais'] ?? 0),
-        'url' => url('espais/create'),
+        'url' => url('espais/create?return_to=' . urlencode($returnTo)),
         'cta' => (($stats['espais'] ?? 0) > 0) ? 'Gestionar espais' : 'Afegir primer espai',
     ],
     [
         'title' => 'Torns',
         'description' => 'Configura els torns per organitzar les tasques diàries i setmanals.',
         'count' => (int)($stats['torns'] ?? 0),
-        'url' => url('torns/create'),
+        'url' => url('torns/create?return_to=' . urlencode($returnTo)),
         'cta' => (($stats['torns'] ?? 0) > 0) ? 'Gestionar torns' : 'Configurar torns',
     ],
     [
         'title' => 'Equips',
         'description' => 'Crea els equips principals abans de carregar el pla de manteniment.',
         'count' => (int)($stats['equips'] ?? 0),
-        'url' => url('equips/create'),
+        'url' => url('equips/create?return_to=' . urlencode($returnTo)),
         'cta' => (($stats['equips'] ?? 0) > 0) ? 'Gestionar equips' : 'Afegir primer equip',
     ],
     [
         'title' => 'Tasques / Importació',
         'description' => 'Importa dades inicials o carrega tasques del pla de manteniment.',
         'count' => (int)($stats['tasques_pla'] ?? 0),
-        'url' => url('import'),
+        'url' => url('import?return_to=' . urlencode($returnTo)),
         'cta' => (($stats['tasques_pla'] ?? 0) > 0) ? 'Obrir importació' : 'Importar dades',
     ],
 ];

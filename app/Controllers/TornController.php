@@ -30,6 +30,7 @@ class TornController extends Controller
         $this->view('torns.form', [
             'title' => 'Nou Torn',
             'torn' => null,
+            'returnTo' => $this->getReturnTo(),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -52,7 +53,7 @@ class TornController extends Controller
         ]);
         Torn::create($data);
         $this->setFlash('success', 'Torn creat correctament.');
-        $this->redirect('torns');
+        $this->redirect($this->getReturnTo('torns', true));
     }
 
     public function edit(string $id): void
@@ -67,6 +68,7 @@ class TornController extends Controller
         $this->view('torns.form', [
             'title' => 'Editar Torn',
             'torn' => $torn,
+            'returnTo' => $this->getReturnTo(),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -94,7 +96,7 @@ class TornController extends Controller
         ]);
         Torn::update((int)$id, $data);
         $this->setFlash('success', 'Torn actualitzat correctament.');
-        $this->redirect('torns');
+        $this->redirect($this->getReturnTo('torns', true));
     }
 
     public function delete(string $id): void
@@ -121,5 +123,16 @@ class TornController extends Controller
         $dies = $this->post('dies', []);
         if (!is_array($dies)) $dies = [];
         return json_encode(array_values($dies));
+    }
+
+    private function getReturnTo(string $default = '', bool $fromPost = false): string
+    {
+        $returnTo = $fromPost ? (string)$this->post('return_to', '') : (string)$this->get('return_to', '');
+
+        if ($returnTo !== '' && str_starts_with($returnTo, 'instalacions/onboarding/')) {
+            return $returnTo;
+        }
+
+        return $default;
     }
 }

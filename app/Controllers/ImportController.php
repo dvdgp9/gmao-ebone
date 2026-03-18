@@ -18,6 +18,7 @@ class ImportController extends Controller
         $this->requireRole(['superadmin', 'admin_instalacio']);
         $this->view('import.index', [
             'title' => 'Importar Excel',
+            'returnTo' => $this->getReturnTo(),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -87,6 +88,7 @@ class ImportController extends Controller
                 'type' => $tipus,
                 'headers' => $headers,
                 'total_rows' => $highestRow - 1,
+                'return_to' => $this->getReturnTo('', true),
             ];
 
             $this->view('import.preview', [
@@ -95,6 +97,7 @@ class ImportController extends Controller
                 'preview' => $previewData,
                 'totalRows' => $highestRow - 1,
                 'importType' => $tipus,
+                'returnTo' => $this->getReturnTo('', true),
                 'flash' => $this->getFlash(),
             ]);
 
@@ -141,6 +144,10 @@ class ImportController extends Controller
             }
 
             $this->setFlash($result['imported'] > 0 ? 'success' : 'error', $msg);
+            $returnTo = (string)($importData['return_to'] ?? '');
+            if ($returnTo !== '' && str_starts_with($returnTo, 'instalacions/onboarding/')) {
+                $this->redirect($returnTo);
+            }
             $this->redirect($tipus === 'tasques_cataleg' ? 'tasques-cataleg' : 'pla');
 
         } catch (\Exception $e) {
@@ -284,5 +291,16 @@ class ImportController extends Controller
             $map[mb_strtolower($r[$keys[1]])] = (int)$r[$keys[0]];
         }
         return $map;
+    }
+
+    private function getReturnTo(string $default = '', bool $fromPost = false): string
+    {
+        $returnTo = $fromPost ? (string)$this->post('return_to', '') : (string)$this->get('return_to', '');
+
+        if ($returnTo !== '' && str_starts_with($returnTo, 'instalacions/onboarding/')) {
+            return $returnTo;
+        }
+
+        return $default;
     }
 }

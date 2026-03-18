@@ -53,6 +53,7 @@ class EquipController extends Controller
             'tipusEquip' => $this->getTipusEquip(),
             'espais' => Espai::allByInstalacio($this->currentInstalacioId()),
             'estats' => $this->getEstats(),
+            'returnTo' => $this->getReturnTo(),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -70,7 +71,7 @@ class EquipController extends Controller
 
         Equip::create($data);
         $this->setFlash('success', 'Equip creat correctament.');
-        $this->redirect('equips');
+        $this->redirect($this->getReturnTo('equips', true));
     }
 
     public function edit(string $id): void
@@ -89,6 +90,7 @@ class EquipController extends Controller
             'tipusEquip' => $this->getTipusEquip(),
             'espais' => Espai::allByInstalacio($this->currentInstalacioId()),
             'estats' => $this->getEstats(),
+            'returnTo' => $this->getReturnTo(),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -110,7 +112,7 @@ class EquipController extends Controller
         $data = $this->getFormData();
         Equip::update((int)$id, $data);
         $this->setFlash('success', 'Equip actualitzat correctament.');
-        $this->redirect('equips');
+        $this->redirect($this->getReturnTo('equips', true));
     }
 
     public function delete(string $id): void
@@ -161,5 +163,16 @@ class EquipController extends Controller
     private function getEstats(): array
     {
         return Database::getInstance()->query('SELECT * FROM estats_equip ORDER BY ordre ASC')->fetchAll();
+    }
+
+    private function getReturnTo(string $default = '', bool $fromPost = false): string
+    {
+        $returnTo = $fromPost ? (string)$this->post('return_to', '') : (string)$this->get('return_to', '');
+
+        if ($returnTo !== '' && str_starts_with($returnTo, 'instalacions/onboarding/')) {
+            return $returnTo;
+        }
+
+        return $default;
     }
 }

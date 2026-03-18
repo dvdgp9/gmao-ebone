@@ -30,6 +30,7 @@ class EspaiController extends Controller
         $this->view('espais.form', [
             'title' => 'Nou Espai',
             'espai' => null,
+            'returnTo' => $this->getReturnTo(),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -50,7 +51,7 @@ class EspaiController extends Controller
             'zona' => trim($this->post('zona', '')) ?: null,
         ]);
         $this->setFlash('success', 'Espai creat correctament.');
-        $this->redirect('espais');
+        $this->redirect($this->getReturnTo('espais', true));
     }
 
     public function edit(string $id): void
@@ -65,6 +66,7 @@ class EspaiController extends Controller
         $this->view('espais.form', [
             'title' => 'Editar Espai',
             'espai' => $espai,
+            'returnTo' => $this->getReturnTo(),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -90,7 +92,7 @@ class EspaiController extends Controller
             'zona' => trim($this->post('zona', '')) ?: null,
         ]);
         $this->setFlash('success', 'Espai actualitzat correctament.');
-        $this->redirect('espais');
+        $this->redirect($this->getReturnTo('espais', true));
     }
 
     public function delete(string $id): void
@@ -110,5 +112,16 @@ class EspaiController extends Controller
         Espai::delete((int)$id);
         $this->setFlash('success', 'Espai eliminat correctament.');
         $this->redirect('espais');
+    }
+
+    private function getReturnTo(string $default = '', bool $fromPost = false): string
+    {
+        $returnTo = $fromPost ? (string)$this->post('return_to', '') : (string)$this->get('return_to', '');
+
+        if ($returnTo !== '' && str_starts_with($returnTo, 'instalacions/onboarding/')) {
+            return $returnTo;
+        }
+
+        return $default;
     }
 }

@@ -1,9 +1,14 @@
 <?php
 $title = 'Importar Excel';
+$backUrl = !empty($returnTo ?? '') ? url($returnTo) : url('dashboard');
 ob_start();
 ?>
 
 <div class="mb-6">
+    <a href="<?= $backUrl ?>" class="text-sm text-gray-500 hover:text-brand transition flex items-center gap-1 mb-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        <?= !empty($returnTo ?? '') ? 'Tornar a onboarding' : 'Tornar' ?>
+    </a>
     <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Importar Excel</h2>
     <p class="text-gray-500 text-sm mt-1">Puja un fitxer Excel per importar dades al sistema</p>
 </div>
@@ -14,6 +19,9 @@ ob_start();
 
         <form method="POST" action="<?= url('import/upload') ?>" enctype="multipart/form-data" class="space-y-4">
             <?= csrf_field() ?>
+            <?php if (!empty($returnTo ?? '')): ?>
+                <input type="hidden" name="return_to" value="<?= e($returnTo) ?>">
+            <?php endif; ?>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tipus d'importació</label>
