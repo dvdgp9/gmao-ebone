@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Core\Controller;
+use App\Models\Database;
 use App\Models\Instalacio;
 
 class InstalacioController extends Controller
@@ -43,6 +44,7 @@ class InstalacioController extends Controller
             'email' => trim($this->post('email', '')) ?: null,
             'activa' => $this->post('activa', 1) ? 1 : 0,
         ]);
+        $this->refreshSuperadminAssignacions();
         $this->setFlash('success', 'Instal·lació creada correctament.');
         $this->redirect('instalacions');
     }
@@ -78,6 +80,7 @@ class InstalacioController extends Controller
             'email' => trim($this->post('email', '')) ?: null,
             'activa' => $this->post('activa', 1) ? 1 : 0,
         ]);
+        $this->refreshSuperadminAssignacions();
         $this->setFlash('success', 'Instal·lació actualitzada correctament.');
         $this->redirect('instalacions');
     }
@@ -99,6 +102,22 @@ class InstalacioController extends Controller
             $this->redirect('dashboard');
         }
 
+        if (!empty($_SESSION['is_superadmin'])) {
+            $db = Database::getInstance();
+            $stmt = $db->prepare('SELECT id, nom FROM instalacions WHERE id = ? AND activa = 1 LIMIT 1');
+            $stmt->execute([$instalacioId]);
+            $instalacio = $stmt->fetch();
+
+            if ($instalacio) {
+                $this->refreshSuperadminAssignacions();
+                $_SESSION['instalacio_id'] = (int)$instalacio['id'];
+                $_SESSION['instalacio_nom'] = $instalacio['nom'];
+                $_SESSION['current_role'] = 'superadmin';
+            }
+
+            $this->redirect('dashboard');
+        }
+
         $assignacions = $_SESSION['assignacions'] ?? [];
 
         foreach ($assignacions as $a) {
@@ -111,5 +130,22 @@ class InstalacioController extends Controller
         }
 
         $this->redirect('dashboard');
+    }
+
+    private function refreshSuperadminAssignacions(): void
+    {
+        if (empty($_SESSION['is_superadmin'])) {
+            return;
+        }
+
+        $db = Database::getInstance();
+        $stmt = $db->query('SELECT id AS instalacio_id, nom AS instalacio_nom FROM instalacions WHERE activa = 1 ORDER BY nom');
+        $allInstalacions = $stmt->fetchAll();
+
+        $_SESSION['assignacions'] = array_map(static fn(array $inst): array => [
+            'instalacio_id' => $inst['instalacio_id'],
+            'instalacio_nom' => $inst['instalacio_nom'],
+            'rol_nom' => 'superadmin',
+        ], $allInstalacions);
     }
 }
