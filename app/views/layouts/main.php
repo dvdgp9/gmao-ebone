@@ -72,6 +72,11 @@
                     Espais
                 </a>
 
+                <a href="<?= url('sistemes') ?>" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 <?= is_active('sistemes') ?>">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M7 3h10a1 1 0 011 1v4H6V4a1 1 0 011-1zm-1 8h12a2 2 0 012 2v5a3 3 0 01-3 3H7a3 3 0 01-3-3v-5a2 2 0 012-2zm3 3h.01M12 14h5"/></svg>
+                    Sistemes
+                </a>
+
                 <a href="<?= url('tasques-cataleg') ?>" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 <?= is_active('tasques-cataleg') ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
                     Catàleg Tasques

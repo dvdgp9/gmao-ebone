@@ -11,6 +11,7 @@ use App\Controllers\RegistreController;
 use App\Controllers\UsuariController;
 use App\Controllers\ImportController;
 use App\Controllers\TornController;
+use App\Controllers\SistemaController;
 
 /** @var \App\Core\Router $router */
 
@@ -51,6 +52,14 @@ $router->post('espais/store', EspaiController::class, 'store');
 $router->get('espais/edit/{id}', EspaiController::class, 'edit');
 $router->post('espais/update/{id}', EspaiController::class, 'update');
 $router->post('espais/delete/{id}', EspaiController::class, 'delete');
+
+// Sistemes
+$router->get('sistemes', SistemaController::class, 'index');
+$router->get('sistemes/create', SistemaController::class, 'create');
+$router->post('sistemes/store', SistemaController::class, 'store');
+$router->get('sistemes/edit/{id}', SistemaController::class, 'edit');
+$router->post('sistemes/update/{id}', SistemaController::class, 'update');
+$router->post('sistemes/delete/{id}', SistemaController::class, 'delete');
 
 // Catàleg de Tasques
 $router->get('tasques-cataleg', TascaCatalegController::class, 'index');
