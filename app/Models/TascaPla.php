@@ -188,6 +188,23 @@ class TascaPla extends Model
         return (int)($result[0]['total'] ?? 0);
     }
 
+    public static function grauAcomplimentActual(int $instalacioId): float
+    {
+        $result = static::query(
+            'SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN data_propera_realitzacio <= CURDATE() THEN 1 ELSE 0 END) AS pendents
+             FROM tasques_pla
+             WHERE instalacio_id = ? AND en_curs = 1',
+            [$instalacioId]
+        );
+
+        $total = (int)($result[0]['total'] ?? 0);
+        $pendents = (int)($result[0]['pendents'] ?? 0);
+
+        return $total > 0 ? round((($total - $pendents) / $total) * 100, 2) : 0;
+    }
+
     public static function recalcularPropera(int $id): void
     {
         static::execute('

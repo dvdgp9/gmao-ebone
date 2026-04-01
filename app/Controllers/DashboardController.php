@@ -47,7 +47,7 @@ class DashboardController extends Controller
             $stats['tasques_pla'] = (int)($r[0]['total'] ?? 0);
 
             $primerDiaMes = date('Y-m-01');
-            $stats['grau_acompliment'] = RegistreTasca::grauAcompliment($instalacioId, $primerDiaMes);
+            $stats['grau_acompliment'] = TascaPla::grauAcomplimentActual($instalacioId);
 
             $r = RegistreTasca::query(
                 'SELECT COUNT(*) AS total FROM registre_tasques WHERE instalacio_id = ? AND data_execucio >= ?',
