@@ -179,7 +179,7 @@
                 <?php if ($flash): ?>
                     <?php if (!empty($flash['action']['token'])): ?>
                         <div class="pointer-events-none fixed inset-x-0 bottom-4 z-40 px-4 sm:bottom-6">
-                            <div x-data="{ open: true }" x-show="open" x-transition.opacity.duration.180ms class="mx-auto w-full max-w-md pointer-events-auto">
+                            <div x-data="{ open: true }" x-init="setTimeout(() => open = false, 5000)" x-show="open" x-transition.opacity.duration.180ms class="mx-auto w-full max-w-md pointer-events-auto">
                                 <div class="rounded-2xl border border-gray-200 bg-white/95 shadow-xl shadow-gray-900/10 backdrop-blur">
                                     <div class="flex items-start gap-3 p-4">
                                         <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
@@ -196,10 +196,7 @@
                                             </svg>
                                         </button>
                                     </div>
-                                    <div class="flex items-center justify-end gap-2 border-t border-gray-100 px-4 py-3">
-                                        <button type="button" @click="open = false" class="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700">
-                                            Tancar
-                                        </button>
+                                    <div class="flex items-center justify-end border-t border-gray-100 px-4 py-3">
                                         <form method="POST" action="<?= url('registre/undo') ?>">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="token" value="<?= e($flash['action']['token']) ?>">
