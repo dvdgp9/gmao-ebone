@@ -113,6 +113,9 @@ ob_start();
                         <?php elseif ($esDia): ?>
                             <span class="bg-yellow-100 text-yellow-700 text-[10px] px-1.5 py-0.5 rounded font-medium">Avui</span>
                         <?php endif; ?>
+                        <span class="bg-blue-50 text-blue-700 text-[10px] px-1.5 py-0.5 rounded">
+                            <?= e($t['periodicitat_nom'] ?? '-') ?>
+                        </span>
                         <?php if ($t['torn_nom']): ?>
                             <span class="bg-purple-50 text-purple-700 text-[10px] px-1.5 py-0.5 rounded"><?= e($t['torn_nom']) ?></span>
                         <?php endif; ?>
@@ -145,10 +148,6 @@ ob_start();
                 </button>
             </div>
             <div x-show="expanded[<?= $t['id'] ?>]" x-collapse class="mt-3 pt-2 border-t border-gray-100 text-xs space-y-2">
-                <div class="flex items-start justify-between gap-3">
-                    <span class="text-gray-400">Periodicitat</span>
-                    <span class="text-right text-gray-700 break-words"><?= e($t['periodicitat_nom'] ?? '-') ?></span>
-                </div>
                 <div class="flex items-start justify-between gap-3">
                     <span class="text-gray-400">Data propera</span>
                     <span class="text-right <?= $vencuda ? 'text-red-600 font-medium' : 'text-gray-700' ?>"><?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?></span>
