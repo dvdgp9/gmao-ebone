@@ -123,7 +123,6 @@ ob_start();
                     <input type="hidden" name="redirect" value="setmana?<?= $queryBase ?>">
                     <button type="submit"
                             class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition"
-                            onclick="return confirm('Marcar com a realitzada?')"
                             title="Marcar com a realitzada"
                             aria-label="Marcar com a realitzada">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,8 +157,7 @@ ob_start();
                     <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
                     <input type="hidden" name="realitzada" value="1">
                     <input type="hidden" name="redirect" value="setmana?<?= $queryBase ?>">
-                    <button type="submit" class="w-full bg-green-50 text-green-700 hover:bg-green-100 px-3 py-2 rounded-lg text-sm font-medium transition"
-                            onclick="return confirm('Marcar com a realitzada?')">
+                    <button type="submit" class="w-full bg-green-50 text-green-700 hover:bg-green-100 px-3 py-2 rounded-lg text-sm font-medium transition">
                         Fet
                     </button>
                 </form>
@@ -226,8 +224,7 @@ ob_start();
                                 <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
                                 <input type="hidden" name="realitzada" value="1">
                                 <input type="hidden" name="redirect" value="setmana?setmana=<?= $setmanaOffset ?><?= $tornActual ? '&torn=' . $tornActual : '' ?>">
-                                <button type="submit" class="bg-green-50 text-green-700 hover:bg-green-100 px-2.5 py-1 rounded text-xs font-medium transition"
-                                        onclick="return confirm('Marcar com a realitzada?')">
+                                <button type="submit" class="bg-green-50 text-green-700 hover:bg-green-100 px-2.5 py-1 rounded text-xs font-medium transition">
                                     Fet
                                 </button>
                             </form>

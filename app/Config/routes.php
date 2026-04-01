@@ -75,6 +75,7 @@ $router->get('dia', TascaPlaController::class, 'dia');
 // Registre de Tasques
 $router->get('registre', RegistreController::class, 'index');
 $router->post('registre/store', RegistreController::class, 'store');
+$router->post('registre/undo', RegistreController::class, 'undo');
 
 // Usuaris
 $router->get('usuaris', UsuariController::class, 'index');

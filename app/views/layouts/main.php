@@ -177,8 +177,22 @@
             <main class="p-4 sm:p-6 min-w-0 max-w-full overflow-x-hidden">
                 <?php $flash = $flash ?? flash(); ?>
                 <?php if ($flash): ?>
-                    <div class="mb-4 p-3 rounded-lg text-sm <?= $flash['type'] === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : ($flash['type'] === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-brand-light text-brand-dark border border-brand-light') ?>">
-                        <?= e($flash['message']) ?>
+                    <div class="mb-4 rounded-lg border p-3 text-sm <?= $flash['type'] === 'error' ? 'bg-red-50 text-red-700 border-red-200' : ($flash['type'] === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-brand-light text-brand-dark border-brand-light') ?>">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
+                                <?= e($flash['message']) ?>
+                            </div>
+                            <?php if (!empty($flash['action']['token'])): ?>
+                                <form method="POST" action="<?= url('registre/undo') ?>" class="shrink-0">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="token" value="<?= e($flash['action']['token']) ?>">
+                                    <input type="hidden" name="redirect" value="<?= e($flash['action']['redirect'] ?? 'setmana') ?>">
+                                    <button type="submit" class="inline-flex items-center justify-center rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-semibold text-green-700 transition hover:bg-green-100">
+                                        <?= e($flash['action']['label'] ?? 'Desfer') ?>
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 <?php endif; ?>
 

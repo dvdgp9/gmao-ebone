@@ -87,9 +87,12 @@ class Controller
         return $_SESSION['current_role'] ?? '';
     }
 
-    protected function setFlash(string $type, string $message): void
+    protected function setFlash(string $type, string $message, array $extra = []): void
     {
-        $_SESSION['flash'] = ['type' => $type, 'message' => $message];
+        $_SESSION['flash'] = array_merge([
+            'type' => $type,
+            'message' => $message,
+        ], $extra);
     }
 
     protected function getFlash(): ?array
