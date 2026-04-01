@@ -61,6 +61,16 @@ class RegistreController extends Controller
             $this->redirect('setmana');
         }
 
+        $tascaInfo = TascaPla::query(
+            'SELECT tc.nom AS tasca_nom
+             FROM tasques_pla tp
+             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
+             WHERE tp.id = ? AND tp.instalacio_id = ?
+             LIMIT 1',
+            [$tascaPlaId, $instalacioId]
+        );
+        $tascaNom = trim((string)($tascaInfo[0]['tasca_nom'] ?? ''));
+
         $registreId = RegistreTasca::registrar(
             $instalacioId,
             $tascaPlaId,
@@ -86,7 +96,7 @@ class RegistreController extends Controller
                 ],
             ];
 
-            $this->setFlash('success', 'Tasca marcada com a realitzada.', [
+            $this->setFlash('success', 'Has marcat com a realitzada: ' . ($tascaNom !== '' ? $tascaNom : 'la tasca seleccionada') . '.', [
                 'action' => [
                     'label' => 'Desfer',
                     'token' => $token,

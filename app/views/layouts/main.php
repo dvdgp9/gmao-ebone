@@ -177,23 +177,46 @@
             <main class="p-4 sm:p-6 min-w-0 max-w-full overflow-x-hidden">
                 <?php $flash = $flash ?? flash(); ?>
                 <?php if ($flash): ?>
-                    <div class="mb-4 rounded-lg border p-3 text-sm <?= $flash['type'] === 'error' ? 'bg-red-50 text-red-700 border-red-200' : ($flash['type'] === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-brand-light text-brand-dark border-brand-light') ?>">
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div class="min-w-0">
-                                <?= e($flash['message']) ?>
+                    <?php if (!empty($flash['action']['token'])): ?>
+                        <div class="pointer-events-none fixed inset-x-0 bottom-4 z-40 px-4 sm:bottom-6">
+                            <div x-data="{ open: true }" x-show="open" x-transition.opacity.duration.180ms class="mx-auto w-full max-w-md pointer-events-auto">
+                                <div class="rounded-2xl border border-gray-200 bg-white/95 shadow-xl shadow-gray-900/10 backdrop-blur">
+                                    <div class="flex items-start gap-3 p-4">
+                                        <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm font-medium text-gray-900"><?= e($flash['message']) ?></p>
+                                        </div>
+                                        <button type="button" @click="open = false" class="shrink-0 rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600" aria-label="Tancar avís">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="flex items-center justify-end gap-2 border-t border-gray-100 px-4 py-3">
+                                        <button type="button" @click="open = false" class="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700">
+                                            Tancar
+                                        </button>
+                                        <form method="POST" action="<?= url('registre/undo') ?>">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="token" value="<?= e($flash['action']['token']) ?>">
+                                            <input type="hidden" name="redirect" value="<?= e($flash['action']['redirect'] ?? 'setmana') ?>">
+                                            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700">
+                                                <?= e($flash['action']['label'] ?? 'Desfer') ?>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
                             </div>
-                            <?php if (!empty($flash['action']['token'])): ?>
-                                <form method="POST" action="<?= url('registre/undo') ?>" class="shrink-0">
-                                    <?= csrf_field() ?>
-                                    <input type="hidden" name="token" value="<?= e($flash['action']['token']) ?>">
-                                    <input type="hidden" name="redirect" value="<?= e($flash['action']['redirect'] ?? 'setmana') ?>">
-                                    <button type="submit" class="inline-flex items-center justify-center rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-semibold text-green-700 transition hover:bg-green-100">
-                                        <?= e($flash['action']['label'] ?? 'Desfer') ?>
-                                    </button>
-                                </form>
-                            <?php endif; ?>
                         </div>
-                    </div>
+                    <?php else: ?>
+                        <div class="mb-4 rounded-lg border p-3 text-sm <?= $flash['type'] === 'error' ? 'bg-red-50 text-red-700 border-red-200' : ($flash['type'] === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-brand-light text-brand-dark border-brand-light') ?>">
+                            <?= e($flash['message']) ?>
+                        </div>
+                    <?php endif; ?>
                 <?php endif; ?>
 
                 <?= $content ?? '' ?>
