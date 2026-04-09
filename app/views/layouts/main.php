@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="GMAO">
     <link rel="manifest" href="<?= url('manifest.webmanifest') ?>">
     <link rel="apple-touch-icon" href="<?= url('img/apple-touch-icon.png') ?>">
-    <title><?= e($title ?? 'Dashboard') ?> - <?= e(\App\Config\App::name()) ?></title>
+    <title><?= e($title ?? 'Inicio') ?> - <?= e(\App\Config\App::name()) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config={theme:{extend:{colors:{brand:{DEFAULT:'#23AAC5',dark:'#1B8FA6',light:'#E8F7FA',50:'#E8F7FA',100:'#C5EDF3',200:'#8DDBE7',300:'#55C9DB',400:'#23AAC5',500:'#1B8FA6',600:'#167487',700:'#115A68',800:'#0C3F49',900:'#07252A'}}}}}</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -62,7 +62,7 @@
             <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
                 <a href="<?= url('dashboard') ?>" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 <?= is_active('dashboard') ?: (is_active('') ? 'active' : '') ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                    Dashboard
+                    Inicio
                 </a>
 
                 <p class="text-xs font-medium text-gray-400 uppercase tracking-wider pt-4 pb-1 px-3">Maestros</p>

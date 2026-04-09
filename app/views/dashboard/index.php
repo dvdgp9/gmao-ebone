@@ -1,11 +1,11 @@
 <?php
-$title = 'Dashboard';
+$title = 'Inicio';
 $s = $stats ?? [];
 ob_start();
 ?>
 
 <div class="mb-6">
-    <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Dashboard</h2>
+    <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Inicio</h2>
     <p class="text-gray-500 text-sm mt-1">Resum general de manteniment — <?= e(date('F Y')) ?></p>
 </div>
 
