@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#23AAC5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="GMAO">
+    <link rel="manifest" href="<?= url('manifest.webmanifest') ?>">
+    <link rel="apple-touch-icon" href="<?= url('img/apple-touch-icon.png') ?>">
     <title><?= e($title ?? 'Dashboard') ?> - <?= e(\App\Config\App::name()) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config={theme:{extend:{colors:{brand:{DEFAULT:'#23AAC5',dark:'#1B8FA6',light:'#E8F7FA',50:'#E8F7FA',100:'#C5EDF3',200:'#8DDBE7',300:'#55C9DB',400:'#23AAC5',500:'#1B8FA6',600:'#167487',700:'#115A68',800:'#0C3F49',900:'#07252A'}}}}}</script>
@@ -243,6 +249,12 @@
             overlay.addEventListener('click', () => {
                 sidebar.classList.add('-translate-x-full');
                 overlay.classList.add('hidden');
+            });
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('<?= url('sw.js') ?>').catch(() => {});
             });
         }
     </script>
