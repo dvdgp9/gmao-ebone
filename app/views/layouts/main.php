@@ -29,11 +29,8 @@
     <div class="flex min-h-screen max-w-full overflow-x-hidden">
         <!-- Sidebar -->
         <aside id="sidebar" class="w-[86vw] max-w-72 bg-white border-r border-gray-200 flex flex-col fixed h-full z-30 transition-transform -translate-x-full lg:w-64 lg:max-w-none lg:translate-x-0">
-            <div class="p-5 border-b border-gray-200">
-                <div class="flex items-center">
-                    <img src="<?= url('img/GMAO-Logo-600.png') ?>" alt="GMAO Logo" class="h-10 w-auto">
-                </div>
-                <p class="text-xs text-gray-400 mt-0.5">Gestió de Manteniment</p>
+            <div class="p-5 border-b border-gray-200 flex justify-center">
+                <img src="<?= url('img/GMAO-Logo-600.png') ?>" alt="GMAO Logo" class="h-10 w-auto">
             </div>
 
             <?php if (!empty($_SESSION['assignacions']) && (count($_SESSION['assignacions']) > 1 || !empty($_SESSION['is_superadmin']))): ?>
