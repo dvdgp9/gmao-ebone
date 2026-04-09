@@ -30,7 +30,9 @@
         <!-- Sidebar -->
         <aside id="sidebar" class="w-[86vw] max-w-72 bg-white border-r border-gray-200 flex flex-col fixed h-full z-30 transition-transform -translate-x-full lg:w-64 lg:max-w-none lg:translate-x-0">
             <div class="p-5 border-b border-gray-200">
-                <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2"><img src="<?= url('img/isotipo-ebone.png') ?>" alt="Ebone" class="h-5 w-auto"> GMAO</h1>
+                <div class="flex items-center">
+                    <img src="<?= url('img/GMAO-Logo-600.png') ?>" alt="GMAO Logo" class="h-10 w-auto">
+                </div>
                 <p class="text-xs text-gray-400 mt-0.5">Gestió de Manteniment</p>
             </div>
 
