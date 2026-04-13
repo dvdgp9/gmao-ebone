@@ -101,7 +101,10 @@ ob_start();
                                     <?= csrf_field() ?>
                                     <button type="submit" class="text-gray-400 <?= ($espai['actiu'] ?? 1) ? 'hover:text-yellow-600' : 'hover:text-green-600' ?> transition" title="<?= ($espai['actiu'] ?? 1) ? 'Desactivar' : 'Activar' ?>">
                                         <?php if ($espai['actiu'] ?? 1): ?>
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 105.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v4"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6.34 6.34a8 8 0 1011.32 0"/>
+                                            </svg>
                                         <?php else: ?>
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                         <?php endif; ?>
