@@ -63,6 +63,7 @@ class DashboardController extends Controller
                 LEFT JOIN espais es ON es.id = tp.espai_id
                 LEFT JOIN torns t ON t.id = tp.torn_id
                 WHERE tp.instalacio_id = ? AND tp.en_curs = 1
+                  AND (tp.espai_id IS NULL OR es.actiu = 1)
                   AND tp.data_propera_realitzacio IS NOT NULL
                 ORDER BY tp.data_propera_realitzacio ASC
                 LIMIT 15
@@ -72,8 +73,10 @@ class DashboardController extends Controller
                 SELECT t.nom AS torn_nom, COUNT(*) AS total,
                        SUM(CASE WHEN tp.data_propera_realitzacio < CURDATE() THEN 1 ELSE 0 END) AS vencudes
                 FROM tasques_pla tp
+                LEFT JOIN espais es ON es.id = tp.espai_id
                 LEFT JOIN torns t ON t.id = tp.torn_id
                 WHERE tp.instalacio_id = ? AND tp.en_curs = 1
+                  AND (tp.espai_id IS NULL OR es.actiu = 1)
                 GROUP BY tp.torn_id, t.nom
                 ORDER BY t.nom
             ', [$instalacioId]);
@@ -82,8 +85,10 @@ class DashboardController extends Controller
                 SELECT s.codi AS sistema_codi, s.nom AS sistema_nom, COUNT(*) AS total
                 FROM tasques_pla tp
                 JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
+                LEFT JOIN espais es ON es.id = tp.espai_id
                 LEFT JOIN sistemes s ON s.id = tc.sistema_id
                 WHERE tp.instalacio_id = ? AND tp.en_curs = 1
+                  AND (tp.espai_id IS NULL OR es.actiu = 1)
                 GROUP BY tc.sistema_id, s.codi, s.nom
                 ORDER BY total DESC
                 LIMIT 10
@@ -105,8 +110,20 @@ class DashboardController extends Controller
             SELECT i.id, i.nom, i.adreca,
                    (SELECT COUNT(*) FROM equips e WHERE e.instalacio_id = i.id AND e.actiu = 1) AS equips,
                    (SELECT COUNT(*) FROM tasques_pla tp WHERE tp.instalacio_id = i.id AND tp.en_curs = 1) AS tasques_pla,
-                   (SELECT COUNT(*) FROM tasques_pla tp WHERE tp.instalacio_id = i.id AND tp.en_curs = 1 AND tp.data_propera_realitzacio < CURDATE()) AS tasques_vencudes,
-                   (SELECT COUNT(*) FROM tasques_pla tp WHERE tp.instalacio_id = i.id AND tp.en_curs = 1 AND tp.data_propera_realitzacio <= CURDATE()) AS tasques_pendents,
+                   (SELECT COUNT(*)
+                    FROM tasques_pla tp
+                    LEFT JOIN espais es ON es.id = tp.espai_id
+                    WHERE tp.instalacio_id = i.id
+                      AND tp.en_curs = 1
+                      AND (tp.espai_id IS NULL OR es.actiu = 1)
+                      AND tp.data_propera_realitzacio < CURDATE()) AS tasques_vencudes,
+                   (SELECT COUNT(*)
+                    FROM tasques_pla tp
+                    LEFT JOIN espais es ON es.id = tp.espai_id
+                    WHERE tp.instalacio_id = i.id
+                      AND tp.en_curs = 1
+                      AND (tp.espai_id IS NULL OR es.actiu = 1)
+                      AND tp.data_propera_realitzacio <= CURDATE()) AS tasques_pendents,
                    (SELECT COUNT(*) FROM espais es WHERE es.instalacio_id = i.id AND es.actiu = 1) AS espais
             FROM instalacions i
             WHERE i.activa = 1

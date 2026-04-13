@@ -46,7 +46,7 @@ ob_start();
                     <option value="">— Selecciona —</option>
                     <?php foreach ($espais as $esp): ?>
                         <option value="<?= $esp['id'] ?>" <?= ($tasca['espai_id'] ?? '') == $esp['id'] ? 'selected' : '' ?>>
-                            <?= e($esp['nom']) ?>
+                            <?= e($esp['nom']) ?><?= empty($esp['actiu']) ? ' (inactiu)' : '' ?>
                         </option>
                     <?php endforeach; ?>
                 </select>

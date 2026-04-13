@@ -51,6 +51,7 @@ $router->get('espais/create', EspaiController::class, 'create');
 $router->post('espais/store', EspaiController::class, 'store');
 $router->get('espais/edit/{id}', EspaiController::class, 'edit');
 $router->post('espais/update/{id}', EspaiController::class, 'update');
+$router->post('espais/toggle/{id}', EspaiController::class, 'toggle');
 $router->post('espais/delete/{id}', EspaiController::class, 'delete');
 
 // Sistemes

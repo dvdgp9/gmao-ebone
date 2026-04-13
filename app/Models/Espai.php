@@ -12,4 +12,9 @@ class Espai extends Model
     {
         return static::all(['instalacio_id' => $instalacioId], 'nom ASC');
     }
+
+    public static function activeByInstalacio(int $instalacioId): array
+    {
+        return static::all(['instalacio_id' => $instalacioId, 'actiu' => 1], 'nom ASC');
+    }
 }

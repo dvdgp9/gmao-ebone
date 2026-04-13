@@ -26,7 +26,15 @@
     if (!empty($_SESSION['instalacio_id'])) {
         try {
             $__db = \App\Models\Database::getInstance();
-            $__st = $__db->prepare('SELECT COUNT(*) FROM tasques_pla WHERE instalacio_id = ? AND en_curs = 1 AND data_propera_realitzacio < CURDATE()');
+            $__st = $__db->prepare('
+                SELECT COUNT(*)
+                FROM tasques_pla tp
+                LEFT JOIN espais es ON es.id = tp.espai_id
+                WHERE tp.instalacio_id = ?
+                  AND tp.en_curs = 1
+                  AND (tp.espai_id IS NULL OR es.actiu = 1)
+                  AND tp.data_propera_realitzacio < CURDATE()
+            ');
             $__st->execute([$_SESSION['instalacio_id']]);
             $__badgeVencudes = (int)$__st->fetchColumn();
         } catch (\Throwable $e) {}

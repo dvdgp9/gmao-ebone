@@ -41,6 +41,14 @@ ob_start();
                 <input type="text" name="zona" value="<?= e($espai['zona'] ?? '') ?>"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
             </div>
+            <div class="md:col-span-2">
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" name="actiu" value="1" <?= ($espai['actiu'] ?? 1) ? 'checked' : '' ?>
+                           class="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand">
+                    <span class="text-sm text-gray-700">Espai actiu</span>
+                </label>
+                <p class="text-xs text-gray-400 mt-1">Si està inactiu, les tasques associades directament a aquest espai no apareixeran com a pendents.</p>
+            </div>
         </div>
     </div>
 

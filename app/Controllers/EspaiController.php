@@ -49,6 +49,7 @@ class EspaiController extends Controller
             'nom' => trim($this->post('nom', '')),
             'planta' => trim($this->post('planta', '')) ?: null,
             'zona' => trim($this->post('zona', '')) ?: null,
+            'actiu' => $this->post('actiu', 1) ? 1 : 0,
         ]);
         $this->setFlash('success', 'Espai creat correctament.');
         $this->redirect($this->getReturnTo('espais', true));
@@ -90,9 +91,31 @@ class EspaiController extends Controller
             'nom' => trim($this->post('nom', '')),
             'planta' => trim($this->post('planta', '')) ?: null,
             'zona' => trim($this->post('zona', '')) ?: null,
+            'actiu' => $this->post('actiu', 1) ? 1 : 0,
         ]);
         $this->setFlash('success', 'Espai actualitzat correctament.');
         $this->redirect($this->getReturnTo('espais', true));
+    }
+
+    public function toggle(string $id): void
+    {
+        $this->requireRole(['superadmin', 'admin_instalacio', 'cap_manteniment']);
+        if (!verify_csrf()) {
+            $this->setFlash('error', 'Token de seguretat invàlid.');
+            $this->redirect('espais');
+        }
+
+        $espai = Espai::find((int)$id);
+        if (!$espai || $espai['instalacio_id'] != $this->currentInstalacioId()) {
+            $this->setFlash('error', 'Espai no trobat.');
+            $this->redirect('espais');
+        }
+
+        $actiu = empty($espai['actiu']) ? 1 : 0;
+        Espai::update((int)$id, ['actiu' => $actiu]);
+
+        $this->setFlash('success', $actiu ? 'Espai activat correctament.' : 'Espai desactivat correctament. Les tasques associades a aquest espai deixaran d\'aparèixer com a pendents.');
+        $this->redirect('espais');
     }
 
     public function delete(string $id): void

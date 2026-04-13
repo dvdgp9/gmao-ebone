@@ -13,6 +13,7 @@ class TascaPla extends Model
         return static::query('
             SELECT tp.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
+                   es.actiu AS espai_actiu,
                    t.nom AS torn_nom, p.nom AS periodicitat_nom,
                    n.nom AS normativa_nom
             FROM tasques_pla tp
@@ -33,6 +34,7 @@ class TascaPla extends Model
         $sql = '
             SELECT tp.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
+                   es.actiu AS espai_actiu,
                    t.nom AS torn_nom, p.nom AS periodicitat_nom,
                    n.nom AS normativa_nom
             FROM tasques_pla tp
@@ -76,6 +78,7 @@ class TascaPla extends Model
             LEFT JOIN torns t ON t.id = tp.torn_id
             LEFT JOIN periodicitats p ON p.id = tp.periodicitat_id
             WHERE tp.instalacio_id = ? AND tp.en_curs = 1
+              AND (tp.espai_id IS NULL OR es.actiu = 1)
               AND tp.data_propera_realitzacio IS NOT NULL
               AND tp.data_propera_realitzacio <= ?';
         $params = [$instalacioId, $diumenge];
@@ -104,6 +107,7 @@ class TascaPla extends Model
             LEFT JOIN torns t ON t.id = tp.torn_id
             LEFT JOIN periodicitats p ON p.id = tp.periodicitat_id
             WHERE tp.instalacio_id = ? AND tp.en_curs = 1
+              AND (tp.espai_id IS NULL OR es.actiu = 1)
               AND tp.data_propera_realitzacio IS NOT NULL
               AND tp.data_propera_realitzacio <= ?';
         $params = [$instalacioId, $data];
@@ -143,6 +147,7 @@ class TascaPla extends Model
             LEFT JOIN torns t ON t.id = tp.torn_id
             LEFT JOIN periodicitats p ON p.id = tp.periodicitat_id
             WHERE tp.instalacio_id = ? AND tp.en_curs = 1
+              AND (tp.espai_id IS NULL OR es.actiu = 1)
               AND tp.data_propera_realitzacio IS NOT NULL
               AND tp.data_propera_realitzacio <= ?';
         $params = [$instalacioId, $diumenge];
@@ -171,8 +176,12 @@ class TascaPla extends Model
     public static function tasquesPendents(int $instalacioId): int
     {
         $result = static::query(
-            'SELECT COUNT(*) AS total FROM tasques_pla
-             WHERE instalacio_id = ? AND en_curs = 1 AND data_propera_realitzacio <= CURDATE()',
+            'SELECT COUNT(*) AS total
+             FROM tasques_pla tp
+             LEFT JOIN espais es ON es.id = tp.espai_id
+             WHERE tp.instalacio_id = ? AND tp.en_curs = 1
+               AND (tp.espai_id IS NULL OR es.actiu = 1)
+               AND tp.data_propera_realitzacio <= CURDATE()',
             [$instalacioId]
         );
         return (int)($result[0]['total'] ?? 0);
@@ -181,8 +190,12 @@ class TascaPla extends Model
     public static function tasquesVençudes(int $instalacioId): int
     {
         $result = static::query(
-            'SELECT COUNT(*) AS total FROM tasques_pla
-             WHERE instalacio_id = ? AND en_curs = 1 AND data_propera_realitzacio < CURDATE()',
+            'SELECT COUNT(*) AS total
+             FROM tasques_pla tp
+             LEFT JOIN espais es ON es.id = tp.espai_id
+             WHERE tp.instalacio_id = ? AND tp.en_curs = 1
+               AND (tp.espai_id IS NULL OR es.actiu = 1)
+               AND tp.data_propera_realitzacio < CURDATE()',
             [$instalacioId]
         );
         return (int)($result[0]['total'] ?? 0);
@@ -193,9 +206,11 @@ class TascaPla extends Model
         $result = static::query(
             'SELECT
                 COUNT(*) AS total,
-                SUM(CASE WHEN data_propera_realitzacio <= CURDATE() THEN 1 ELSE 0 END) AS pendents
-             FROM tasques_pla
-             WHERE instalacio_id = ? AND en_curs = 1',
+                SUM(CASE WHEN tp.data_propera_realitzacio <= CURDATE() THEN 1 ELSE 0 END) AS pendents
+             FROM tasques_pla tp
+             LEFT JOIN espais es ON es.id = tp.espai_id
+             WHERE tp.instalacio_id = ? AND tp.en_curs = 1
+               AND (tp.espai_id IS NULL OR es.actiu = 1)',
             [$instalacioId]
         );
 

@@ -57,13 +57,22 @@ ob_start();
                     <?php elseif ($avui): ?>
                         <span class="bg-yellow-100 text-yellow-700 text-[10px] px-1.5 py-0.5 rounded font-medium">Avui</span>
                     <?php endif; ?>
+                    <?php if (($t['espai_id'] ?? null) && isset($t['espai_actiu']) && (int)$t['espai_actiu'] === 0): ?>
+                        <span class="bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded font-medium">Espai inactiu</span>
+                    <?php endif; ?>
                     <?php if ($t['torn_nom']): ?>
                         <span class="bg-purple-50 text-purple-700 text-[10px] px-1.5 py-0.5 rounded"><?= e($t['torn_nom']) ?></span>
                     <?php endif; ?>
                 </div>
             </div>
             <div class="flex items-start justify-between gap-2 mt-2 text-xs text-gray-500">
-                <span class="min-w-0 break-words leading-4"><?= e($t['espai_nom'] ?? '-') ?><?= $t['equip_nom'] ? ' · ' . e($t['equip_nom']) : '' ?></span>
+                <span class="min-w-0 break-words leading-4">
+                    <?= e($t['espai_nom'] ?? '-') ?>
+                    <?php if (($t['espai_id'] ?? null) && isset($t['espai_actiu']) && (int)$t['espai_actiu'] === 0): ?>
+                        <span class="text-gray-400">(inactiu)</span>
+                    <?php endif; ?>
+                    <?= $t['equip_nom'] ? ' · ' . e($t['equip_nom']) : '' ?>
+                </span>
                 <button type="button" @click="expanded[<?= $t['id'] ?>] = !expanded[<?= $t['id'] ?>]" class="text-brand hover:text-brand-dark text-[11px] ml-2 shrink-0 whitespace-nowrap">
                     <span x-show="!expanded[<?= $t['id'] ?>]">+ Detalls</span>
                     <span x-show="expanded[<?= $t['id'] ?>]">- Tancar</span>
@@ -136,7 +145,12 @@ ob_start();
                                 <div class="text-xs text-gray-400 mt-0.5"><?= e($t['equip_nom']) ?></div>
                             <?php endif; ?>
                         </td>
-                        <td class="px-4 py-3 text-gray-500"><?= e($t['espai_nom'] ?? '-') ?></td>
+                        <td class="px-4 py-3 text-gray-500">
+                            <?= e($t['espai_nom'] ?? '-') ?>
+                            <?php if (($t['espai_id'] ?? null) && isset($t['espai_actiu']) && (int)$t['espai_actiu'] === 0): ?>
+                                <div class="text-[11px] text-gray-400">Espai inactiu</div>
+                            <?php endif; ?>
+                        </td>
                         <td class="px-4 py-3">
                             <?php if ($t['torn_nom']): ?>
                                 <span class="inline-block bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded"><?= e($t['torn_nom']) ?></span>
