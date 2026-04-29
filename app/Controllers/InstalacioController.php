@@ -37,13 +37,20 @@ class InstalacioController extends Controller
             $this->redirect('instalacions');
         }
 
-        $instalacioId = Instalacio::create([
-            'nom' => trim($this->post('nom', '')),
-            'adreca' => trim($this->post('adreca', '')) ?: null,
-            'telefon' => trim($this->post('telefon', '')) ?: null,
-            'email' => trim($this->post('email', '')) ?: null,
-            'activa' => $this->post('activa', 1) ? 1 : 0,
-        ]);
+        $data = $this->getFormData();
+        $error = $this->validateInput($data, null);
+        if ($error !== null) {
+            $this->setFlash('error', $error);
+            $this->redirect('instalacions/create');
+        }
+
+        try {
+            $instalacioId = Instalacio::create($data);
+        } catch (\PDOException $e) {
+            $this->setFlash('error', $this->describeDbError($e, 'crear'));
+            $this->redirect('instalacions/create');
+        }
+
         $this->refreshSuperadminAssignacions();
         $this->switchSuperadminContext($instalacioId);
         $this->setFlash('success', 'Instal·lació creada correctament.');
@@ -102,14 +109,30 @@ class InstalacioController extends Controller
             $this->redirect('instalacions');
         }
 
-        Instalacio::update((int)$id, [
-            'nom' => trim($this->post('nom', '')),
-            'adreca' => trim($this->post('adreca', '')) ?: null,
-            'telefon' => trim($this->post('telefon', '')) ?: null,
-            'email' => trim($this->post('email', '')) ?: null,
-            'activa' => $this->post('activa', 1) ? 1 : 0,
-        ]);
+        $instalacioId = (int)$id;
+        if (!Instalacio::find($instalacioId)) {
+            $this->setFlash('error', 'Instal·lació no trobada.');
+            $this->redirect('instalacions');
+        }
+
+        $data = $this->getFormData();
+        $error = $this->validateInput($data, $instalacioId);
+        if ($error !== null) {
+            $this->setFlash('error', $error);
+            $this->redirect('instalacions/edit/' . $instalacioId);
+        }
+
+        try {
+            Instalacio::update($instalacioId, $data);
+        } catch (\PDOException $e) {
+            $this->setFlash('error', $this->describeDbError($e, 'actualitzar'));
+            $this->redirect('instalacions/edit/' . $instalacioId);
+        }
+
         $this->refreshSuperadminAssignacions();
+        if ((int)($_SESSION['instalacio_id'] ?? 0) === $instalacioId) {
+            $_SESSION['instalacio_nom'] = $data['nom'];
+        }
         $this->setFlash('success', 'Instal·lació actualitzada correctament.');
         $this->redirect('instalacions');
     }
@@ -258,6 +281,63 @@ class InstalacioController extends Controller
         }
 
         $this->redirect('dashboard');
+    }
+
+    private function getFormData(): array
+    {
+        return [
+            'nom' => trim((string)$this->post('nom', '')),
+            'adreca' => trim((string)$this->post('adreca', '')) ?: null,
+            'telefon' => trim((string)$this->post('telefon', '')) ?: null,
+            'email' => trim((string)$this->post('email', '')) ?: null,
+            'activa' => $this->post('activa', 0) ? 1 : 0,
+        ];
+    }
+
+    private function validateInput(array $data, ?int $excludeId): ?string
+    {
+        if ($data['nom'] === '') {
+            return 'El nom de la instal·lació és obligatori.';
+        }
+        if (mb_strlen($data['nom']) > 255) {
+            return 'El nom no pot superar els 255 caràcters.';
+        }
+        if ($data['adreca'] !== null && mb_strlen($data['adreca']) > 500) {
+            return 'L\'adreça no pot superar els 500 caràcters.';
+        }
+        if ($data['telefon'] !== null && mb_strlen($data['telefon']) > 50) {
+            return 'El telèfon no pot superar els 50 caràcters.';
+        }
+        if ($data['email'] !== null) {
+            if (mb_strlen($data['email']) > 255) {
+                return 'L\'email no pot superar els 255 caràcters.';
+            }
+            if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+                return 'El format de l\'email no és vàlid.';
+            }
+        }
+
+        $db = Database::getInstance();
+        if ($excludeId === null) {
+            $stmt = $db->prepare('SELECT COUNT(*) FROM instalacions WHERE nom = ?');
+            $stmt->execute([$data['nom']]);
+        } else {
+            $stmt = $db->prepare('SELECT COUNT(*) FROM instalacions WHERE nom = ? AND id <> ?');
+            $stmt->execute([$data['nom'], $excludeId]);
+        }
+        if ((int)$stmt->fetchColumn() > 0) {
+            return 'Ja existeix una instal·lació amb aquest nom.';
+        }
+
+        return null;
+    }
+
+    private function describeDbError(\PDOException $e, string $action): string
+    {
+        if ((int)$e->getCode() === 23000) {
+            return 'Ja existeix una instal·lació amb aquest nom.';
+        }
+        return 'No s\'ha pogut ' . $action . ' la instal·lació.';
     }
 
     private function refreshSuperadminAssignacions(): void
