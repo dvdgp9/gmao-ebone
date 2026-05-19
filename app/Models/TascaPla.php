@@ -229,4 +229,36 @@ class TascaPla extends Model
             WHERE tp.id = ? AND tp.data_darrera_realitzacio IS NOT NULL
         ', [$id]);
     }
+
+    public static function dataExecucioProgramada(int $id, string $dataAccio): string
+    {
+        $result = static::query('
+            SELECT tp.data_propera_realitzacio, p.dies_interval
+            FROM tasques_pla tp
+            LEFT JOIN periodicitats p ON p.id = tp.periodicitat_id
+            WHERE tp.id = ?
+            LIMIT 1
+        ', [$id]);
+
+        $dataProgramada = $result[0]['data_propera_realitzacio'] ?? null;
+        $interval = (int)($result[0]['dies_interval'] ?? 0);
+
+        if (!$dataProgramada || $interval <= 0) {
+            return $dataAccio;
+        }
+
+        $programada = new \DateTimeImmutable($dataProgramada);
+        $accio = new \DateTimeImmutable($dataAccio);
+
+        if ($accio < $programada) {
+            return $dataProgramada;
+        }
+
+        $diesRetard = (int)$programada->diff($accio)->format('%a');
+        $intervalsPassats = intdiv($diesRetard, $interval);
+
+        return $programada
+            ->modify('+' . ($intervalsPassats * $interval) . ' days')
+            ->format('Y-m-d');
+    }
 }

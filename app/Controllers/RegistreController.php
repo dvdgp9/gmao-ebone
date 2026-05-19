@@ -94,6 +94,10 @@ class RegistreController extends Controller
         );
         $tascaNom = trim((string)($tascaInfo[0]['tasca_nom'] ?? ''));
 
+        if ($realitzada) {
+            $dataExecucio = TascaPla::dataExecucioProgramada($tascaPlaId, $dataExecucio);
+        }
+
         $registreId = RegistreTasca::registrar(
             $instalacioId,
             $tascaPlaId,
