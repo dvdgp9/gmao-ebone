@@ -21,15 +21,28 @@ class RegistreController extends Controller
 
         $page = max(1, (int)$this->get('page', 1));
         $perPage = 50;
-        $offset = ($page - 1) * $perPage;
-        $total = RegistreTasca::countByInstalacio($instalacioId);
-        $totalPages = max(1, (int)ceil($total / $perPage));
+        $filters = [
+            'date_from' => $this->validDate($this->get('date_from', '')),
+            'date_to' => $this->validDate($this->get('date_to', '')),
+            'tasca_pla_id' => $this->get('tasca', '') ?: null,
+            'espai_id' => $this->get('espai', '') ?: null,
+            'torn_id' => $this->get('torn', '') ?: null,
+            'q' => trim($this->get('q', '')),
+        ];
 
-        $registres = RegistreTasca::allByInstalacio($instalacioId, $perPage, $offset);
+        $total = RegistreTasca::countFilteredByInstalacio($instalacioId, $filters);
+        $totalPages = max(1, (int)ceil($total / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $registres = RegistreTasca::filterByInstalacio($instalacioId, $filters, $perPage, $offset);
+        $filterOptions = RegistreTasca::filterOptionsByInstalacio($instalacioId);
 
         $this->view('registre.index', [
             'title' => 'Registre de Tasques',
             'registres' => $registres,
+            'filters' => $filters,
+            'filterOptions' => $filterOptions,
             'pagination' => [
                 'total' => $total,
                 'current_page' => $page,
@@ -38,6 +51,16 @@ class RegistreController extends Controller
             ],
             'flash' => $this->getFlash(),
         ]);
+    }
+
+    private function validDate(string $date): ?string
+    {
+        if ($date === '') {
+            return null;
+        }
+
+        $parsed = \DateTime::createFromFormat('Y-m-d', $date);
+        return $parsed && $parsed->format('Y-m-d') === $date ? $date : null;
     }
 
     public function store(): void
