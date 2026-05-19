@@ -23,6 +23,7 @@
 <body class="bg-gray-50 min-h-screen overflow-x-hidden">
     <?php
     $__badgeVencudes = 0;
+    $__badgeIncidencies = 0;
     if (!empty($_SESSION['instalacio_id'])) {
         try {
             $__db = \App\Models\Database::getInstance();
@@ -37,6 +38,12 @@
             ');
             $__st->execute([$_SESSION['instalacio_id']]);
             $__badgeVencudes = (int)$__st->fetchColumn();
+
+            if (!empty($_SESSION['is_superadmin']) || in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment'])) {
+                $__stInc = $__db->prepare('SELECT COUNT(*) FROM incidencies_tasques WHERE instalacio_id = ? AND vista = 0');
+                $__stInc->execute([$_SESSION['instalacio_id']]);
+                $__badgeIncidencies = (int)$__stInc->fetchColumn();
+            }
         } catch (\Throwable $e) {}
     }
     ?>
@@ -125,6 +132,16 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     Registre
                 </a>
+
+                <?php if (!empty($_SESSION['is_superadmin']) || in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment'])): ?>
+                <a href="<?= url('incidencies') ?>" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 <?= is_active('incidencies') ?>">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                    Incidències
+                    <?php if ($__badgeIncidencies > 0): ?>
+                        <span class="ml-auto bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full leading-none"><?= $__badgeIncidencies ?></span>
+                    <?php endif; ?>
+                </a>
+                <?php endif; ?>
 
                 <?php if (!empty($_SESSION['is_superadmin']) || in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
                 <p class="text-xs font-medium text-gray-400 uppercase tracking-wider pt-4 pb-1 px-3">Administració</p>

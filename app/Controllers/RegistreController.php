@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Core\Controller;
+use App\Models\IncidenciaTasca;
 use App\Models\RegistreTasca;
 use App\Models\TascaPla;
 
@@ -74,9 +75,19 @@ class RegistreController extends Controller
         $instalacioId = $this->currentInstalacioId();
         $tascaPlaId = (int)$this->post('tasca_pla_id');
         $realitzada = (bool)$this->post('realitzada', 1);
+        $tipusIncidencia = (string)$this->post('tipus_incidencia', '');
         $comentaris = trim($this->post('comentaris', '')) ?: null;
         $dataExecucio = $this->post('data_execucio', date('Y-m-d'));
         $redirect = $this->post('redirect', 'setmana');
+
+        if (in_array($tipusIncidencia, ['feta_amb_incidencia', 'no_feta_per_incidencia'], true) && !$comentaris) {
+            $this->setFlash('error', 'Cal afegir un comentari per registrar una incidència.');
+            $this->redirect($redirect);
+        }
+
+        if ($tipusIncidencia === 'no_feta_per_incidencia') {
+            $realitzada = false;
+        }
 
         $tasca = TascaPla::find($tascaPlaId);
         if (!$tasca || $tasca['instalacio_id'] != $instalacioId) {
@@ -107,6 +118,18 @@ class RegistreController extends Controller
             $comentaris
         );
 
+        if (in_array($tipusIncidencia, ['feta_amb_incidencia', 'no_feta_per_incidencia'], true)) {
+            IncidenciaTasca::create([
+                'instalacio_id' => $instalacioId,
+                'tasca_pla_id' => $tascaPlaId,
+                'registre_tasca_id' => $registreId,
+                'usuari_id' => $this->currentUserId(),
+                'tipus' => $tipusIncidencia,
+                'data_programada' => $dataExecucio,
+                'comentari' => $comentaris,
+            ]);
+        }
+
         if ($realitzada) {
             $token = bin2hex(random_bytes(16));
             $_SESSION[self::UNDO_SESSION_KEY] = [
@@ -130,6 +153,8 @@ class RegistreController extends Controller
                     'redirect' => $redirect,
                 ],
             ]);
+        } elseif ($tipusIncidencia === 'no_feta_per_incidencia') {
+            $this->setFlash('success', 'Incidència registrada. La tasca continua pendent.');
         } else {
             $this->setFlash('success', 'Execució registrada correctament.');
         }

@@ -152,16 +152,27 @@ ob_start();
                     <span class="text-right <?= $vencuda ? 'text-red-600 font-medium' : 'text-gray-700' ?>"><?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?></span>
                 </div>
                 <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
-                <form method="POST" action="<?= url('registre/store') ?>" class="pt-2">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">
-                    <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
-                    <input type="hidden" name="realitzada" value="1">
-                    <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?>">
-                    <button type="submit" class="w-full bg-green-50 text-green-700 hover:bg-green-100 px-3 py-2 rounded-lg text-sm font-medium transition">
-                        Fet
+                <div class="pt-2 space-y-2" x-data="{ incidencia: null }">
+                    <button type="button" @click="incidencia = incidencia === 'feta_amb_incidencia' ? null : 'feta_amb_incidencia'" class="w-full bg-yellow-50 text-yellow-700 hover:bg-yellow-100 px-3 py-2 rounded-lg text-sm font-medium transition">
+                        Fet amb incidència
                     </button>
-                </form>
+                    <button type="button" @click="incidencia = incidencia === 'no_feta_per_incidencia' ? null : 'no_feta_per_incidencia'" class="w-full bg-red-50 text-red-700 hover:bg-red-100 px-3 py-2 rounded-lg text-sm font-medium transition">
+                        No fet per incidència
+                    </button>
+
+                    <form x-show="incidencia" x-collapse method="POST" action="<?= url('registre/store') ?>" class="space-y-2 rounded-lg border border-gray-100 bg-gray-50 p-2">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">
+                        <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
+                        <input type="hidden" name="realitzada" :value="incidencia === 'feta_amb_incidencia' ? '1' : '0'">
+                        <input type="hidden" name="tipus_incidencia" :value="incidencia">
+                        <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?>">
+                        <textarea name="comentaris" required rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none" placeholder="Descriu la incidència..."></textarea>
+                        <button type="submit" class="w-full bg-gray-900 text-white hover:bg-gray-800 px-3 py-2 rounded-lg text-sm font-medium transition">
+                            Registrar incidència
+                        </button>
+                    </form>
+                </div>
                 <?php endif; ?>
             </div>
         </div>

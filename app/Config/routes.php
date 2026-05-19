@@ -12,6 +12,7 @@ use App\Controllers\UsuariController;
 use App\Controllers\ImportController;
 use App\Controllers\TornController;
 use App\Controllers\SistemaController;
+use App\Controllers\IncidenciaController;
 
 /** @var \App\Core\Router $router */
 
@@ -86,6 +87,10 @@ $router->get('dia', TascaPlaController::class, 'dia');
 $router->get('registre', RegistreController::class, 'index');
 $router->post('registre/store', RegistreController::class, 'store');
 $router->post('registre/undo', RegistreController::class, 'undo');
+
+// Incidencies
+$router->get('incidencies', IncidenciaController::class, 'index');
+$router->post('incidencies/vista/{id}', IncidenciaController::class, 'vista');
 
 // Usuaris
 $router->get('usuaris', UsuariController::class, 'index');
