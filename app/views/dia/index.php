@@ -210,7 +210,7 @@ ob_start();
                         $vencuda = ($t['data_propera_realitzacio'] ?? null) < $dataIso;
                         $esDia = ($t['data_propera_realitzacio'] ?? null) === $dataIso;
                     ?>
-                    <tr class="hover:bg-gray-50 transition <?= $vencuda ? 'bg-red-50' : ($esDia ? 'bg-yellow-50' : '') ?>">
+                    <tr class="hover:bg-gray-50 transition <?= $vencuda ? 'bg-red-50' : ($esDia ? 'bg-yellow-50' : '') ?>" x-data="{ menu: false, incidencia: null }">
                         <td class="px-4 py-3 font-mono text-xs text-brand"><?= e($t['tasca_codi'] ?? '-') ?></td>
                         <td class="px-4 py-3 text-gray-500 text-xs"><?= e($t['espai_nom'] ?? '-') ?></td>
                         <td class="px-4 py-3">
@@ -235,16 +235,59 @@ ob_start();
                         </td>
                         <td class="px-4 py-3 text-center">
                             <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
-                            <form method="POST" action="<?= url('registre/store') ?>" class="inline-flex items-center gap-1">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">
-                                <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
-                                <input type="hidden" name="realitzada" value="1">
-                                <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?>">
-                                <button type="submit" class="bg-green-50 text-green-700 hover:bg-green-100 px-2.5 py-1 rounded text-xs font-medium transition">
-                                    Fet
+                            <div class="relative inline-block text-left">
+                                <button type="button" @click="menu = !menu; incidencia = null" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-[0.98]">
+                                    Acció
+                                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"/>
+                                    </svg>
                                 </button>
-                            </form>
+
+                                <div x-show="menu" x-cloak @click.outside="menu = false" x-transition.opacity.duration.150ms class="absolute right-0 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-2 text-left shadow-xl shadow-gray-900/10 z-30">
+                                    <form method="POST" action="<?= url('registre/store') ?>">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">
+                                        <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
+                                        <input type="hidden" name="realitzada" value="1">
+                                        <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?>">
+                                        <button type="submit" class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-green-700 transition hover:bg-green-50">
+                                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                            Fet
+                                        </button>
+                                    </form>
+
+                                    <div class="my-1 border-t border-gray-100"></div>
+
+                                    <button type="button" @click="incidencia = incidencia === 'feta_amb_incidencia' ? null : 'feta_amb_incidencia'" class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-yellow-700 transition hover:bg-yellow-50">
+                                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                        </svg>
+                                        Fet amb incidència
+                                    </button>
+                                    <button type="button" @click="incidencia = incidencia === 'no_feta_per_incidencia' ? null : 'no_feta_per_incidencia'" class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-700 transition hover:bg-red-50">
+                                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636L5.636 18.364M5.636 5.636l12.728 12.728"/>
+                                        </svg>
+                                        No fet per incidència
+                                    </button>
+
+                                    <form x-show="incidencia" x-collapse method="POST" action="<?= url('registre/store') ?>" class="mt-2 space-y-2 rounded-lg bg-gray-50 p-2">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">
+                                        <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
+                                        <input type="hidden" name="realitzada" :value="incidencia === 'feta_amb_incidencia' ? '1' : '0'">
+                                        <input type="hidden" name="tipus_incidencia" :value="incidencia">
+                                        <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?>">
+                                        <label class="block text-xs font-medium text-gray-500">Comentari</label>
+                                        <textarea name="comentaris" required rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none" placeholder="Descriu la incidència..."></textarea>
+                                        <button type="submit" class="w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-gray-800 active:scale-[0.98]">
+                                            Registrar incidència
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                             <?php endif; ?>
                         </td>
                     </tr>
