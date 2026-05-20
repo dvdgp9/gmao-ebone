@@ -14,6 +14,16 @@ class Torn extends Model
         return static::all(['instalacio_id' => $instalacioId], 'nom ASC');
     }
 
+    public static function belongsToInstalacio(int $id, int $instalacioId): bool
+    {
+        $stmt = static::db()->prepare(
+            'SELECT COUNT(*) FROM `torns` WHERE `id` = ? AND `instalacio_id` = ?'
+        );
+        $stmt->execute([$id, $instalacioId]);
+
+        return (int)$stmt->fetchColumn() > 0;
+    }
+
     public static function supportsHourRange(): bool
     {
         static $supportsHourRange = null;

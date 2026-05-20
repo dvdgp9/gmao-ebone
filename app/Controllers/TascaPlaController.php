@@ -64,6 +64,10 @@ class TascaPlaController extends Controller
         $instalacioId = $this->currentInstalacioId();
         $data = $this->getFormData();
         $data['instalacio_id'] = $instalacioId;
+        if (!$this->tornBelongsToCurrentInstalacio($data['torn_id'], $instalacioId)) {
+            $this->setFlash('error', 'Torn no vàlid per a aquesta instal·lació.');
+            $this->redirect('pla/create');
+        }
 
         $id = TascaPla::create($data);
 
@@ -114,6 +118,11 @@ class TascaPlaController extends Controller
         }
 
         $data = $this->getFormData();
+        if (!$this->tornBelongsToCurrentInstalacio($data['torn_id'], (int)$tasca['instalacio_id'])) {
+            $this->setFlash('error', 'Torn no vàlid per a aquesta instal·lació.');
+            $this->redirect('pla/edit/' . (int)$id);
+        }
+
         TascaPla::update((int)$id, $data);
 
         if ($data['data_darrera_realitzacio'] && $data['periodicitat_id']) {
@@ -225,7 +234,7 @@ class TascaPlaController extends Controller
             'tasca_cataleg_id' => (int)$this->post('tasca_cataleg_id'),
             'equip_id' => $this->post('equip_id') ?: null,
             'espai_id' => $this->post('espai_id') ?: null,
-            'torn_id' => $this->post('torn_id') ?: null,
+            'torn_id' => $this->post('torn_id') ? (int)$this->post('torn_id') : null,
             'periodicitat_id' => $this->post('periodicitat_id') ?: null,
             'periodicitat_normativa_id' => $this->post('periodicitat_normativa_id') ?: null,
             'normativa_id' => $this->post('normativa_id') ?: null,
@@ -235,5 +244,18 @@ class TascaPlaController extends Controller
             'en_curs' => $this->post('en_curs', 1) ? 1 : 0,
             'comentaris' => trim($this->post('comentaris', '')) ?: null,
         ];
+    }
+
+    private function tornBelongsToCurrentInstalacio(?int $tornId, ?int $instalacioId): bool
+    {
+        if ($tornId === null) {
+            return true;
+        }
+
+        if ($instalacioId === null) {
+            return false;
+        }
+
+        return Torn::belongsToInstalacio($tornId, $instalacioId);
     }
 }
