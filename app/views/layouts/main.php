@@ -14,11 +14,7 @@
     <script>tailwind.config={theme:{extend:{colors:{brand:{DEFAULT:'#23AAC5',dark:'#1B8FA6',light:'#E8F7FA',50:'#E8F7FA',100:'#C5EDF3',200:'#8DDBE7',300:'#55C9DB',400:'#23AAC5',500:'#1B8FA6',600:'#167487',700:'#115A68',800:'#0C3F49',900:'#07252A'}}}}}</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    <style>
-        [x-cloak] { display: none !important; }
-        .sidebar-link.active { background-color: #23AAC5; color: white; }
-        .sidebar-link:hover:not(.active) { background-color: rgb(243 244 246); }
-    </style>
+    <link rel="stylesheet" href="<?= url('css/styles.css') ?>">
 </head>
 <body class="bg-gray-50 min-h-screen overflow-x-hidden">
     <?php
@@ -62,7 +58,7 @@
                     <select name="instalacio_id" onchange="document.getElementById('switchForm').submit()"
                             class="mt-1 w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-brand outline-none">
                         <?php if (!empty($_SESSION['is_superadmin'])): ?>
-                            <option value="0" <?= empty($_SESSION['instalacio_id']) ? 'selected' : '' ?>>🌐 Totes les instal·lacions</option>
+                            <option value="0" <?= empty($_SESSION['instalacio_id']) ? 'selected' : '' ?>>Totes les instal·lacions</option>
                         <?php endif; ?>
                         <?php foreach ($_SESSION['assignacions'] as $a): ?>
                             <option value="<?= $a['instalacio_id'] ?>" <?= ($a['instalacio_id'] == ($_SESSION['instalacio_id'] ?? '')) ? 'selected' : '' ?>>

@@ -73,4 +73,24 @@ class Usuari extends Model
             ORDER BY u.nom
         ');
     }
+
+    public static function belongsToInstalacio(int $usuariId, int $instalacioId): bool
+    {
+        $stmt = static::db()->prepare(
+            'SELECT COUNT(*) FROM usuari_instalacio WHERE usuari_id = ? AND instalacio_id = ?'
+        );
+        $stmt->execute([$usuariId, $instalacioId]);
+
+        return (int)$stmt->fetchColumn() > 0;
+    }
+
+    public static function hasOtherInstalacions(int $usuariId, int $instalacioId): bool
+    {
+        $stmt = static::db()->prepare(
+            'SELECT COUNT(*) FROM usuari_instalacio WHERE usuari_id = ? AND instalacio_id <> ?'
+        );
+        $stmt->execute([$usuariId, $instalacioId]);
+
+        return (int)$stmt->fetchColumn() > 0;
+    }
 }

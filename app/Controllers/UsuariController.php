@@ -61,6 +61,17 @@ class UsuariController extends Controller
             $this->redirect('usuaris/create');
         }
 
+        $instalacioId = (int)$this->post('instalacio_id');
+        $rolId = (int)$this->post('rol_id');
+        if (empty($_SESSION['is_superadmin']) && (!$instalacioId || !$rolId)) {
+            $this->setFlash('error', 'Cal assignar el nou usuari a la instal·lació activa amb un rol vàlid.');
+            $this->redirect('usuaris/create');
+        }
+        if ($instalacioId && $rolId && (!$this->canAssignInstalacio($instalacioId) || !$this->canAssignRole($rolId))) {
+            $this->setFlash('error', 'Assignació no permesa per al teu rol.');
+            $this->redirect('usuaris/create');
+        }
+
         $id = Usuari::create([
             'nom' => trim($this->post('nom', '')),
             'cognoms' => trim($this->post('cognoms', '')) ?: null,
@@ -69,8 +80,6 @@ class UsuariController extends Controller
             'actiu' => $this->post('actiu', 1) ? 1 : 0,
         ]);
 
-        $instalacioId = (int)$this->post('instalacio_id');
-        $rolId = (int)$this->post('rol_id');
         if ($instalacioId && $rolId) {
             Usuari::assignInstalacio($id, $instalacioId, $rolId);
         }
@@ -85,6 +94,10 @@ class UsuariController extends Controller
         $usuari = Usuari::find((int)$id);
         if (!$usuari) {
             $this->setFlash('error', 'Usuari no trobat.');
+            $this->redirect('usuaris');
+        }
+        if (!$this->canManageUser((int)$id)) {
+            $this->setFlash('error', 'No tens permís per gestionar aquest usuari.');
             $this->redirect('usuaris');
         }
 
@@ -113,6 +126,10 @@ class UsuariController extends Controller
             $this->setFlash('error', 'Usuari no trobat.');
             $this->redirect('usuaris');
         }
+        if (!$this->canManageUser((int)$id)) {
+            $this->setFlash('error', 'No tens permís per gestionar aquest usuari.');
+            $this->redirect('usuaris');
+        }
 
         $data = [
             'nom' => trim($this->post('nom', '')),
@@ -120,6 +137,14 @@ class UsuariController extends Controller
             'email' => trim($this->post('email', '')),
             'actiu' => $this->post('actiu', 1) ? 1 : 0,
         ];
+        if (
+            empty($_SESSION['is_superadmin'])
+            && (int)$data['actiu'] !== (int)$usuari['actiu']
+            && Usuari::hasOtherInstalacions((int)$id, (int)$this->currentInstalacioId())
+        ) {
+            $this->setFlash('error', 'Aquest usuari també pertany a altres instal·lacions. Només un superadmin pot canviar-ne l’estat global.');
+            $this->redirect('usuaris/edit/' . (int)$id);
+        }
 
         $password = $this->post('password', '');
         if (!empty($password)) {
@@ -131,6 +156,11 @@ class UsuariController extends Controller
         $instalacioId = (int)$this->post('instalacio_id');
         $rolId = (int)$this->post('rol_id');
         if ($instalacioId && $rolId) {
+            if (!$this->canAssignInstalacio($instalacioId) || !$this->canAssignRole($rolId)) {
+                $this->setFlash('error', 'Assignació no permesa per al teu rol.');
+                $this->redirect('usuaris/edit/' . (int)$id);
+            }
+
             Usuari::assignInstalacio((int)$id, $instalacioId, $rolId);
         }
 
@@ -151,10 +181,18 @@ class UsuariController extends Controller
             $this->setFlash('error', 'Usuari no trobat.');
             $this->redirect('usuaris');
         }
+        if (!$this->canManageUser((int)$id)) {
+            $this->setFlash('error', 'No tens permís per gestionar aquest usuari.');
+            $this->redirect('usuaris');
+        }
 
         // Cannot deactivate yourself
         if ((int)$id === (int)$_SESSION['user_id']) {
             $this->setFlash('error', 'No pots desactivar el teu propi compte.');
+            $this->redirect('usuaris');
+        }
+        if (empty($_SESSION['is_superadmin']) && Usuari::hasOtherInstalacions((int)$id, (int)$this->currentInstalacioId())) {
+            $this->setFlash('error', 'Aquest usuari també pertany a altres instal·lacions. Només un superadmin pot activar-lo o desactivar-lo globalment.');
             $this->redirect('usuaris');
         }
 
@@ -181,5 +219,46 @@ class UsuariController extends Controller
             return $db->query('SELECT * FROM rols ORDER BY id')->fetchAll();
         }
         return $db->query('SELECT * FROM rols WHERE nom NOT IN ("superadmin") ORDER BY id')->fetchAll();
+    }
+
+    private function canManageUser(int $usuariId): bool
+    {
+        if ($_SESSION['is_superadmin'] ?? false) {
+            return true;
+        }
+
+        $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            return false;
+        }
+
+        return Usuari::belongsToInstalacio($usuariId, (int)$instalacioId);
+    }
+
+    private function canAssignInstalacio(int $instalacioId): bool
+    {
+        if ($_SESSION['is_superadmin'] ?? false) {
+            return Instalacio::find($instalacioId) !== null;
+        }
+
+        return $instalacioId === (int)$this->currentInstalacioId();
+    }
+
+    private function canAssignRole(int $rolId): bool
+    {
+        $db = Database::getInstance();
+        $stmt = $db->prepare('SELECT nom FROM rols WHERE id = ? LIMIT 1');
+        $stmt->execute([$rolId]);
+        $role = $stmt->fetch();
+
+        if (!$role) {
+            return false;
+        }
+
+        if ($_SESSION['is_superadmin'] ?? false) {
+            return true;
+        }
+
+        return $role['nom'] !== 'superadmin';
     }
 }

@@ -39,6 +39,10 @@ class TascaPlaController extends Controller
     {
         $this->requireRole(['superadmin', 'admin_instalacio', 'cap_manteniment']);
         $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            $this->setFlash('error', 'Selecciona una instal·lació abans de crear tasques del pla.');
+            $this->redirect('dashboard');
+        }
 
         $this->view('pla.form', [
             'title' => 'Afegir Tasca al Pla',
@@ -62,10 +66,22 @@ class TascaPlaController extends Controller
         }
 
         $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            $this->setFlash('error', 'Selecciona una instal·lació abans de crear tasques del pla.');
+            $this->redirect('dashboard');
+        }
         $data = $this->getFormData();
         $data['instalacio_id'] = $instalacioId;
         if (!$this->tornBelongsToCurrentInstalacio($data['torn_id'], $instalacioId)) {
             $this->setFlash('error', 'Torn no vàlid per a aquesta instal·lació.');
+            $this->redirect('pla/create');
+        }
+        if (!$this->espaiBelongsToCurrentInstalacio($data['espai_id'], $instalacioId)) {
+            $this->setFlash('error', 'Espai no vàlid per a aquesta instal·lació.');
+            $this->redirect('pla/create');
+        }
+        if (!$this->equipBelongsToCurrentInstalacio($data['equip_id'], $instalacioId)) {
+            $this->setFlash('error', 'Equip no vàlid per a aquesta instal·lació.');
             $this->redirect('pla/create');
         }
 
@@ -120,6 +136,14 @@ class TascaPlaController extends Controller
         $data = $this->getFormData();
         if (!$this->tornBelongsToCurrentInstalacio($data['torn_id'], (int)$tasca['instalacio_id'])) {
             $this->setFlash('error', 'Torn no vàlid per a aquesta instal·lació.');
+            $this->redirect('pla/edit/' . (int)$id);
+        }
+        if (!$this->espaiBelongsToCurrentInstalacio($data['espai_id'], (int)$tasca['instalacio_id'])) {
+            $this->setFlash('error', 'Espai no vàlid per a aquesta instal·lació.');
+            $this->redirect('pla/edit/' . (int)$id);
+        }
+        if (!$this->equipBelongsToCurrentInstalacio($data['equip_id'], (int)$tasca['instalacio_id'])) {
+            $this->setFlash('error', 'Equip no vàlid per a aquesta instal·lació.');
             $this->redirect('pla/edit/' . (int)$id);
         }
 
@@ -257,5 +281,31 @@ class TascaPlaController extends Controller
         }
 
         return Torn::belongsToInstalacio($tornId, $instalacioId);
+    }
+
+    private function espaiBelongsToCurrentInstalacio(mixed $espaiId, ?int $instalacioId): bool
+    {
+        if (empty($espaiId)) {
+            return true;
+        }
+
+        if ($instalacioId === null) {
+            return false;
+        }
+
+        return Espai::belongsToInstalacio((int)$espaiId, $instalacioId);
+    }
+
+    private function equipBelongsToCurrentInstalacio(mixed $equipId, ?int $instalacioId): bool
+    {
+        if (empty($equipId)) {
+            return true;
+        }
+
+        if ($instalacioId === null) {
+            return false;
+        }
+
+        return Equip::belongsToInstalacio((int)$equipId, $instalacioId);
     }
 }

@@ -27,6 +27,10 @@ class TornController extends Controller
     public function create(): void
     {
         $this->requireRole(['superadmin', 'admin_instalacio']);
+        if (!$this->currentInstalacioId()) {
+            $this->setFlash('error', 'Selecciona una instal·lació abans de crear torns.');
+            $this->redirect('dashboard');
+        }
         $this->view('torns.form', [
             'title' => 'Nou Torn',
             'torn' => null,
@@ -41,6 +45,10 @@ class TornController extends Controller
         if (!verify_csrf()) {
             $this->setFlash('error', 'Token de seguretat invàlid.');
             $this->redirect('torns');
+        }
+        if (!$this->currentInstalacioId()) {
+            $this->setFlash('error', 'Selecciona una instal·lació abans de crear torns.');
+            $this->redirect('dashboard');
         }
 
         $data = Torn::sanitizeWriteData([

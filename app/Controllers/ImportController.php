@@ -11,6 +11,7 @@ use App\Models\TascaPla;
 use App\Models\Espai;
 use App\Models\Torn;
 use App\Models\Periodicitat;
+use App\Services\TaskMatcher;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class ImportController extends Controller
@@ -18,10 +19,12 @@ class ImportController extends Controller
     public function index(): void
     {
         $this->requireRole(['superadmin', 'admin_instalacio']);
+        $recommendedType = $this->getRecommendedType($this->getReturnTo());
         $this->view('import.index', [
             'title' => 'Importar Excel',
             'returnTo' => $this->getReturnTo(),
             'currentInstalacioId' => $this->currentInstalacioId(),
+            'recommendedType' => $recommendedType,
             'flash' => $this->getFlash(),
         ]);
     }
@@ -51,6 +54,9 @@ class ImportController extends Controller
 
         try {
             $spreadsheet = IOFactory::load($tmpPath);
+            $quickPreview = [];
+            $importSummary = [];
+
             if ($tipus === 'completa_instalacio') {
                 if (!$this->currentInstalacioId()) {
                     $this->setFlash('error', 'Cal tenir una instal·lació activa per fer una importació completa.');
@@ -68,6 +74,27 @@ class ImportController extends Controller
                     ];
                 }
                 $highestRow = $summary['total_rows'] + 1;
+            } elseif ($tipus === 'pla_rapid') {
+                if (!$this->currentInstalacioId()) {
+                    $this->setFlash('error', 'Cal tenir una instal·lació activa per fer una importació ràpida del pla.');
+                    $this->redirect('import');
+                }
+
+                $sheet = $spreadsheet->getActiveSheet();
+                $analysis = $this->analyzeQuickPlanImport($sheet);
+                $headers = $analysis['headers'];
+                $quickPreview = $analysis['rows'];
+                $importSummary = $analysis['summary'];
+                $previewData = [];
+                foreach (array_slice($quickPreview, 0, 20) as $row) {
+                    $previewData[] = [
+                        1 => $row['task_name'],
+                        2 => $row['periodicitat_label'],
+                        3 => $row['action_label'],
+                        4 => $row['matched_task_name'] ?? '',
+                    ];
+                }
+                $highestRow = $analysis['total_rows'] + 1;
             } else {
                 $sheet = $spreadsheet->getActiveSheet();
                 $highestRow = $sheet->getHighestRow();
@@ -118,6 +145,8 @@ class ImportController extends Controller
                 'importType' => $tipus,
                 'returnTo' => $this->getReturnTo('', true),
                 'isWorkbookSummary' => $tipus === 'completa_instalacio',
+                'quickPreview' => $quickPreview,
+                'importSummary' => $importSummary,
                 'flash' => $this->getFlash(),
             ]);
 
@@ -150,6 +179,7 @@ class ImportController extends Controller
             $result = match ($tipus) {
                 'tasques_cataleg' => $this->importTasquesCataleg($spreadsheet->getActiveSheet()),
                 'tasques_pla' => $this->importTasquesPla($spreadsheet->getActiveSheet()),
+                'pla_rapid' => $this->importQuickPlan($spreadsheet->getActiveSheet()),
                 'completa_instalacio' => $this->importCompleteInstalacio($spreadsheet),
                 default => ['imported' => 0, 'skipped' => 0, 'errors' => ['Tipus d\'importació no vàlid.']],
             };
@@ -303,6 +333,375 @@ class ImportController extends Controller
         }
 
         return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
+    }
+
+    private function analyzeQuickPlanImport($sheet): array
+    {
+        $headers = $this->readNormalizedHeaders($sheet);
+        $totalRows = max(0, $sheet->getHighestRow() - 1);
+        $rows = [];
+        $summary = [
+            'match' => 0,
+            'new' => 0,
+            'review' => 0,
+            'error' => 0,
+        ];
+
+        for ($row = 2; $row <= $sheet->getHighestRow(); $row++) {
+            $input = $this->readQuickPlanRow($sheet, $headers, $row);
+            if ($input['is_empty']) {
+                continue;
+            }
+
+            $match = $this->validateQuickPlanInput($input) ?? TaskMatcher::match($input);
+            $status = $match['status'];
+            $summary[$status] = ($summary[$status] ?? 0) + 1;
+
+            $rows[] = [
+                'row' => $row,
+                'task_name' => $input['nom'],
+                'periodicitat_label' => $input['periodicitat_raw'] ?: 'Sense periodicitat',
+                'normativa_label' => $input['normativa_raw'] ?: '',
+                'sistema_label' => $input['sistema_raw'] ?: '',
+                'tipus_label' => $input['tipus_raw'] ?: '',
+                'espai_label' => $input['espai_raw'] ?: '',
+                'torn_label' => $input['torn_raw'] ?: '',
+                'equip_label' => $input['equip_raw'] ?: '',
+                'status' => $status,
+                'score' => (int)($match['score'] ?? 0),
+                'message' => $match['message'] ?? '',
+                'matched_task_id' => $match['matched_task']['id'] ?? null,
+                'matched_task_name' => $match['matched_task']['nom'] ?? null,
+                'action_label' => $this->quickImportActionLabel($status),
+            ];
+        }
+
+        return [
+            'headers' => [
+                1 => 'tasca',
+                2 => 'periodicitat',
+                3 => 'accio prevista',
+                4 => 'coincidencia',
+            ],
+            'rows' => $rows,
+            'summary' => $summary,
+            'total_rows' => $totalRows,
+        ];
+    }
+
+    private function importQuickPlan($sheet): array
+    {
+        $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            return ['imported' => 0, 'skipped' => 0, 'errors' => ['No hi ha una instal·lació activa.']];
+        }
+
+        $analysis = $this->analyzeQuickPlanImport($sheet);
+        $errorCount = (int)($analysis['summary']['error'] ?? 0);
+        if ($errorCount > 0) {
+            return [
+                'imported' => 0,
+                'skipped' => $errorCount,
+                'errors' => ['Hi ha files amb errors. No s’ha importat res per evitar dades incompletes.'],
+            ];
+        }
+
+        $db = Database::getInstance();
+        $headers = $this->readNormalizedHeaders($sheet);
+        $reviewResolutions = $this->getQuickReviewResolutions();
+        $imported = 0;
+        $skipped = 0;
+        $errors = [];
+
+        $db->beginTransaction();
+        try {
+            for ($row = 2; $row <= $sheet->getHighestRow(); $row++) {
+                $input = $this->readQuickPlanRow($sheet, $headers, $row);
+                if ($input['is_empty']) {
+                    continue;
+                }
+
+                $match = $this->validateQuickPlanInput($input) ?? TaskMatcher::match($input);
+                if ($match['status'] === TaskMatcher::STATUS_ERROR) {
+                    $skipped++;
+                    continue;
+                }
+
+                $tascaCatalegId = (int)($match['matched_task']['id'] ?? 0);
+                if ($match['status'] === TaskMatcher::STATUS_REVIEW) {
+                    $resolution = $reviewResolutions[$row] ?? '';
+                    if (!in_array($resolution, ['use_match', 'create_new', 'skip'], true)) {
+                        throw new \RuntimeException("Fila {$row}: cal decidir com resoldre la coincidència dubtosa.");
+                    }
+
+                    if ($resolution === 'skip') {
+                        $skipped++;
+                        continue;
+                    }
+
+                    if ($resolution === 'create_new') {
+                        $tascaCatalegId = 0;
+                    } elseif ($tascaCatalegId <= 0) {
+                        throw new \RuntimeException("Fila {$row}: no hi ha cap coincidència proposada per reutilitzar.");
+                    }
+                }
+
+                if ($tascaCatalegId <= 0) {
+                    $tascaCatalegId = TascaCataleg::create([
+                        'codi' => null,
+                        'sistema_id' => $input['sistema_id'],
+                        'tipus_equip_id' => $input['tipus_equip_id'],
+                        'nom' => $input['nom'],
+                        'descripcio' => null,
+                        'periodicitat_normativa_id' => $input['periodicitat_id'],
+                        'normativa_id' => $input['normativa_id'],
+                        'empresa_responsable' => null,
+                        'activa' => 1,
+                    ]);
+                } else {
+                    TaskMatcher::rememberAlias($tascaCatalegId, $input['nom']);
+                }
+
+                if ($this->quickPlanExists($instalacioId, $tascaCatalegId, $input['espai_id'], $input['torn_id'], $input['equip_id'])) {
+                    $skipped++;
+                    continue;
+                }
+
+                $relationError = $this->validateQuickPlanRelations($input, $instalacioId);
+                if ($relationError !== null) {
+                    throw new \RuntimeException("Fila {$row}: {$relationError}");
+                }
+
+                TascaPla::create([
+                    'instalacio_id' => $instalacioId,
+                    'tasca_cataleg_id' => $tascaCatalegId,
+                    'equip_id' => $input['equip_id'],
+                    'espai_id' => $input['espai_id'],
+                    'torn_id' => $input['torn_id'],
+                    'periodicitat_id' => $input['periodicitat_id'],
+                    'periodicitat_normativa_id' => $input['periodicitat_id'],
+                    'normativa_id' => $input['normativa_id'],
+                    'observacions' => null,
+                    'data_darrera_realitzacio' => null,
+                    'data_propera_realitzacio' => date('Y-m-d'),
+                    'data_darrera_no_realitzacio' => null,
+                    'en_curs' => 1,
+                    'comentaris' => null,
+                ]);
+                $imported++;
+            }
+
+            $db->commit();
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            return ['imported' => 0, 'skipped' => 0, 'errors' => [$e->getMessage()]];
+        }
+
+        return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
+    }
+
+    private function validateQuickPlanRelations(array $input, int $instalacioId): ?string
+    {
+        if (!empty($input['espai_id']) && !Espai::belongsToInstalacio((int)$input['espai_id'], $instalacioId)) {
+            return 'l’espai resolt no pertany a la instal·lació activa.';
+        }
+
+        if (!empty($input['torn_id']) && !Torn::belongsToInstalacio((int)$input['torn_id'], $instalacioId)) {
+            return 'el torn resolt no pertany a la instal·lació activa.';
+        }
+
+        if (!empty($input['equip_id']) && !Equip::belongsToInstalacio((int)$input['equip_id'], $instalacioId)) {
+            return 'l’equip resolt no pertany a la instal·lació activa.';
+        }
+
+        return null;
+    }
+
+    private function getQuickReviewResolutions(): array
+    {
+        $resolutions = [];
+        foreach (['quick_resolution_mobile', 'quick_resolution'] as $field) {
+            $raw = $_POST[$field] ?? [];
+            if (!is_array($raw)) {
+                continue;
+            }
+
+            foreach ($raw as $row => $action) {
+                $rowNumber = (int)$row;
+                $action = (string)$action;
+                if ($rowNumber > 0 && in_array($action, ['use_match', 'create_new', 'skip'], true)) {
+                    $resolutions[$rowNumber] = $action;
+                }
+            }
+        }
+
+        return $resolutions;
+    }
+
+    private function readNormalizedHeaders($sheet): array
+    {
+        $headers = [];
+        $highestCol = $sheet->getHighestColumn();
+        $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
+        for ($col = 1; $col <= $highestColIndex; $col++) {
+            $value = trim((string)$sheet->getCellByColumnAndRow($col, 1)->getValue());
+            if ($value !== '') {
+                $headers[TaskMatcher::normalize($value)] = $col;
+            }
+        }
+        return $headers;
+    }
+
+    private function readQuickPlanRow($sheet, array $headers, int $row): array
+    {
+        $nom = $this->readQuickCell($sheet, $headers, $row, ['tasca', 'tarea', 'nom tasca', 'nombre tarea', 'mantenimiento', 'manteniment']);
+        $periodicitatRaw = $this->readQuickCell($sheet, $headers, $row, ['periodicitat', 'periodicidad', 'frecuencia']);
+        $normativaRaw = $this->readQuickCell($sheet, $headers, $row, ['normativa', 'norma']);
+        $sistemaRaw = $this->readQuickCell($sheet, $headers, $row, ['sistema', 'codi sistema', 'codigo sistema']);
+        $tipusRaw = $this->readQuickCell($sheet, $headers, $row, ['tipus', 'tipo', 'tipus equip', 'tipo equipo']);
+        $espaiRaw = $this->readQuickCell($sheet, $headers, $row, ['espai', 'espacio', 'ubicacio', 'ubicacion']);
+        $tornRaw = $this->readQuickCell($sheet, $headers, $row, ['torn', 'turno']);
+        $equipRaw = $this->readQuickCell($sheet, $headers, $row, ['equip', 'equipo', 'nom equip', 'codigo equipo']);
+
+        $values = [$nom, $periodicitatRaw, $normativaRaw, $sistemaRaw, $tipusRaw, $espaiRaw, $tornRaw, $equipRaw];
+        $isEmpty = !array_filter($values, static fn(string $value): bool => trim($value) !== '');
+
+        $periodicitatId = $this->resolveIdByNormalizedValue('periodicitats', 'nom', $periodicitatRaw);
+        $normativaId = $this->resolveIdByNormalizedValue('normatives', 'nom', $normativaRaw);
+        $sistemaId = $this->resolveIdByNormalizedValue('sistemes', 'codi', $sistemaRaw) ?? $this->resolveIdByNormalizedValue('sistemes', 'nom', $sistemaRaw);
+        $tipusId = $this->resolveIdByNormalizedValue('tipus_equip', 'codi', $tipusRaw) ?? $this->resolveIdByNormalizedValue('tipus_equip', 'nom', $tipusRaw);
+
+        return [
+            'is_empty' => $isEmpty,
+            'nom' => trim($nom),
+            'periodicitat_raw' => trim($periodicitatRaw),
+            'normativa_raw' => trim($normativaRaw),
+            'sistema_raw' => trim($sistemaRaw),
+            'tipus_raw' => trim($tipusRaw),
+            'espai_raw' => trim($espaiRaw),
+            'torn_raw' => trim($tornRaw),
+            'equip_raw' => trim($equipRaw),
+            'periodicitat_id' => $periodicitatId,
+            'normativa_id' => $normativaId,
+            'sistema_id' => $sistemaId,
+            'tipus_equip_id' => $tipusId,
+            'espai_id' => $this->resolveInstalacioValue('espais', 'nom', $espaiRaw),
+            'torn_id' => $this->resolveInstalacioValue('torns', 'nom', $tornRaw),
+            'equip_id' => $this->resolveInstalacioValue('equips', 'nom_mn', $equipRaw) ?? $this->resolveInstalacioValue('equips', 'nom_equip', $equipRaw),
+        ];
+    }
+
+    private function readQuickCell($sheet, array $headers, int $row, array $aliases): string
+    {
+        foreach ($aliases as $alias) {
+            $key = TaskMatcher::normalize($alias);
+            if (isset($headers[$key])) {
+                return trim((string)$sheet->getCellByColumnAndRow($headers[$key], $row)->getValue());
+            }
+        }
+
+        return '';
+    }
+
+    private function resolveIdByNormalizedValue(string $table, string $column, string $value): ?int
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        $db = Database::getInstance();
+        $rows = $db->query('SELECT id, `' . $column . '` AS label FROM `' . $table . '`')->fetchAll();
+        $target = TaskMatcher::normalize($value);
+        foreach ($rows as $row) {
+            if (TaskMatcher::normalize((string)$row['label']) === $target) {
+                return (int)$row['id'];
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveInstalacioValue(string $table, string $column, string $value): ?int
+    {
+        $instalacioId = $this->currentInstalacioId();
+        $value = trim($value);
+        if (!$instalacioId || $value === '') {
+            return null;
+        }
+
+        $db = Database::getInstance();
+        $rows = $db->query('SELECT id, `' . $column . '` AS label FROM `' . $table . '` WHERE instalacio_id = ' . (int)$instalacioId)->fetchAll();
+        $target = TaskMatcher::normalize($value);
+        foreach ($rows as $row) {
+            if (TaskMatcher::normalize((string)$row['label']) === $target) {
+                return (int)$row['id'];
+            }
+        }
+
+        return null;
+    }
+
+    private function quickPlanExists(int $instalacioId, int $tascaCatalegId, ?int $espaiId, ?int $tornId, ?int $equipId): bool
+    {
+        $db = Database::getInstance();
+        $stmt = $db->prepare('
+            SELECT COUNT(*)
+            FROM tasques_pla
+            WHERE instalacio_id = ?
+              AND tasca_cataleg_id = ?
+              AND COALESCE(espai_id, 0) = ?
+              AND COALESCE(torn_id, 0) = ?
+              AND COALESCE(equip_id, 0) = ?
+              AND en_curs = 1
+        ');
+        $stmt->execute([$instalacioId, $tascaCatalegId, (int)($espaiId ?? 0), (int)($tornId ?? 0), (int)($equipId ?? 0)]);
+        return (int)$stmt->fetchColumn() > 0;
+    }
+
+    private function validateQuickPlanInput(array $input): ?array
+    {
+        if (trim((string)$input['nom']) === '') {
+            return [
+                'status' => TaskMatcher::STATUS_ERROR,
+                'score' => 0,
+                'matched_task' => null,
+                'message' => 'Falta el nom de la tasca.',
+            ];
+        }
+
+        if (trim((string)$input['periodicitat_raw']) === '') {
+            return [
+                'status' => TaskMatcher::STATUS_ERROR,
+                'score' => 0,
+                'matched_task' => null,
+                'message' => 'Falta la periodicitat. Aquest camp és obligatori.',
+            ];
+        }
+
+        if (empty($input['periodicitat_id'])) {
+            return [
+                'status' => TaskMatcher::STATUS_ERROR,
+                'score' => 0,
+                'matched_task' => null,
+                'message' => 'La periodicitat no existeix al catàleg global.',
+            ];
+        }
+
+        return null;
+    }
+
+    private function quickImportActionLabel(string $status): string
+    {
+        return match ($status) {
+            TaskMatcher::STATUS_MATCH => 'Reutilitza catàleg',
+            TaskMatcher::STATUS_NEW => 'Crea tasca nova',
+            TaskMatcher::STATUS_REVIEW => 'Revisió necessària',
+            TaskMatcher::STATUS_ERROR => 'Error',
+            default => 'Sense acció',
+        };
     }
 
     private function buildCompleteImportPreview($spreadsheet): array
@@ -828,5 +1227,21 @@ class ImportController extends Controller
         }
 
         return $default;
+    }
+
+    private function getRecommendedType(string $returnTo): string
+    {
+        $allowed = ['pla_rapid', 'tasques_cataleg', 'tasques_pla', 'completa_instalacio'];
+        $recommended = (string)$this->get('recommended', '');
+
+        if (in_array($recommended, $allowed, true)) {
+            return $recommended;
+        }
+
+        if ($returnTo !== '' && str_starts_with($returnTo, 'instalacions/onboarding/')) {
+            return 'completa_instalacio';
+        }
+
+        return $this->currentInstalacioId() ? 'pla_rapid' : 'tasques_cataleg';
     }
 }

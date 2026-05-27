@@ -1,0 +1,62 @@
+[x-cloak] {
+    display: none !important;
+}
+
+.sidebar-link.active {
+    background-color: #23AAC5;
+    color: #fff;
+}
+
+.sidebar-link:hover:not(.active) {
+    background-color: rgb(243 244 246);
+}
+
+.import-step {
+    position: relative;
+}
+
+.import-step::before {
+    background: rgb(209 213 219);
+    content: "";
+    height: calc(100% - 2rem);
+    left: 1rem;
+    position: absolute;
+    top: 2.25rem;
+    width: 1px;
+}
+
+.import-step:last-child::before {
+    display: none;
+}
+
+.import-action-pill {
+    align-items: center;
+    border-radius: 9999px;
+    display: inline-flex;
+    font-size: 0.75rem;
+    font-weight: 700;
+    gap: 0.375rem;
+    line-height: 1;
+    padding: 0.375rem 0.625rem;
+    white-space: nowrap;
+}
+
+.import-action-pill--match {
+    background: rgb(220 252 231);
+    color: rgb(22 101 52);
+}
+
+.import-action-pill--new {
+    background: rgb(232 247 250);
+    color: rgb(17 90 104);
+}
+
+.import-action-pill--review {
+    background: rgb(254 243 199);
+    color: rgb(146 64 14);
+}
+
+.import-action-pill--error {
+    background: rgb(254 226 226);
+    color: rgb(153 27 27);
+}

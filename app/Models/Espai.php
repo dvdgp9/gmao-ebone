@@ -17,4 +17,14 @@ class Espai extends Model
     {
         return static::all(['instalacio_id' => $instalacioId, 'actiu' => 1], 'nom ASC');
     }
+
+    public static function belongsToInstalacio(int $id, int $instalacioId): bool
+    {
+        $stmt = static::db()->prepare(
+            'SELECT COUNT(*) FROM `espais` WHERE `id` = ? AND `instalacio_id` = ?'
+        );
+        $stmt->execute([$id, $instalacioId]);
+
+        return (int)$stmt->fetchColumn() > 0;
+    }
 }

@@ -83,4 +83,14 @@ class Equip extends Model
             'total_pages' => $totalPages,
         ];
     }
+
+    public static function belongsToInstalacio(int $id, int $instalacioId): bool
+    {
+        $stmt = static::db()->prepare(
+            'SELECT COUNT(*) FROM `equips` WHERE `id` = ? AND `instalacio_id` = ?'
+        );
+        $stmt->execute([$id, $instalacioId]);
+
+        return (int)$stmt->fetchColumn() > 0;
+    }
 }

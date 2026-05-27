@@ -46,6 +46,10 @@ class EquipController extends Controller
     public function create(): void
     {
         $this->requireRole(['superadmin', 'admin_instalacio', 'cap_manteniment']);
+        if (!$this->currentInstalacioId()) {
+            $this->setFlash('error', 'Selecciona una instal·lació abans de crear equips.');
+            $this->redirect('dashboard');
+        }
         $this->view('equips.form', [
             'title' => 'Nou Equip',
             'equip' => null,
@@ -67,7 +71,17 @@ class EquipController extends Controller
         }
 
         $data = $this->getFormData();
-        $data['instalacio_id'] = $this->currentInstalacioId();
+        $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            $this->setFlash('error', 'Selecciona una instal·lació abans de crear equips.');
+            $this->redirect('dashboard');
+        }
+        $data['instalacio_id'] = $instalacioId;
+
+        if (!$this->espaiBelongsToCurrentInstalacio($data['espai_id'], $instalacioId)) {
+            $this->setFlash('error', 'Espai no vàlid per a aquesta instal·lació.');
+            $this->redirect($this->getReturnTo('equips/create', true));
+        }
 
         Equip::create($data);
         $this->setFlash('success', 'Equip creat correctament.');
@@ -110,6 +124,11 @@ class EquipController extends Controller
         }
 
         $data = $this->getFormData();
+        if (!$this->espaiBelongsToCurrentInstalacio($data['espai_id'], (int)$equip['instalacio_id'])) {
+            $this->setFlash('error', 'Espai no vàlid per a aquesta instal·lació.');
+            $this->redirect('equips/edit/' . (int)$id);
+        }
+
         Equip::update((int)$id, $data);
         $this->setFlash('success', 'Equip actualitzat correctament.');
         $this->redirect($this->getReturnTo('equips', true));
@@ -174,5 +193,18 @@ class EquipController extends Controller
         }
 
         return $default;
+    }
+
+    private function espaiBelongsToCurrentInstalacio(mixed $espaiId, ?int $instalacioId): bool
+    {
+        if (empty($espaiId)) {
+            return true;
+        }
+
+        if (!$instalacioId) {
+            return false;
+        }
+
+        return Espai::belongsToInstalacio((int)$espaiId, $instalacioId);
     }
 }

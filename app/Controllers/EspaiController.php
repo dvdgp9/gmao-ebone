@@ -27,6 +27,10 @@ class EspaiController extends Controller
     public function create(): void
     {
         $this->requireRole(['superadmin', 'admin_instalacio', 'cap_manteniment']);
+        if (!$this->currentInstalacioId()) {
+            $this->setFlash('error', 'Selecciona una instal·lació abans de crear espais.');
+            $this->redirect('dashboard');
+        }
         $this->view('espais.form', [
             'title' => 'Nou Espai',
             'espai' => null,
@@ -41,6 +45,10 @@ class EspaiController extends Controller
         if (!verify_csrf()) {
             $this->setFlash('error', 'Token de seguretat invàlid.');
             $this->redirect('espais');
+        }
+        if (!$this->currentInstalacioId()) {
+            $this->setFlash('error', 'Selecciona una instal·lació abans de crear espais.');
+            $this->redirect('dashboard');
         }
 
         Espai::create([
