@@ -125,6 +125,7 @@ CREATE TABLE `estats_equip` (
 DROP TABLE IF EXISTS `tasques_cataleg`;
 CREATE TABLE `tasques_cataleg` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `instalacio_id` INT UNSIGNED NOT NULL,
     `codi` VARCHAR(50) DEFAULT NULL,
     `sistema_id` INT UNSIGNED DEFAULT NULL,
     `tipus_equip_id` INT UNSIGNED DEFAULT NULL,
@@ -137,10 +138,12 @@ CREATE TABLE `tasques_cataleg` (
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
+    KEY `idx_tc_instalacio` (`instalacio_id`),
     KEY `idx_tc_sistema` (`sistema_id`),
     KEY `idx_tc_tipus` (`tipus_equip_id`),
     KEY `idx_tc_periodicitat` (`periodicitat_normativa_id`),
     KEY `idx_tc_normativa` (`normativa_id`),
+    CONSTRAINT `fk_tc_instalacio` FOREIGN KEY (`instalacio_id`) REFERENCES `instalacions` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_tc_sistema` FOREIGN KEY (`sistema_id`) REFERENCES `sistemes` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_tc_tipus` FOREIGN KEY (`tipus_equip_id`) REFERENCES `tipus_equip` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_tc_periodicitat` FOREIGN KEY (`periodicitat_normativa_id`) REFERENCES `periodicitats` (`id`) ON DELETE SET NULL,

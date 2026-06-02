@@ -211,14 +211,19 @@ class ImportController extends Controller
 
     private function importTasquesCataleg($sheet): array
     {
+        $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            return ['imported' => 0, 'skipped' => 0, 'errors' => ['No hi ha una instal·lació activa.']];
+        }
+
         $db = Database::getInstance();
         $sistemaMap = $this->buildMap('SELECT id, codi FROM sistemes');
         $tipusMap = $this->buildMap('SELECT id, codi FROM tipus_equip');
         $periodicitatMap = $this->buildMap('SELECT id, nom FROM periodicitats');
 
         $stmt = $db->prepare('
-            INSERT INTO tasques_cataleg (codi, sistema_id, tipus_equip_id, nom, periodicitat_normativa_id, empresa_responsable, activa)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
+            INSERT INTO tasques_cataleg (instalacio_id, codi, sistema_id, tipus_equip_id, nom, periodicitat_normativa_id, empresa_responsable, activa)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
         ');
 
         $imported = 0;
@@ -243,7 +248,7 @@ class ImportController extends Controller
             $periodicitatId = $periodicitatMap[mb_strtolower($periodicitat)] ?? null;
 
             try {
-                $stmt->execute([$codi ?: null, $sistemaId, $tipusId, $nom, $periodicitatId, $empresa ?: null]);
+                $stmt->execute([$instalacioId, $codi ?: null, $sistemaId, $tipusId, $nom, $periodicitatId, $empresa ?: null]);
                 $imported++;
             } catch (\Exception $e) {
                 $skipped++;
@@ -261,8 +266,9 @@ class ImportController extends Controller
         $db = Database::getInstance();
         $instalacioId = $this->currentInstalacioId();
 
-        // Mapa de tasques catàleg per nom
-        $stmtCat = $db->query('SELECT id, nom FROM tasques_cataleg WHERE activa = 1');
+        // Mapa de tasques catàleg per nom (només de la instal·lació activa)
+        $stmtCat = $db->prepare('SELECT id, nom FROM tasques_cataleg WHERE activa = 1 AND instalacio_id = ?');
+        $stmtCat->execute([$instalacioId]);
         $catalegMap = [];
         foreach ($stmtCat->fetchAll() as $r) {
             $catalegMap[mb_strtolower(mb_substr($r['nom'], 0, 80))] = (int)$r['id'];
@@ -337,6 +343,7 @@ class ImportController extends Controller
 
     private function analyzeQuickPlanImport($sheet): array
     {
+        $instalacioId = $this->currentInstalacioId();
         $headers = $this->readNormalizedHeaders($sheet);
         $totalRows = max(0, $sheet->getHighestRow() - 1);
         $rows = [];
@@ -353,7 +360,7 @@ class ImportController extends Controller
                 continue;
             }
 
-            $match = $this->validateQuickPlanInput($input) ?? TaskMatcher::match($input);
+            $match = $this->validateQuickPlanInput($input) ?? TaskMatcher::match($input, $instalacioId);
             $status = $match['status'];
             $summary[$status] = ($summary[$status] ?? 0) + 1;
 
@@ -421,7 +428,7 @@ class ImportController extends Controller
                     continue;
                 }
 
-                $match = $this->validateQuickPlanInput($input) ?? TaskMatcher::match($input);
+                $match = $this->validateQuickPlanInput($input) ?? TaskMatcher::match($input, $instalacioId);
                 if ($match['status'] === TaskMatcher::STATUS_ERROR) {
                     $skipped++;
                     continue;
@@ -448,6 +455,7 @@ class ImportController extends Controller
 
                 if ($tascaCatalegId <= 0) {
                     $tascaCatalegId = TascaCataleg::create([
+                        'instalacio_id' => $instalacioId,
                         'codi' => null,
                         'sistema_id' => $input['sistema_id'],
                         'tipus_equip_id' => $input['tipus_equip_id'],
@@ -749,7 +757,7 @@ class ImportController extends Controller
             $espaiData = $this->importCompleteEspais($db, $spreadsheet->getSheetByName('LLISTES'), $instalacioId);
             $catalogMaps = $this->getCatalogMaps($db);
             $equipData = $this->importCompleteEquips($db, $spreadsheet->getSheetByName('INVENTARI'), $instalacioId, $catalogMaps);
-            $tascaCatalegData = $this->importCompleteTasquesCataleg($db, $spreadsheet->getSheetByName('BD TASQUES'), $catalogMaps);
+            $tascaCatalegData = $this->importCompleteTasquesCataleg($db, $spreadsheet->getSheetByName('BD TASQUES'), $catalogMaps, $instalacioId);
             $plaData = $this->importCompletePla($db, $spreadsheet->getSheetByName('TASQUES PLA_M'), $instalacioId, $espaiData['map'], $tornMap, $tascaCatalegData['map'], $catalogMaps['periodicitatMap']);
             $registreData = $this->importCompleteRegistre($db, $spreadsheet->getSheetByName('REGISTRE TASQUES'), $instalacioId, $plaData['map']);
 
@@ -944,14 +952,16 @@ class ImportController extends Controller
         return ['map' => $equipMap, 'imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
     }
 
-    private function importCompleteTasquesCataleg($db, $sheet, array $catalogMaps): array
+    private function importCompleteTasquesCataleg($db, $sheet, array $catalogMaps, int $instalacioId): array
     {
         $existing = [];
-        foreach ($db->query('SELECT id, nom FROM tasques_cataleg WHERE activa = 1')->fetchAll() as $row) {
+        $stmtExisting = $db->prepare('SELECT id, nom FROM tasques_cataleg WHERE activa = 1 AND instalacio_id = ?');
+        $stmtExisting->execute([$instalacioId]);
+        foreach ($stmtExisting->fetchAll() as $row) {
             $existing[mb_strtolower(mb_substr($row['nom'], 0, 80))] = (int)$row['id'];
         }
 
-        $stmt = $db->prepare('INSERT INTO tasques_cataleg (codi, sistema_id, tipus_equip_id, nom, periodicitat_normativa_id, normativa_id, empresa_responsable, activa) VALUES (?, ?, ?, ?, ?, ?, ?, 1)');
+        $stmt = $db->prepare('INSERT INTO tasques_cataleg (instalacio_id, codi, sistema_id, tipus_equip_id, nom, periodicitat_normativa_id, normativa_id, empresa_responsable, activa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)');
         $imported = 0;
         $skipped = 0;
         $errors = [];
@@ -982,6 +992,7 @@ class ImportController extends Controller
 
             try {
                 $stmt->execute([
+                    $instalacioId,
                     $lastSistema,
                     $catalogMaps['sistemaMap'][mb_strtolower($lastSistema ?? '')] ?? null,
                     $catalogMaps['tipusMap'][mb_strtolower($codiTipus)] ?? null,

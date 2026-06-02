@@ -221,9 +221,9 @@ echo "\n=== 6. Important tasques catàleg (BD TASQUES) ===\n";
 $wsBd = $spreadsheet->getSheetByName('BD TASQUES');
 $tascaCatalegMap = []; // nom_tasca -> id
 $stmtTC = $pdo->prepare('
-    INSERT INTO tasques_cataleg (codi, sistema_id, tipus_equip_id, nom, periodicitat_normativa_id, 
+    INSERT INTO tasques_cataleg (instalacio_id, codi, sistema_id, tipus_equip_id, nom, periodicitat_normativa_id,
                                  normativa_id, empresa_responsable, activa)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
 ');
 $tcCount = 0;
 $lastCodiSistema = null;
@@ -258,7 +258,7 @@ for ($row = 2; $row <= $wsBd->getHighestRow(); $row++) {
     }
     
     $stmtTC->execute([
-        $lastCodiSistema, $sistemaId, $tipusId, $nom, $periodicitatId, $normativaId, $empresa ?: null
+        $instalacioId, $lastCodiSistema, $sistemaId, $tipusId, $nom, $periodicitatId, $normativaId, $empresa ?: null
     ]);
     
     $id = (int)$pdo->lastInsertId();

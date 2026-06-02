@@ -47,7 +47,7 @@ class TascaPlaController extends Controller
         $this->view('pla.form', [
             'title' => 'Afegir Tasca al Pla',
             'tasca' => null,
-            'cataleg' => TascaCataleg::allWithRelations(),
+            'cataleg' => TascaCataleg::allWithRelations($instalacioId),
             'equips' => Equip::allByInstalacio($instalacioId),
             'espais' => Espai::allByInstalacio($instalacioId),
             'torns' => Torn::allByInstalacio($instalacioId),
@@ -109,7 +109,7 @@ class TascaPlaController extends Controller
         $this->view('pla.form', [
             'title' => 'Editar Tasca del Pla',
             'tasca' => $tasca,
-            'cataleg' => TascaCataleg::allWithRelations(),
+            'cataleg' => TascaCataleg::allWithRelations($instalacioId),
             'equips' => Equip::allByInstalacio($instalacioId),
             'espais' => Espai::allByInstalacio($instalacioId),
             'torns' => Torn::allByInstalacio($instalacioId),

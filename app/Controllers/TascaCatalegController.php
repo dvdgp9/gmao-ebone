@@ -14,10 +14,16 @@ class TascaCatalegController extends Controller
     public function index(): void
     {
         $this->requireAuth();
+        $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            $this->setFlash('error', 'Selecciona una instal·lació per veure el seu catàleg de tasques.');
+            $this->redirect('dashboard');
+        }
+
         $search = trim($this->get('q', ''));
         $tasques = $search
-            ? TascaCataleg::search($search)
-            : TascaCataleg::allWithRelations();
+            ? TascaCataleg::search($instalacioId, $search)
+            : TascaCataleg::allWithRelations($instalacioId);
 
         $this->view('tasques_cataleg.index', [
             'title' => 'Catàleg de Tasques',
@@ -49,7 +55,15 @@ class TascaCatalegController extends Controller
             $this->redirect('tasques-cataleg');
         }
 
-        TascaCataleg::create($this->getFormData());
+        $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            $this->setFlash('error', 'Selecciona una instal·lació abans de crear tasques al catàleg.');
+            $this->redirect('dashboard');
+        }
+
+        $data = $this->getFormData();
+        $data['instalacio_id'] = $instalacioId;
+        TascaCataleg::create($data);
         $this->setFlash('success', 'Tasca creada correctament.');
         $this->redirect('tasques-cataleg');
     }
@@ -58,7 +72,7 @@ class TascaCatalegController extends Controller
     {
         $this->requireRole(['superadmin', 'admin_instalacio']);
         $tasca = TascaCataleg::find((int)$id);
-        if (!$tasca) {
+        if (!$tasca || $tasca['instalacio_id'] != $this->currentInstalacioId()) {
             $this->setFlash('error', 'Tasca no trobada.');
             $this->redirect('tasques-cataleg');
         }
@@ -83,7 +97,7 @@ class TascaCatalegController extends Controller
         }
 
         $tasca = TascaCataleg::find((int)$id);
-        if (!$tasca) {
+        if (!$tasca || $tasca['instalacio_id'] != $this->currentInstalacioId()) {
             $this->setFlash('error', 'Tasca no trobada.');
             $this->redirect('tasques-cataleg');
         }
@@ -98,6 +112,12 @@ class TascaCatalegController extends Controller
         $this->requireRole(['superadmin', 'admin_instalacio']);
         if (!verify_csrf()) {
             $this->setFlash('error', 'Token de seguretat invàlid.');
+            $this->redirect('tasques-cataleg');
+        }
+
+        $tasca = TascaCataleg::find((int)$id);
+        if (!$tasca || $tasca['instalacio_id'] != $this->currentInstalacioId()) {
+            $this->setFlash('error', 'Tasca no trobada.');
             $this->redirect('tasques-cataleg');
         }
 

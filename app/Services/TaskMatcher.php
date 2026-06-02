@@ -29,7 +29,7 @@ class TaskMatcher
         return trim($value);
     }
 
-    public static function match(array $input): array
+    public static function match(array $input, ?int $instalacioId = null): array
     {
         $name = trim((string)($input['nom'] ?? ''));
         $normalizedName = self::normalize($name);
@@ -43,7 +43,7 @@ class TaskMatcher
             ];
         }
 
-        $candidates = self::loadCandidates();
+        $candidates = self::loadCandidates($instalacioId);
         if (empty($candidates)) {
             return [
                 'status' => self::STATUS_NEW,
@@ -127,7 +127,7 @@ class TaskMatcher
         }
     }
 
-    private static function loadCandidates(): array
+    private static function loadCandidates(?int $instalacioId = null): array
     {
         $db = Database::getInstance();
         $rows = $db->query('
@@ -135,7 +135,7 @@ class TaskMatcher
                    tc.periodicitat_normativa_id, tc.normativa_id, tc.empresa_responsable
             FROM tasques_cataleg tc
             WHERE tc.activa = 1
-        ')->fetchAll();
+        ' . ($instalacioId !== null ? 'AND tc.instalacio_id = ' . (int)$instalacioId : ''))->fetchAll();
 
         $candidates = [];
         foreach ($rows as $row) {
@@ -153,7 +153,7 @@ class TaskMatcher
                 FROM tasques_cataleg_alias a
                 JOIN tasques_cataleg tc ON tc.id = a.tasca_cataleg_id
                 WHERE tc.activa = 1
-            ')->fetchAll();
+            ' . ($instalacioId !== null ? 'AND tc.instalacio_id = ' . (int)$instalacioId : ''))->fetchAll();
 
             foreach ($aliases as $row) {
                 $row['match_text'] = $row['alias'];
