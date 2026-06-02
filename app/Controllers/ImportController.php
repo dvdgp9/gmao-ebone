@@ -753,7 +753,7 @@ class ImportController extends Controller
         try {
             $summary = $this->buildCompleteImportPreview($spreadsheet);
 
-            $tornMap = $this->importCompleteTorns($db, $instalacioId);
+            $tornMap = $this->importCompleteTorns($db, $instalacioId, $spreadsheet->getSheetByName('TASQUES PLA_M'));
             $espaiData = $this->importCompleteEspais($db, $spreadsheet->getSheetByName('LLISTES'), $instalacioId);
             $catalogMaps = $this->getCatalogMaps($db);
             $equipData = $this->importCompleteEquips($db, $spreadsheet->getSheetByName('INVENTARI'), $instalacioId, $catalogMaps);
@@ -793,32 +793,55 @@ class ImportController extends Controller
         }
     }
 
-    private function importCompleteTorns($db, int $instalacioId): array
+    private function importCompleteTorns($db, int $instalacioId, $plaSheet = null): array
     {
         $existing = [];
         foreach (Torn::allByInstalacio($instalacioId) as $torn) {
             $existing[mb_strtolower($torn['nom'])] = (int)$torn['id'];
         }
 
+        $stmt = $db->prepare('INSERT INTO torns (instalacio_id, nom, dies_setmana, actiu) VALUES (?, ?, ?, 1)');
+
+        // Torns per defecte de base
         $defaults = [
-            ['Cap Manteniment', '["dll","dm","dx","dj","dv"]'],
-            ['Matí', '["dll","dm","dx","dj","dv"]'],
-            ['Tarda', '["dll","dm","dx","dj","dv"]'],
-            ['Cap de Setmana', '["ds","dg"]'],
+            'Cap Manteniment',
+            'Matí',
+            'Tarda',
+            'Cap de Setmana',
         ];
 
-        $stmt = $db->prepare('INSERT INTO torns (instalacio_id, nom, dies_setmana, actiu) VALUES (?, ?, ?, 1)');
-        foreach ($defaults as [$nom, $dies]) {
+        // Afegir els torns reals que apareixen al pla (columna P / ' TORN')
+        $tornNoms = $defaults;
+        if ($plaSheet !== null) {
+            for ($row = 2; $row <= $plaSheet->getHighestRow(); $row++) {
+                $nom = $this->cellString($plaSheet->getCell("P{$row}"));
+                if ($nom !== '') {
+                    $tornNoms[] = $nom;
+                }
+            }
+        }
+
+        foreach ($tornNoms as $nom) {
             $key = mb_strtolower($nom);
-            if (isset($existing[$key])) {
+            if ($key === '' || isset($existing[$key])) {
                 continue;
             }
 
-            $stmt->execute([$instalacioId, $nom, $dies]);
+            $stmt->execute([$instalacioId, $nom, $this->guessTornDies($nom)]);
             $existing[$key] = (int)$db->lastInsertId();
         }
 
         return $existing;
+    }
+
+    private function guessTornDies(string $nom): string
+    {
+        $normalized = TaskMatcher::normalize($nom);
+        $isWeekend = str_contains($normalized, 'cap de setmana')
+            || str_contains($normalized, 'setmana matí')
+            || preg_match('/\b(ds|dg|dissabte|diumenge)\b/', $normalized);
+
+        return $isWeekend ? '["ds","dg"]' : '["dll","dm","dx","dj","dv"]';
     }
 
     private function importCompleteEspais($db, $sheet, int $instalacioId): array
@@ -834,11 +857,13 @@ class ImportController extends Controller
         $errors = [];
 
         for ($row = 2; $row <= $sheet->getHighestRow(); $row++) {
-            $nom = trim((string)$sheet->getCell("C{$row}")->getValue());
-            $codi = trim((string)$sheet->getCell("D{$row}")->getValue());
-            $planta = trim((string)$sheet->getCell("E{$row}")->getValue());
+            $nom = $this->cellString($sheet->getCell("C{$row}"));
+            $codi = $this->cellString($sheet->getCell("D{$row}"));
+            $planta = $this->cellString($sheet->getCell("E{$row}"));
 
-            if ($nom === '') {
+            // Els espais reals sempre tenen codi; les files sense codi de LLISTES
+            // són altres llistes (periodicitats, etc.) i no s'han d'importar.
+            if ($nom === '' || $codi === '') {
                 $skipped++;
                 continue;
             }
@@ -1166,6 +1191,27 @@ class ImportController extends Controller
         }
 
         return null;
+    }
+
+    private function cellString($cell): string
+    {
+        try {
+            $value = $cell->getCalculatedValue();
+        } catch (\Throwable $e) {
+            $value = $cell->getValue();
+        }
+
+        if ($value === null || is_bool($value)) {
+            return '';
+        }
+
+        $value = trim((string)$value);
+        // Valors d'error d'Excel (#VALUE!, #REF!, #N/A...) es tracten com a buits
+        if ($value !== '' && $value[0] === '#') {
+            return '';
+        }
+
+        return $value;
     }
 
     private function parseExcelDateValue($cell): ?string

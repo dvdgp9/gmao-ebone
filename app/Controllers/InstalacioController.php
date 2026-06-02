@@ -205,6 +205,20 @@ class InstalacioController extends Controller
             $stmt = $db->prepare('DELETE FROM tasques_pla WHERE instalacio_id = ?');
             $stmt->execute([$instalacioId]);
 
+            // El catàleg ara és per-instal·lació: cal eliminar-lo (i els seus àlies)
+            // un cop esborrat el pla que el referencia.
+            try {
+                $stmt = $db->prepare('DELETE a FROM tasques_cataleg_alias a
+                    JOIN tasques_cataleg tc ON tc.id = a.tasca_cataleg_id
+                    WHERE tc.instalacio_id = ?');
+                $stmt->execute([$instalacioId]);
+            } catch (\Throwable $e) {
+                // La taula d'àlies pot no existir si la migració 005 no s'ha aplicat.
+            }
+
+            $stmt = $db->prepare('DELETE FROM tasques_cataleg WHERE instalacio_id = ?');
+            $stmt->execute([$instalacioId]);
+
             $stmt = $db->prepare('DELETE FROM equips WHERE instalacio_id = ?');
             $stmt->execute([$instalacioId]);
 
@@ -414,6 +428,7 @@ class InstalacioController extends Controller
         return [
             'registres' => $count($db, 'SELECT COUNT(*) FROM registre_tasques WHERE instalacio_id = ?', $instalacioId),
             'tasques del pla' => $count($db, 'SELECT COUNT(*) FROM tasques_pla WHERE instalacio_id = ?', $instalacioId),
+            'tasques del catàleg' => $count($db, 'SELECT COUNT(*) FROM tasques_cataleg WHERE instalacio_id = ?', $instalacioId),
             'equips' => $count($db, 'SELECT COUNT(*) FROM equips WHERE instalacio_id = ?', $instalacioId),
             'espais' => $count($db, 'SELECT COUNT(*) FROM espais WHERE instalacio_id = ?', $instalacioId),
             'torns' => $count($db, 'SELECT COUNT(*) FROM torns WHERE instalacio_id = ?', $instalacioId),
