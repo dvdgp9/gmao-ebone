@@ -1,6 +1,10 @@
 <?php
 $title = $usuari ? 'Editar Usuari' : 'Nou Usuari';
 $action = $usuari ? url('usuaris/update/' . $usuari['id']) : url('usuaris/store');
+// Preseleccionar l'assignació actual quan l'usuari en té exactament una
+$assignacioActual = (count($assignacions ?? []) === 1) ? $assignacions[0] : null;
+$instalacioSeleccionada = $assignacioActual ? (int)$assignacioActual['instalacio_id'] : 0;
+$rolSeleccionat = $assignacioActual ? (int)$assignacioActual['rol_id'] : 0;
 ob_start();
 ?>
 
@@ -77,7 +81,7 @@ ob_start();
                 <select name="instalacio_id" id="instalacio-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
                     <option value="">— Selecciona —</option>
                     <?php foreach ($instalacions as $inst): ?>
-                        <option value="<?= $inst['id'] ?>"><?= e($inst['nom']) ?></option>
+                        <option value="<?= $inst['id'] ?>" <?= (int)$inst['id'] === $instalacioSeleccionada ? 'selected' : '' ?>><?= e($inst['nom']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -86,7 +90,7 @@ ob_start();
                 <select name="rol_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
                     <option value="">— Selecciona —</option>
                     <?php foreach ($rols as $r): ?>
-                        <option value="<?= $r['id'] ?>"><?= e(ucfirst(str_replace('_', ' ', $r['nom']))) ?> — <?= e($r['descripcio'] ?? '') ?></option>
+                        <option value="<?= $r['id'] ?>" <?= (int)$r['id'] === $rolSeleccionat ? 'selected' : '' ?>><?= e(ucfirst(str_replace('_', ' ', $r['nom']))) ?> — <?= e($r['descripcio'] ?? '') ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
