@@ -194,15 +194,15 @@ class TascaPlaController extends Controller
         $diumenge = clone $dilluns;
         $diumenge->modify('+6 days');
 
-        $tasques = TascaPla::getSetmanaSearch(
+        [$torns, $tornId, $tornFilter, $avisTecnic] = $this->resolveTornScope($instalacioId, $tornId);
+
+        $tasques = $avisTecnic ? [] : TascaPla::getSetmanaSearch(
             $instalacioId,
             $dilluns->format('Y-m-d'),
             $diumenge->format('Y-m-d'),
-            $tornId,
+            $tornFilter,
             $search
         );
-
-        $torns = Torn::allByInstalacio($instalacioId);
 
         $this->view('setmana.index', [
             'title' => 'Vista Setmanal',
@@ -214,7 +214,7 @@ class TascaPlaController extends Controller
             'setmanaOffset' => $setmanaOffset,
             'setmanaNum' => (int)$dilluns->format('W'),
             'search' => $search,
-            'flash' => $this->getFlash(),
+            'flash' => $this->getFlash() ?: ($avisTecnic ? ['type' => 'error', 'message' => $avisTecnic] : null),
         ]);
     }
 
@@ -232,14 +232,14 @@ class TascaPlaController extends Controller
         $dataSeleccionada = \DateTime::createFromFormat('Y-m-d', $dataParam) ?: new \DateTime();
         $search = trim($this->get('q', ''));
 
-        $tasques = TascaPla::getDia(
+        [$torns, $tornId, $tornFilter, $avisTecnic] = $this->resolveTornScope($instalacioId, $tornId);
+
+        $tasques = $avisTecnic ? [] : TascaPla::getDia(
             $instalacioId,
             $dataSeleccionada->format('Y-m-d'),
-            $tornId,
+            $tornFilter,
             $search
         );
-
-        $torns = Torn::allByInstalacio($instalacioId);
 
         $this->view('dia.index', [
             'title' => 'Vista Diària',
@@ -248,8 +248,43 @@ class TascaPlaController extends Controller
             'tornActual' => $tornId,
             'dataSeleccionada' => $dataSeleccionada,
             'search' => $search,
-            'flash' => $this->getFlash(),
+            'flash' => $this->getFlash() ?: ($avisTecnic ? ['type' => 'error', 'message' => $avisTecnic] : null),
         ]);
+    }
+
+    /**
+     * Determina l'àmbit de torns visible per a l'usuari actual.
+     * Per al rol tecnic: només els seus torns assignats; un ?torn= aliè s'ignora;
+     * sense filtre explícit es mostren tots els seus torns (+ tasques sense torn).
+     * Retorna [torns visibles, tornId seleccionat, filtre per la consulta, avís o null].
+     */
+    private function resolveTornScope(int $instalacioId, ?int $tornId): array
+    {
+        $torns = Torn::allByInstalacio($instalacioId);
+
+        $isTecnic = empty($_SESSION['is_superadmin'])
+            && $this->currentRole() === 'tecnic'
+            && Torn::supportsUsuariTorn();
+
+        if (!$isTecnic) {
+            return [$torns, $tornId, $tornId, null];
+        }
+
+        $allowedIds = Torn::tornIdsByUsuariInstalacio($this->currentUserId(), $instalacioId);
+
+        if (empty($allowedIds)) {
+            return [[], null, null, "No tens cap torn assignat. Contacta amb l'administrador."];
+        }
+
+        $torns = array_values(array_filter($torns, function (array $t) use ($allowedIds) {
+            return in_array((int)$t['id'], $allowedIds);
+        }));
+
+        if ($tornId !== null && !in_array($tornId, $allowedIds)) {
+            $tornId = null;
+        }
+
+        return [$torns, $tornId, $tornId ?: $allowedIds, null];
     }
 
     private function getFormData(): array

@@ -180,6 +180,20 @@ CREATE TABLE `torns` (
     CONSTRAINT `fk_torns_instalacio` FOREIGN KEY (`instalacio_id`) REFERENCES `instalacions` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `usuari_torn`;
+CREATE TABLE `usuari_torn` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `usuari_id` INT UNSIGNED NOT NULL,
+    `torn_id` INT UNSIGNED NOT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_usuari_torn` (`usuari_id`, `torn_id`),
+    KEY `idx_ut_usuari` (`usuari_id`),
+    KEY `idx_ut_torn` (`torn_id`),
+    CONSTRAINT `fk_ut_usuari` FOREIGN KEY (`usuari_id`) REFERENCES `usuaris` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_ut_torn` FOREIGN KEY (`torn_id`) REFERENCES `torns` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 DROP TABLE IF EXISTS `equips`;
 CREATE TABLE `equips` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,

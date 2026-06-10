@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Models\Usuari;
 use App\Models\Instalacio;
+use App\Models\Torn;
 use App\Models\Database;
 
 class UsuariController extends Controller
@@ -30,12 +31,16 @@ class UsuariController extends Controller
     {
         $this->requireRole(['superadmin', 'admin_instalacio']);
 
+        $instalacions = $this->getInstalacionsDisponibles();
+
         $this->view('usuaris.form', [
             'title' => 'Nou Usuari',
             'usuari' => null,
             'assignacions' => [],
-            'instalacions' => $this->getInstalacionsDisponibles(),
+            'instalacions' => $instalacions,
             'rols' => $this->getRols(),
+            'tornsPerInstalacio' => $this->getTornsPerInstalacio($instalacions),
+            'tornsAssignats' => [],
             'flash' => $this->getFlash(),
         ]);
     }
@@ -82,6 +87,7 @@ class UsuariController extends Controller
 
         if ($instalacioId && $rolId) {
             Usuari::assignInstalacio($id, $instalacioId, $rolId);
+            Torn::syncTornsForUsuari($id, $instalacioId, $this->postedTorns());
         }
 
         $this->setFlash('success', 'Usuari creat correctament.');
@@ -102,13 +108,24 @@ class UsuariController extends Controller
         }
 
         $assignacions = Usuari::getAssignacions((int)$id);
+        $instalacions = $this->getInstalacionsDisponibles();
+
+        $tornsAssignats = [];
+        foreach ($instalacions as $inst) {
+            $tornsAssignats = array_merge(
+                $tornsAssignats,
+                Torn::tornIdsByUsuariInstalacio((int)$id, (int)$inst['id'])
+            );
+        }
 
         $this->view('usuaris.form', [
             'title' => 'Editar Usuari',
             'usuari' => $usuari,
             'assignacions' => $assignacions,
-            'instalacions' => $this->getInstalacionsDisponibles(),
+            'instalacions' => $instalacions,
             'rols' => $this->getRols(),
+            'tornsPerInstalacio' => $this->getTornsPerInstalacio($instalacions),
+            'tornsAssignats' => $tornsAssignats,
             'flash' => $this->getFlash(),
         ]);
     }
@@ -162,6 +179,7 @@ class UsuariController extends Controller
             }
 
             Usuari::assignInstalacio((int)$id, $instalacioId, $rolId);
+            Torn::syncTornsForUsuari((int)$id, $instalacioId, $this->postedTorns());
         }
 
         $this->setFlash('success', 'Usuari actualitzat correctament.');
@@ -200,6 +218,29 @@ class UsuariController extends Controller
 
         $this->setFlash('success', $usuari['actiu'] ? 'Usuari desactivat.' : 'Usuari activat.');
         $this->redirect('usuaris');
+    }
+
+    private function getTornsPerInstalacio(array $instalacions): array
+    {
+        if (!Torn::supportsUsuariTorn()) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($instalacions as $inst) {
+            $torns = Torn::all(['instalacio_id' => (int)$inst['id'], 'actiu' => 1], 'nom ASC');
+            if (!empty($torns)) {
+                $map[(int)$inst['id']] = $torns;
+            }
+        }
+
+        return $map;
+    }
+
+    private function postedTorns(): array
+    {
+        $torns = $this->post('torns', []);
+        return is_array($torns) ? $torns : [];
     }
 
     private function getInstalacionsDisponibles(): array

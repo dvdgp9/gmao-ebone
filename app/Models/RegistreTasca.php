@@ -159,6 +159,13 @@ class RegistreTasca extends Model
         if (!empty($filters['torn_id'])) {
             $conditions[] = 'tp.torn_id = ?';
             $params[] = (int)$filters['torn_id'];
+        } elseif (!empty($filters['torn_ids']) && is_array($filters['torn_ids'])) {
+            $ids = array_values(array_filter(array_map('intval', $filters['torn_ids'])));
+            if (!empty($ids)) {
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $conditions[] = "(tp.torn_id IN ({$placeholders}) OR tp.torn_id IS NULL)";
+                $params = array_merge($params, $ids);
+            }
         }
 
         if (!empty($filters['q'])) {

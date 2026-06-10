@@ -74,6 +74,18 @@ class Usuari extends Model
         ');
     }
 
+    public static function activeByInstalacio(int $instalacioId): array
+    {
+        return static::query('
+            SELECT u.id, u.nom, u.cognoms, r.nom AS rol_nom
+            FROM usuaris u
+            JOIN usuari_instalacio ui ON ui.usuari_id = u.id AND ui.instalacio_id = ?
+            JOIN rols r ON r.id = ui.rol_id
+            WHERE u.actiu = 1
+            ORDER BY u.nom, u.cognoms
+        ', [$instalacioId]);
+    }
+
     public static function belongsToInstalacio(int $usuariId, int $instalacioId): bool
     {
         $stmt = static::db()->prepare(

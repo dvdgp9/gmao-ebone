@@ -74,7 +74,7 @@ ob_start();
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Instal·lació</label>
-                <select name="instalacio_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+                <select name="instalacio_id" id="instalacio-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
                     <option value="">— Selecciona —</option>
                     <?php foreach ($instalacions as $inst): ?>
                         <option value="<?= $inst['id'] ?>"><?= e($inst['nom']) ?></option>
@@ -91,6 +91,26 @@ ob_start();
                 </select>
             </div>
         </div>
+
+        <?php if (!empty($tornsPerInstalacio)): ?>
+        <div class="mt-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Torns</label>
+            <p class="text-xs text-gray-400 mb-2">Torns de la instal·lació seleccionada en què treballa l'usuari.</p>
+            <p id="torns-placeholder" class="text-sm text-gray-400">Selecciona primer una instal·lació.</p>
+            <?php foreach ($tornsPerInstalacio as $instId => $tornsInst): ?>
+            <div class="torns-group hidden flex-wrap gap-2" data-instalacio="<?= (int)$instId ?>">
+                <?php foreach ($tornsInst as $t): ?>
+                <label class="flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2 cursor-pointer hover:bg-gray-100 transition">
+                    <input type="checkbox" name="torns[]" value="<?= (int)$t['id'] ?>" disabled
+                           <?= in_array((int)$t['id'], $tornsAssignats ?? []) ? 'checked' : '' ?>
+                           class="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand">
+                    <span class="text-sm text-gray-700"><?= e($t['nom']) ?></span>
+                </label>
+                <?php endforeach; ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
     </div>
 
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -102,6 +122,38 @@ ob_start();
         </a>
     </div>
 </form>
+
+<script>
+(function () {
+    var select = document.getElementById('instalacio-select');
+    var groups = document.querySelectorAll('.torns-group');
+    var placeholder = document.getElementById('torns-placeholder');
+    if (!select || !groups.length) return;
+
+    function refresh() {
+        var current = select.value;
+        var anyVisible = false;
+        groups.forEach(function (group) {
+            var match = group.dataset.instalacio === current;
+            group.classList.toggle('hidden', !match);
+            group.classList.toggle('flex', match);
+            group.querySelectorAll('input[type="checkbox"]').forEach(function (input) {
+                input.disabled = !match;
+            });
+            if (match) anyVisible = true;
+        });
+        if (placeholder) {
+            placeholder.classList.toggle('hidden', anyVisible);
+            placeholder.textContent = current && !anyVisible
+                ? 'Aquesta instal·lació no té torns actius.'
+                : 'Selecciona primer una instal·lació.';
+        }
+    }
+
+    select.addEventListener('change', refresh);
+    refresh();
+})();
+</script>
 
 <?php
 $content = ob_get_clean();

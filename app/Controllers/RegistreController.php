@@ -6,6 +6,7 @@ use App\Core\Controller;
 use App\Models\IncidenciaTasca;
 use App\Models\RegistreTasca;
 use App\Models\TascaPla;
+use App\Models\Torn;
 
 class RegistreController extends Controller
 {
@@ -31,13 +32,31 @@ class RegistreController extends Controller
             'q' => trim($this->get('q', '')),
         ];
 
+        $filterOptions = RegistreTasca::filterOptionsByInstalacio($instalacioId);
+
+        // El rol tecnic només veu registres dels seus torns (+ sense torn)
+        $isTecnic = empty($_SESSION['is_superadmin'])
+            && $this->currentRole() === 'tecnic'
+            && Torn::supportsUsuariTorn();
+        if ($isTecnic) {
+            $allowedIds = Torn::tornIdsByUsuariInstalacio($this->currentUserId(), $instalacioId);
+            $filterOptions['torns'] = array_values(array_filter($filterOptions['torns'], function (array $t) use ($allowedIds) {
+                return in_array((int)$t['id'], $allowedIds);
+            }));
+            if ($filters['torn_id'] !== null && !in_array((int)$filters['torn_id'], $allowedIds)) {
+                $filters['torn_id'] = null;
+            }
+            if ($filters['torn_id'] === null) {
+                $filters['torn_ids'] = $allowedIds ?: [0];
+            }
+        }
+
         $total = RegistreTasca::countFilteredByInstalacio($instalacioId, $filters);
         $totalPages = max(1, (int)ceil($total / $perPage));
         $page = min($page, $totalPages);
         $offset = ($page - 1) * $perPage;
 
         $registres = RegistreTasca::filterByInstalacio($instalacioId, $filters, $perPage, $offset);
-        $filterOptions = RegistreTasca::filterOptionsByInstalacio($instalacioId);
 
         $this->view('registre.index', [
             'title' => 'Registre de Tasques',

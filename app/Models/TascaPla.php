@@ -64,6 +64,33 @@ class TascaPla extends Model
         return static::query($sql, $params);
     }
 
+    /**
+     * Construeix la condició de filtre per torn.
+     * - int: només aquest torn (filtre explícit).
+     * - array d'ids: qualsevol d'aquests torns O tasques sense torn
+     *   (cas tècnic: veu els seus torns + tasques no assignades a cap torn).
+     * - null/buit: sense filtre.
+     */
+    private static function tornFilterClause(int|array|null $torn, array &$params): string
+    {
+        if (is_int($torn) && $torn > 0) {
+            $params[] = $torn;
+            return ' AND tp.torn_id = ?';
+        }
+
+        if (is_array($torn) && !empty($torn)) {
+            $ids = array_values(array_filter(array_map('intval', $torn)));
+            if (empty($ids)) {
+                return ' AND 1 = 0';
+            }
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $params = array_merge($params, $ids);
+            return " AND (tp.torn_id IN ({$placeholders}) OR tp.torn_id IS NULL)";
+        }
+
+        return '';
+    }
+
     public static function getSetmana(int $instalacioId, string $dilluns, string $diumenge, ?int $tornId = null): array
     {
         $sql = '
@@ -93,7 +120,7 @@ class TascaPla extends Model
         return static::query($sql, $params);
     }
 
-    public static function getDia(int $instalacioId, string $data, ?int $tornId = null, string $search = ''): array
+    public static function getDia(int $instalacioId, string $data, int|array|null $torn = null, string $search = ''): array
     {
         $sql = '
             SELECT tp.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
@@ -112,10 +139,7 @@ class TascaPla extends Model
               AND tp.data_propera_realitzacio <= ?';
         $params = [$instalacioId, $data];
 
-        if ($tornId) {
-            $sql .= ' AND tp.torn_id = ?';
-            $params[] = $tornId;
-        }
+        $sql .= static::tornFilterClause($torn, $params);
 
         if ($search !== '') {
             $sql .= ' AND (
@@ -133,7 +157,7 @@ class TascaPla extends Model
         return static::query($sql, $params);
     }
 
-    public static function getSetmanaSearch(int $instalacioId, string $dilluns, string $diumenge, ?int $tornId = null, string $search = ''): array
+    public static function getSetmanaSearch(int $instalacioId, string $dilluns, string $diumenge, int|array|null $torn = null, string $search = ''): array
     {
         $sql = '
             SELECT tp.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
@@ -152,10 +176,7 @@ class TascaPla extends Model
               AND tp.data_propera_realitzacio <= ?';
         $params = [$instalacioId, $diumenge];
 
-        if ($tornId) {
-            $sql .= ' AND tp.torn_id = ?';
-            $params[] = $tornId;
-        }
+        $sql .= static::tornFilterClause($torn, $params);
 
         if ($search !== '') {
             $sql .= ' AND (

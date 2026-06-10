@@ -46,6 +46,13 @@ ob_start();
                     </span>
                 <?php endforeach; ?>
             </div>
+            <?php $assignats = $usuarisPerTorn[(int)$torn['id']] ?? []; ?>
+            <?php if (!empty($assignats)): ?>
+            <div class="mb-4 text-sm text-gray-600">
+                <span class="text-xs font-medium text-gray-400 uppercase">Usuaris</span>
+                <p class="mt-0.5"><?= e(implode(', ', $assignats)) ?></p>
+            </div>
+            <?php endif; ?>
             <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
             <div class="flex gap-3 pt-3 border-t border-gray-100">
                 <a href="<?= url('torns/edit/' . $torn['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>

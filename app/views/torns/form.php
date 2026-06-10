@@ -61,6 +61,23 @@ ob_start();
         </div>
     </div>
 
+    <?php if (!empty($usuarisInstalacio)): ?>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Usuaris assignats</label>
+        <p class="text-xs text-gray-400 mb-3">Usuaris de la instal·lació que treballen en aquest torn.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            <?php foreach ($usuarisInstalacio as $u): ?>
+            <label class="flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2 cursor-pointer hover:bg-gray-100 transition">
+                <input type="checkbox" name="usuaris[]" value="<?= (int)$u['id'] ?>" <?= in_array((int)$u['id'], $usuarisAssignats ?? []) ? 'checked' : '' ?>
+                       class="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand">
+                <span class="text-sm text-gray-700"><?= e(trim($u['nom'] . ' ' . ($u['cognoms'] ?? ''))) ?></span>
+                <span class="text-xs text-gray-400 ml-auto"><?= e(ucfirst(str_replace('_', ' ', $u['rol_nom']))) ?></span>
+            </label>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <button type="submit" class="bg-brand text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-dark transition">
             <?= $torn ? 'Actualitzar' : 'Crear torn' ?>

@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\Torn;
+use App\Models\Usuari;
 
 class TornController extends Controller
 {
@@ -20,6 +21,7 @@ class TornController extends Controller
         $this->view('torns.index', [
             'title' => 'Torns',
             'torns' => $torns,
+            'usuarisPerTorn' => Torn::usuarisAssignatsByInstalacio($instalacioId),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -34,6 +36,8 @@ class TornController extends Controller
         $this->view('torns.form', [
             'title' => 'Nou Torn',
             'torn' => null,
+            'usuarisInstalacio' => $this->getUsuarisInstalacio(),
+            'usuarisAssignats' => [],
             'returnTo' => $this->getReturnTo(),
             'flash' => $this->getFlash(),
         ]);
@@ -59,7 +63,8 @@ class TornController extends Controller
             'hora_fi' => $this->post('hora_fi') ?: null,
             'actiu' => $this->post('actiu', 1) ? 1 : 0,
         ]);
-        Torn::create($data);
+        $tornId = Torn::create($data);
+        Torn::syncUsuarisForTorn($tornId, (int)$this->currentInstalacioId(), $this->postedUsuaris());
         $this->setFlash('success', 'Torn creat correctament.');
         $this->redirect($this->getReturnTo('torns', true));
     }
@@ -76,6 +81,8 @@ class TornController extends Controller
         $this->view('torns.form', [
             'title' => 'Editar Torn',
             'torn' => $torn,
+            'usuarisInstalacio' => $this->getUsuarisInstalacio(),
+            'usuarisAssignats' => Torn::usuariIdsByTorn((int)$id),
             'returnTo' => $this->getReturnTo(),
             'flash' => $this->getFlash(),
         ]);
@@ -103,6 +110,7 @@ class TornController extends Controller
             'actiu' => $this->post('actiu', 1) ? 1 : 0,
         ]);
         Torn::update((int)$id, $data);
+        Torn::syncUsuarisForTorn((int)$id, (int)$torn['instalacio_id'], $this->postedUsuaris());
         $this->setFlash('success', 'Torn actualitzat correctament.');
         $this->redirect($this->getReturnTo('torns', true));
     }
@@ -124,6 +132,21 @@ class TornController extends Controller
         Torn::update((int)$id, ['actiu' => 0]);
         $this->setFlash('success', 'Torn desactivat correctament.');
         $this->redirect('torns');
+    }
+
+    private function getUsuarisInstalacio(): array
+    {
+        if (!Torn::supportsUsuariTorn()) {
+            return [];
+        }
+
+        return Usuari::activeByInstalacio((int)$this->currentInstalacioId());
+    }
+
+    private function postedUsuaris(): array
+    {
+        $usuaris = $this->post('usuaris', []);
+        return is_array($usuaris) ? $usuaris : [];
     }
 
     private function buildDiesJson(): string
