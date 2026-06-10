@@ -53,8 +53,8 @@ class InstalacioController extends Controller
 
         $this->refreshSuperadminAssignacions();
         $this->switchSuperadminContext($instalacioId);
-        $this->setFlash('success', 'Instal·lació creada correctament.');
-        $this->redirect('instalacions/onboarding/' . $instalacioId);
+        $this->setFlash('success', 'Instal·lació creada correctament. Quan el seu admin entri, la configurarà des de la pantalla guiada (també hi pots accedir des de "Configurar").');
+        $this->redirect('instalacions');
     }
 
     public function onboarding(string $id): void
