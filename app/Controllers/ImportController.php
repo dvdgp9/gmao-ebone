@@ -11,8 +11,11 @@ use App\Models\TascaPla;
 use App\Models\Espai;
 use App\Models\Torn;
 use App\Models\Periodicitat;
+use App\Models\Instalacio;
 use App\Services\TaskMatcher;
+use App\Services\PlantillaBuilder;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ImportController extends Controller
 {
@@ -25,8 +28,31 @@ class ImportController extends Controller
             'returnTo' => $this->getReturnTo(),
             'currentInstalacioId' => $this->currentInstalacioId(),
             'recommendedType' => $recommendedType,
+            'modulsActius' => Instalacio::modulsActiusById($this->currentInstalacioId()),
             'flash' => $this->getFlash(),
         ]);
+    }
+
+    /** Descarrega la plantilla Excel adaptada als mòduls de la instal·lació activa. */
+    public function plantilla(): void
+    {
+        $this->requireRole(['superadmin', 'admin_instalacio']);
+        $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            $this->setFlash('error', 'Selecciona una instal·lació per descarregar la seva plantilla.');
+            $this->redirect('import');
+        }
+
+        $instalacio = Instalacio::find($instalacioId);
+        $moduls = Instalacio::modulsActius($instalacio);
+        $spreadsheet = PlantillaBuilder::build($moduls, (string)($instalacio['nom'] ?? ''));
+
+        $filename = 'plantilla-gmao-' . preg_replace('/[^a-z0-9]+/i', '-', mb_strtolower((string)($instalacio['nom'] ?? 'instalacio'))) . '.xlsx';
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+        (new Xlsx($spreadsheet))->save('php://output');
+        exit;
     }
 
     public function upload(): void
@@ -57,7 +83,24 @@ class ImportController extends Controller
             $quickPreview = [];
             $importSummary = [];
 
-            if ($tipus === 'completa_instalacio') {
+            if ($tipus === 'plantilla') {
+                if (!$this->currentInstalacioId()) {
+                    $this->setFlash('error', 'Cal tenir una instal·lació activa per importar la plantilla.');
+                    $this->redirect('import');
+                }
+
+                $summary = $this->buildPlantillaPreview($spreadsheet);
+                $headers = [1 => 'full', 2 => 'sheet', 3 => 'rows'];
+                $previewData = [];
+                foreach ($summary['sheets'] as $sheetName => $rowCount) {
+                    $previewData[] = [
+                        1 => 'Sí',
+                        2 => $sheetName,
+                        3 => (string)$rowCount,
+                    ];
+                }
+                $highestRow = $summary['total_rows'] + 1;
+            } elseif ($tipus === 'completa_instalacio') {
                 if (!$this->currentInstalacioId()) {
                     $this->setFlash('error', 'Cal tenir una instal·lació activa per fer una importació completa.');
                     $this->redirect('import');
@@ -144,7 +187,7 @@ class ImportController extends Controller
                 'totalRows' => $highestRow - 1,
                 'importType' => $tipus,
                 'returnTo' => $this->getReturnTo('', true),
-                'isWorkbookSummary' => $tipus === 'completa_instalacio',
+                'isWorkbookSummary' => in_array($tipus, ['completa_instalacio', 'plantilla'], true),
                 'quickPreview' => $quickPreview,
                 'importSummary' => $importSummary,
                 'flash' => $this->getFlash(),
@@ -180,6 +223,7 @@ class ImportController extends Controller
                 'tasques_cataleg' => $this->importTasquesCataleg($spreadsheet->getActiveSheet()),
                 'tasques_pla' => $this->importTasquesPla($spreadsheet->getActiveSheet()),
                 'pla_rapid' => $this->importQuickPlan($spreadsheet->getActiveSheet()),
+                'plantilla' => $this->importPlantilla($spreadsheet),
                 'completa_instalacio' => $this->importCompleteInstalacio($spreadsheet),
                 default => ['imported' => 0, 'skipped' => 0, 'errors' => ['Tipus d\'importació no vàlid.']],
             };
@@ -710,6 +754,325 @@ class ImportController extends Controller
             TaskMatcher::STATUS_ERROR => 'Error',
             default => 'Sense acció',
         };
+    }
+
+    private function buildPlantillaPreview($spreadsheet): array
+    {
+        $knownSheets = [
+            PlantillaBuilder::SHEET_ESPAIS,
+            PlantillaBuilder::SHEET_TORNS,
+            PlantillaBuilder::SHEET_EQUIPS,
+            PlantillaBuilder::SHEET_TASQUES,
+        ];
+
+        $sheets = [];
+        foreach ($knownSheets as $sheetName) {
+            $sheet = $spreadsheet->getSheetByName($sheetName);
+            if (!$sheet) {
+                continue;
+            }
+            $sheets[$sheetName] = $this->countPlantillaRows($sheet);
+        }
+
+        if (empty($sheets)) {
+            throw new \RuntimeException(
+                'No s\'ha trobat cap fulla de la plantilla (ESPAIS, TORNS, EQUIPS o TASQUES). Descarrega la plantilla i no canviïs els noms de les fulles.'
+            );
+        }
+
+        return [
+            'sheets' => $sheets,
+            'total_rows' => array_sum($sheets),
+        ];
+    }
+
+    /** Compta files amb dades d'una fulla de plantilla, ignorant les d'exemple. */
+    private function countPlantillaRows($sheet): int
+    {
+        $count = 0;
+        for ($row = 2; $row <= $sheet->getHighestRow(); $row++) {
+            $first = $this->cellString($sheet->getCell("A{$row}"));
+            if ($first === '' || PlantillaBuilder::isExampleRow($first)) {
+                continue;
+            }
+            $count++;
+        }
+
+        return $count;
+    }
+
+    private function importPlantilla($spreadsheet): array
+    {
+        $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            return ['imported' => 0, 'skipped' => 0, 'errors' => ['No hi ha una instal·lació activa.']];
+        }
+
+        $db = Database::getInstance();
+        $db->beginTransaction();
+
+        try {
+            $results = [];
+
+            $espaisSheet = $spreadsheet->getSheetByName(PlantillaBuilder::SHEET_ESPAIS);
+            if ($espaisSheet) {
+                $results[] = $this->importPlantillaEspais($db, $espaisSheet, $instalacioId);
+            }
+
+            $tornsSheet = $spreadsheet->getSheetByName(PlantillaBuilder::SHEET_TORNS);
+            if ($tornsSheet) {
+                $results[] = $this->importPlantillaTorns($db, $tornsSheet, $instalacioId);
+            }
+
+            $equipsSheet = $spreadsheet->getSheetByName(PlantillaBuilder::SHEET_EQUIPS);
+            if ($equipsSheet) {
+                $results[] = $this->importPlantillaEquips($db, $equipsSheet, $instalacioId);
+            }
+
+            $tasquesSheet = $spreadsheet->getSheetByName(PlantillaBuilder::SHEET_TASQUES);
+            if ($tasquesSheet) {
+                $results[] = $this->importPlantillaTasques($tasquesSheet, $instalacioId);
+            }
+
+            $db->commit();
+
+            return [
+                'imported' => array_sum(array_column($results, 'imported')),
+                'skipped' => array_sum(array_column($results, 'skipped')),
+                'errors' => array_slice(array_merge(...array_column($results, 'errors')), 0, 10),
+            ];
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            return ['imported' => 0, 'skipped' => 0, 'errors' => [$e->getMessage()]];
+        }
+    }
+
+    private function importPlantillaEspais($db, $sheet, int $instalacioId): array
+    {
+        $existing = [];
+        foreach (Espai::allByInstalacio($instalacioId) as $espai) {
+            $existing[mb_strtolower($espai['nom'])] = true;
+        }
+
+        $stmt = $db->prepare('INSERT INTO espais (instalacio_id, codi, nom, planta, actiu) VALUES (?, ?, ?, ?, 1)');
+        $imported = 0;
+        $skipped = 0;
+        $errors = [];
+
+        for ($row = 2; $row <= $sheet->getHighestRow(); $row++) {
+            $nom = $this->cellString($sheet->getCell("A{$row}"));
+            if ($nom === '' || PlantillaBuilder::isExampleRow($nom)) {
+                continue;
+            }
+
+            $key = mb_strtolower($nom);
+            if (isset($existing[$key])) {
+                $skipped++;
+                continue;
+            }
+
+            $codi = $this->cellString($sheet->getCell("B{$row}"));
+            $planta = $this->cellString($sheet->getCell("C{$row}"));
+
+            try {
+                $stmt->execute([$instalacioId, $codi ?: null, $nom, $planta ?: null]);
+                $existing[$key] = true;
+                $imported++;
+            } catch (\Throwable $e) {
+                $skipped++;
+                if (count($errors) < 10) {
+                    $errors[] = "ESPAIS fila {$row}: " . $e->getMessage();
+                }
+            }
+        }
+
+        return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
+    }
+
+    private function importPlantillaTorns($db, $sheet, int $instalacioId): array
+    {
+        $existing = [];
+        foreach (Torn::allByInstalacio($instalacioId) as $torn) {
+            $existing[mb_strtolower($torn['nom'])] = true;
+        }
+
+        $validDies = ['dll', 'dm', 'dx', 'dj', 'dv', 'ds', 'dg'];
+        $imported = 0;
+        $skipped = 0;
+        $errors = [];
+
+        for ($row = 2; $row <= $sheet->getHighestRow(); $row++) {
+            $nom = $this->cellString($sheet->getCell("A{$row}"));
+            if ($nom === '' || PlantillaBuilder::isExampleRow($nom)) {
+                continue;
+            }
+
+            $key = mb_strtolower($nom);
+            if (isset($existing[$key])) {
+                $skipped++;
+                continue;
+            }
+
+            $diesRaw = $this->cellString($sheet->getCell("B{$row}"));
+            $dies = array_values(array_intersect(
+                $validDies,
+                array_map('trim', explode(',', mb_strtolower($diesRaw)))
+            ));
+
+            $data = Torn::sanitizeWriteData([
+                'instalacio_id' => $instalacioId,
+                'nom' => $nom,
+                'dies_setmana' => json_encode($dies),
+                'hora_inici' => $this->cellString($sheet->getCell("C{$row}")) ?: null,
+                'hora_fi' => $this->cellString($sheet->getCell("D{$row}")) ?: null,
+                'actiu' => 1,
+            ]);
+
+            try {
+                Torn::create($data);
+                $existing[$key] = true;
+                $imported++;
+            } catch (\Throwable $e) {
+                $skipped++;
+                if (count($errors) < 10) {
+                    $errors[] = "TORNS fila {$row}: " . $e->getMessage();
+                }
+            }
+        }
+
+        return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
+    }
+
+    private function importPlantillaEquips($db, $sheet, int $instalacioId): array
+    {
+        $existing = [];
+        foreach (Equip::allByInstalacio($instalacioId) as $equip) {
+            $existing[mb_strtolower($equip['nom_equip'] ?? '')] = true;
+            if (!empty($equip['nom_mn'])) {
+                $existing[mb_strtolower($equip['nom_mn'])] = true;
+            }
+        }
+
+        $stmt = $db->prepare('
+            INSERT INTO equips (instalacio_id, nom_mn, nom_equip, model, planta, empresa_mantenedora, actiu)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+        ');
+        $imported = 0;
+        $skipped = 0;
+        $errors = [];
+
+        for ($row = 2; $row <= $sheet->getHighestRow(); $row++) {
+            $nomEquip = $this->cellString($sheet->getCell("A{$row}"));
+            if ($nomEquip === '' || PlantillaBuilder::isExampleRow($nomEquip)) {
+                continue;
+            }
+
+            $codi = $this->cellString($sheet->getCell("B{$row}"));
+            if (isset($existing[mb_strtolower($nomEquip)]) || ($codi !== '' && isset($existing[mb_strtolower($codi)]))) {
+                $skipped++;
+                continue;
+            }
+
+            try {
+                $stmt->execute([
+                    $instalacioId,
+                    $codi ?: null,
+                    $nomEquip,
+                    $this->cellString($sheet->getCell("C{$row}")) ?: null,
+                    $this->cellString($sheet->getCell("D{$row}")) ?: null,
+                    $this->cellString($sheet->getCell("E{$row}")) ?: null,
+                ]);
+                $existing[mb_strtolower($nomEquip)] = true;
+                $imported++;
+            } catch (\Throwable $e) {
+                $skipped++;
+                if (count($errors) < 10) {
+                    $errors[] = "EQUIPS fila {$row}: " . $e->getMessage();
+                }
+            }
+        }
+
+        return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
+    }
+
+    /**
+     * Importa la fulla TASQUES amb la mateixa lògica que el pla ràpid.
+     * Les coincidències dubtoses creen tasca nova: en un onboarding la
+     * instal·lació acostuma a estar buida i és el comportament previsible.
+     */
+    private function importPlantillaTasques($sheet, int $instalacioId): array
+    {
+        $headers = $this->readNormalizedHeaders($sheet);
+        $imported = 0;
+        $skipped = 0;
+        $errors = [];
+
+        for ($row = 2; $row <= $sheet->getHighestRow(); $row++) {
+            $input = $this->readQuickPlanRow($sheet, $headers, $row);
+            if ($input['is_empty'] || PlantillaBuilder::isExampleRow($input['nom'])) {
+                continue;
+            }
+
+            $match = $this->validateQuickPlanInput($input) ?? TaskMatcher::match($input, $instalacioId);
+            if ($match['status'] === TaskMatcher::STATUS_ERROR) {
+                throw new \RuntimeException("TASQUES fila {$row}: " . ($match['message'] ?? 'dades no vàlides') . ' No s\'ha importat res: corregeix la fila i torna a pujar el fitxer.');
+            }
+
+            $tascaCatalegId = (int)($match['matched_task']['id'] ?? 0);
+            if ($match['status'] !== TaskMatcher::STATUS_MATCH) {
+                $tascaCatalegId = 0;
+            }
+
+            if ($tascaCatalegId <= 0) {
+                $tascaCatalegId = TascaCataleg::create([
+                    'instalacio_id' => $instalacioId,
+                    'codi' => null,
+                    'sistema_id' => $input['sistema_id'],
+                    'tipus_equip_id' => $input['tipus_equip_id'],
+                    'nom' => $input['nom'],
+                    'descripcio' => null,
+                    'periodicitat_normativa_id' => $input['periodicitat_id'],
+                    'normativa_id' => $input['normativa_id'],
+                    'empresa_responsable' => null,
+                    'activa' => 1,
+                ]);
+            } else {
+                TaskMatcher::rememberAlias($tascaCatalegId, $input['nom']);
+            }
+
+            if ($this->quickPlanExists($instalacioId, $tascaCatalegId, $input['espai_id'], $input['torn_id'], $input['equip_id'])) {
+                $skipped++;
+                continue;
+            }
+
+            $relationError = $this->validateQuickPlanRelations($input, $instalacioId);
+            if ($relationError !== null) {
+                throw new \RuntimeException("TASQUES fila {$row}: {$relationError}");
+            }
+
+            TascaPla::create([
+                'instalacio_id' => $instalacioId,
+                'tasca_cataleg_id' => $tascaCatalegId,
+                'equip_id' => $input['equip_id'],
+                'espai_id' => $input['espai_id'],
+                'torn_id' => $input['torn_id'],
+                'periodicitat_id' => $input['periodicitat_id'],
+                'periodicitat_normativa_id' => $input['periodicitat_id'],
+                'normativa_id' => $input['normativa_id'],
+                'observacions' => null,
+                'data_darrera_realitzacio' => null,
+                'data_propera_realitzacio' => date('Y-m-d'),
+                'data_darrera_no_realitzacio' => null,
+                'en_curs' => 1,
+                'comentaris' => null,
+            ]);
+            $imported++;
+        }
+
+        return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
     }
 
     private function buildCompleteImportPreview($spreadsheet): array
@@ -1288,7 +1651,7 @@ class ImportController extends Controller
 
     private function getRecommendedType(string $returnTo): string
     {
-        $allowed = ['pla_rapid', 'tasques_cataleg', 'tasques_pla', 'completa_instalacio'];
+        $allowed = ['plantilla', 'pla_rapid', 'tasques_cataleg', 'tasques_pla', 'completa_instalacio'];
         $recommended = (string)$this->get('recommended', '');
 
         if (in_array($recommended, $allowed, true)) {
@@ -1296,7 +1659,7 @@ class ImportController extends Controller
         }
 
         if ($returnTo !== '' && str_starts_with($returnTo, 'instalacions/onboarding/')) {
-            return 'completa_instalacio';
+            return 'plantilla';
         }
 
         return $this->currentInstalacioId() ? 'pla_rapid' : 'tasques_cataleg';

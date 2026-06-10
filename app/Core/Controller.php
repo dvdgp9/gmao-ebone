@@ -72,6 +72,15 @@ class Controller
         }
     }
 
+    protected function requireModul(string $modul): void
+    {
+        $instalacioId = $this->currentInstalacioId();
+        if ($instalacioId && !\App\Models\Instalacio::modulActiu($instalacioId, $modul)) {
+            $this->setFlash('error', 'Aquest apartat no està activat per a la instal·lació actual. Es pot activar des de la pantalla de configuració de la instal·lació.');
+            $this->redirect('dashboard');
+        }
+    }
+
     protected function currentInstalacioId(): ?int
     {
         return $_SESSION['instalacio_id'] ?? null;

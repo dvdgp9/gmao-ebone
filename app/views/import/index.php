@@ -1,11 +1,12 @@
 <?php
 $title = 'Importar Excel';
 $backUrl = !empty($returnTo ?? '') ? url($returnTo) : url('dashboard');
-$recommendedType = $recommendedType ?? (!empty($returnTo ?? '') ? 'completa_instalacio' : 'pla_rapid');
+$recommendedType = $recommendedType ?? (!empty($returnTo ?? '') ? 'plantilla' : 'pla_rapid');
 $hasActiveInstalacio = !empty($currentInstalacioId ?? null);
-if (!$hasActiveInstalacio && in_array($recommendedType, ['pla_rapid', 'tasques_pla', 'completa_instalacio'], true)) {
+if (!$hasActiveInstalacio && in_array($recommendedType, ['plantilla', 'pla_rapid', 'tasques_pla', 'completa_instalacio'], true)) {
     $recommendedType = 'tasques_cataleg';
 }
+$modulsActius = $modulsActius ?? ['espais', 'torns', 'equips'];
 ob_start();
 ?>
 
@@ -48,6 +49,7 @@ ob_start();
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tipus d'importació</label>
                 <select name="import_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+                    <option value="plantilla" <?= !$hasActiveInstalacio ? 'disabled' : '' ?> <?= $recommendedType === 'plantilla' ? 'selected' : '' ?>>Plantilla de configuració (recomanada)</option>
                     <option value="completa_instalacio" <?= !$hasActiveInstalacio ? 'disabled' : '' ?> <?= $recommendedType === 'completa_instalacio' ? 'selected' : '' ?>>Excel complet de la instal·lació activa</option>
                     <option value="pla_rapid" <?= !$hasActiveInstalacio ? 'disabled' : '' ?> <?= $recommendedType === 'pla_rapid' ? 'selected' : '' ?>>Pla ràpid: tasca + periodicitat</option>
                     <option value="tasques_pla" <?= !$hasActiveInstalacio ? 'disabled' : '' ?> <?= $recommendedType === 'tasques_pla' ? 'selected' : '' ?>>Només tasques al Pla de Manteniment</option>
@@ -55,6 +57,8 @@ ob_start();
                 </select>
                 <?php if (!$hasActiveInstalacio): ?>
                     <p class="text-xs text-amber-600 mt-1">Per importar un pla cal tenir una instal·lació activa seleccionada.</p>
+                <?php elseif ($recommendedType === 'plantilla'): ?>
+                    <p class="text-xs text-gray-500 mt-1">Espera les fulles de la plantilla descarregada (<?= e(implode(', ', array_map('strtoupper', $modulsActius))) ?><?= !empty($modulsActius) ? ', ' : '' ?>TASQUES). Les files d'exemple s'ignoren.</p>
                 <?php elseif ($recommendedType === 'completa_instalacio'): ?>
                     <p class="text-xs text-gray-500 mt-1">Espera les fulles LLISTES, INVENTARI, BD TASQUES, TASQUES PLA_M i REGISTRE TASQUES.</p>
                 <?php else: ?>
@@ -80,7 +84,18 @@ ob_start();
             <p class="text-sm text-gray-500 mt-1">Escull segons el que vols carregar ara.</p>
 
             <div class="mt-5 space-y-4 text-sm text-gray-600">
+                <?php if ($hasActiveInstalacio): ?>
                 <div class="rounded-xl border border-brand/20 bg-brand-light/60 p-4">
+                    <p class="font-semibold text-gray-800 mb-1">Plantilla de configuració</p>
+                    <p>El camí més fàcil: descarrega la plantilla adaptada a la teva instal·lació, omple-la seguint la fulla INSTRUCCIONS i puja-la aquí.</p>
+                    <a href="<?= url('import/plantilla') ?>" class="mt-3 inline-flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-brand-dark transition">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16V4m0 12l-4-4m4 4l4-4M4 20h16"/></svg>
+                        Descarregar plantilla
+                    </a>
+                    <p class="text-xs text-gray-500 mt-2">Inclou exemples ja omplerts i instruccions de què recollir per cada bloc.</p>
+                </div>
+                <?php endif; ?>
+                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
                     <p class="font-semibold text-gray-800 mb-1">Excel complet</p>
                     <p>És el camí recomanat quan acabes de crear una instal·lació.</p>
                     <div class="mt-2 bg-white rounded-lg border border-brand/10 p-3 text-xs font-mono text-gray-700">

@@ -10,6 +10,7 @@ class EspaiController extends Controller
     public function index(): void
     {
         $this->requireAuth();
+        $this->requireModul('espais');
         $instalacioId = $this->currentInstalacioId();
         if (!$instalacioId) {
             $this->setFlash('error', 'Selecciona una instal·lació.');
@@ -27,6 +28,7 @@ class EspaiController extends Controller
     public function create(): void
     {
         $this->requireRole(['superadmin', 'admin_instalacio', 'cap_manteniment']);
+        $this->requireModul('espais');
         if (!$this->currentInstalacioId()) {
             $this->setFlash('error', 'Selecciona una instal·lació abans de crear espais.');
             $this->redirect('dashboard');

@@ -33,6 +33,7 @@ $router->get('instalacions', InstalacioController::class, 'index');
 $router->get('instalacions/create', InstalacioController::class, 'create');
 $router->post('instalacions/store', InstalacioController::class, 'store');
 $router->get('instalacions/onboarding/{id}', InstalacioController::class, 'onboarding');
+$router->post('instalacions/moduls/{id}', InstalacioController::class, 'moduls');
 $router->get('instalacions/edit/{id}', InstalacioController::class, 'edit');
 $router->post('instalacions/update/{id}', InstalacioController::class, 'update');
 $router->post('instalacions/clear-data/{id}', InstalacioController::class, 'clearData');
@@ -80,6 +81,8 @@ $router->post('pla/update/{id}', TascaPlaController::class, 'update');
 $router->post('pla/delete/{id}', TascaPlaController::class, 'delete');
 
 // Vista Setmanal
+$router->get('pla/alta-rapida', TascaPlaController::class, 'altaRapida');
+$router->post('pla/alta-rapida/store', TascaPlaController::class, 'altaRapidaStore');
 $router->get('setmana', TascaPlaController::class, 'setmana');
 $router->get('dia', TascaPlaController::class, 'dia');
 
@@ -102,6 +105,7 @@ $router->post('usuaris/toggle/{id}', UsuariController::class, 'toggle');
 
 // Importar Excel
 $router->get('import', ImportController::class, 'index');
+$router->get('import/plantilla', ImportController::class, 'plantilla');
 $router->post('import/upload', ImportController::class, 'upload');
 $router->post('import/process', ImportController::class, 'process');
 

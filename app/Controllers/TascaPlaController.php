@@ -10,6 +10,7 @@ use App\Models\Espai;
 use App\Models\Torn;
 use App\Models\Periodicitat;
 use App\Models\Normativa;
+use App\Models\Instalacio;
 
 class TascaPlaController extends Controller
 {
@@ -55,6 +56,145 @@ class TascaPlaController extends Controller
             'normatives' => Normativa::allOrdered(),
             'flash' => $this->getFlash(),
         ]);
+    }
+
+    /** Alta ràpida: diverses tasques (catàleg + pla) en una sola pantalla. */
+    public function altaRapida(): void
+    {
+        $this->requireRole(['superadmin', 'admin_instalacio', 'cap_manteniment']);
+        $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            $this->setFlash('error', 'Selecciona una instal·lació abans d\'afegir tasques.');
+            $this->redirect('dashboard');
+        }
+
+        $moduls = Instalacio::modulsActiusById($instalacioId);
+
+        $this->view('pla.alta_rapida', [
+            'title' => 'Alta ràpida de tasques',
+            'periodicitats' => Periodicitat::allOrdered(),
+            'espais' => in_array('espais', $moduls, true) ? Espai::allByInstalacio($instalacioId) : [],
+            'torns' => in_array('torns', $moduls, true) ? Torn::allByInstalacio($instalacioId) : [],
+            'returnTo' => $this->getReturnTo(),
+            'flash' => $this->getFlash(),
+        ]);
+    }
+
+    public function altaRapidaStore(): void
+    {
+        $this->requireRole(['superadmin', 'admin_instalacio', 'cap_manteniment']);
+        if (!verify_csrf()) {
+            $this->setFlash('error', 'Token de seguretat invàlid.');
+            $this->redirect('pla/alta-rapida');
+        }
+
+        $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            $this->setFlash('error', 'Selecciona una instal·lació abans d\'afegir tasques.');
+            $this->redirect('dashboard');
+        }
+
+        $noms = (array)$this->post('nom', []);
+        $periodicitats = (array)$this->post('periodicitat_id', []);
+        $dates = (array)$this->post('data_primera', []);
+        $espais = (array)$this->post('espai_id', []);
+        $torns = (array)$this->post('torn_id', []);
+
+        // Catàleg existent per reutilitzar tasques amb el mateix nom
+        $catalegMap = [];
+        foreach (TascaCataleg::query('SELECT id, nom FROM tasques_cataleg WHERE activa = 1 AND instalacio_id = ?', [$instalacioId]) as $r) {
+            $catalegMap[mb_strtolower(trim($r['nom']))] = (int)$r['id'];
+        }
+
+        $creades = 0;
+        $omeses = 0;
+        $errors = [];
+
+        foreach ($noms as $i => $nomRaw) {
+            $nom = trim((string)$nomRaw);
+            if ($nom === '') {
+                continue;
+            }
+
+            $periodicitatId = (int)($periodicitats[$i] ?? 0);
+            if ($periodicitatId <= 0) {
+                $omeses++;
+                if (count($errors) < 5) {
+                    $errors[] = "\"{$nom}\": falta la periodicitat";
+                }
+                continue;
+            }
+
+            $espaiId = (int)($espais[$i] ?? 0) ?: null;
+            $tornId = (int)($torns[$i] ?? 0) ?: null;
+            if ($espaiId && !Espai::belongsToInstalacio($espaiId, $instalacioId)) {
+                $espaiId = null;
+            }
+            if ($tornId && !Torn::belongsToInstalacio($tornId, $instalacioId)) {
+                $tornId = null;
+            }
+
+            $dataPrimera = trim((string)($dates[$i] ?? ''));
+            $dataValida = \DateTime::createFromFormat('Y-m-d', $dataPrimera);
+            $dataPropera = ($dataValida && $dataValida->format('Y-m-d') === $dataPrimera) ? $dataPrimera : date('Y-m-d');
+
+            $catalegId = $catalegMap[mb_strtolower($nom)] ?? null;
+            if (!$catalegId) {
+                $catalegId = TascaCataleg::create([
+                    'instalacio_id' => $instalacioId,
+                    'codi' => null,
+                    'sistema_id' => null,
+                    'tipus_equip_id' => null,
+                    'nom' => $nom,
+                    'descripcio' => null,
+                    'periodicitat_normativa_id' => $periodicitatId,
+                    'normativa_id' => null,
+                    'empresa_responsable' => null,
+                    'activa' => 1,
+                ]);
+                $catalegMap[mb_strtolower($nom)] = $catalegId;
+            }
+
+            TascaPla::create([
+                'instalacio_id' => $instalacioId,
+                'tasca_cataleg_id' => $catalegId,
+                'equip_id' => null,
+                'espai_id' => $espaiId,
+                'torn_id' => $tornId,
+                'periodicitat_id' => $periodicitatId,
+                'periodicitat_normativa_id' => $periodicitatId,
+                'normativa_id' => null,
+                'observacions' => null,
+                'data_darrera_realitzacio' => null,
+                'data_propera_realitzacio' => $dataPropera,
+                'data_darrera_no_realitzacio' => null,
+                'en_curs' => 1,
+                'comentaris' => null,
+            ]);
+            $creades++;
+        }
+
+        $msg = "{$creades} tasques afegides al pla.";
+        if ($omeses > 0) {
+            $msg .= " {$omeses} omeses (" . implode('; ', $errors) . ').';
+        }
+        $this->setFlash($creades > 0 ? 'success' : 'error', $msg);
+
+        $returnTo = (string)$this->post('return_to', '');
+        if ($returnTo !== '' && str_starts_with($returnTo, 'instalacions/onboarding/')) {
+            $this->redirect($returnTo);
+        }
+        $this->redirect('pla');
+    }
+
+    private function getReturnTo(): string
+    {
+        $returnTo = (string)$this->get('return_to', '');
+        if ($returnTo !== '' && str_starts_with($returnTo, 'instalacions/onboarding/')) {
+            return $returnTo;
+        }
+
+        return '';
     }
 
     public function store(): void

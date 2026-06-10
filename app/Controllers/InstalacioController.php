@@ -59,7 +59,8 @@ class InstalacioController extends Controller
 
     public function onboarding(string $id): void
     {
-        $this->requireRole(['superadmin']);
+        // Obert també a admin_instalacio: és la seva pantalla de configuració inicial
+        $this->requireRole(['superadmin', 'admin_instalacio']);
 
         $instalacio = Instalacio::find((int)$id);
         if (!$instalacio) {
@@ -67,7 +68,12 @@ class InstalacioController extends Controller
             $this->redirect('instalacions');
         }
 
-        $this->switchSuperadminContext((int)$id);
+        if (!empty($_SESSION['is_superadmin'])) {
+            $this->switchSuperadminContext((int)$id);
+        } elseif ((int)$id !== (int)$this->currentInstalacioId()) {
+            $this->setFlash('error', 'No tens permís per configurar aquesta instal·lació.');
+            $this->redirect('dashboard');
+        }
 
         $db = Database::getInstance();
         $stats = [
@@ -81,8 +87,35 @@ class InstalacioController extends Controller
             'title' => 'Configurar Instal·lació',
             'instalacio' => $instalacio,
             'stats' => $stats,
+            'supportsModuls' => Instalacio::supportsModuls(),
+            'modulsTriats' => $instalacio['moduls'] ?? null, // null = encara no ha triat
+            'modulsActius' => Instalacio::modulsActius($instalacio),
             'flash' => $this->getFlash(),
         ]);
+    }
+
+    public function moduls(string $id): void
+    {
+        $this->requireRole(['superadmin', 'admin_instalacio']);
+        if (!verify_csrf()) {
+            $this->setFlash('error', 'Token de seguretat invàlid.');
+            $this->redirect('dashboard');
+        }
+
+        $instalacio = Instalacio::find((int)$id);
+        if (!$instalacio) {
+            $this->setFlash('error', 'Instal·lació no trobada.');
+            $this->redirect('dashboard');
+        }
+        if (empty($_SESSION['is_superadmin']) && (int)$id !== (int)$this->currentInstalacioId()) {
+            $this->setFlash('error', 'No tens permís per configurar aquesta instal·lació.');
+            $this->redirect('dashboard');
+        }
+
+        $moduls = $this->post('moduls', []);
+        Instalacio::setModuls((int)$id, is_array($moduls) ? $moduls : []);
+        $this->setFlash('success', 'Configuració de mòduls desada. Pots canviar-la quan vulguis des d\'aquesta mateixa pantalla.');
+        $this->redirect('instalacions/onboarding/' . (int)$id);
     }
 
     public function edit(string $id): void

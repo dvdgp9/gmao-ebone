@@ -21,6 +21,16 @@ class DashboardController extends Controller
             return;
         }
 
+        // Admin d'instal·lació buida: portar-lo a l'onboarding guiat
+        if (
+            $instalacioId
+            && empty($_SESSION['is_superadmin'])
+            && $this->currentRole() === 'admin_instalacio'
+            && TascaPla::count(['instalacio_id' => $instalacioId]) === 0
+        ) {
+            $this->redirect('instalacions/onboarding/' . $instalacioId);
+        }
+
         $stats = [
             'equips_actius' => 0,
             'tasques_pla' => 0,
