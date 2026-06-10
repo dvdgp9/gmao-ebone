@@ -12,9 +12,18 @@ class InstalacioController extends Controller
     {
         $this->requireRole(['superadmin']);
         $instalacions = Instalacio::all([], 'nom ASC');
+
+        // Instal·lacions encara en posada en marxa (sense pla): mostren "Configurar"
+        $db = Database::getInstance();
+        $ambPla = [];
+        foreach ($db->query('SELECT instalacio_id, COUNT(*) AS total FROM tasques_pla GROUP BY instalacio_id')->fetchAll() as $row) {
+            $ambPla[(int)$row['instalacio_id']] = (int)$row['total'] > 0;
+        }
+
         $this->view('instalacions.index', [
             'title' => 'Instal·lacions',
             'instalacions' => $instalacions,
+            'ambPla' => $ambPla,
             'flash' => $this->getFlash(),
         ]);
     }

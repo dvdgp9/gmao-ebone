@@ -43,7 +43,9 @@ ob_start();
                 Neteja dades operatives per permetre una reimportació, però conserva la instal·lació i els usuaris assignats.
             </div>
             <div class="mt-4 pt-4 border-t border-gray-100 flex gap-3">
+                <?php if (empty($ambPla[(int)$inst['id']])): ?>
                 <a href="<?= url('instalacions/onboarding/' . $inst['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition font-medium">Configurar</a>
+                <?php endif; ?>
                 <a href="<?= url('instalacions/edit/' . $inst['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
                 <form method="POST" action="<?= url('instalacions/clear-data/' . $inst['id']) ?>" onsubmit="return confirm('Segur que vols netejar totes les dades operatives d\'aquesta instal·lació? Es conservarà la instal·lació, però s\'eliminaran torns, espais, equips, tasques del pla i registres.')">
                     <?= csrf_field() ?>
