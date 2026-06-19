@@ -115,4 +115,5 @@ $router->get('torns/create', TornController::class, 'create');
 $router->post('torns/store', TornController::class, 'store');
 $router->get('torns/edit/{id}', TornController::class, 'edit');
 $router->post('torns/update/{id}', TornController::class, 'update');
+$router->post('torns/activate/{id}', TornController::class, 'activate');
 $router->post('torns/delete/{id}', TornController::class, 'delete');

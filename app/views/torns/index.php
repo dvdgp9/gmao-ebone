@@ -26,22 +26,23 @@ ob_start();
             $diesNoms = ['dll' => 'Dl', 'dm' => 'Dm', 'dx' => 'Dx', 'dj' => 'Dj', 'dv' => 'Dv', 'ds' => 'Ds', 'dg' => 'Dg'];
             $horaInici = $torn['hora_inici'] ?? null;
             $horaFi = $torn['hora_fi'] ?? null;
+            $isActiu = !empty($torn['actiu']);
         ?>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="rounded-xl border p-6 transition <?= $isActiu ? 'bg-white shadow-sm border-gray-200' : 'bg-gray-50 border-gray-300 opacity-70' ?>">
             <div class="flex items-start justify-between mb-3">
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-800"><?= e($torn['nom']) ?></h3>
+                    <h3 class="text-lg font-semibold <?= $isActiu ? 'text-gray-800' : 'text-gray-500' ?>"><?= e($torn['nom']) ?></h3>
                     <?php if ($horaInici || $horaFi): ?>
                         <p class="text-sm text-gray-500 mt-0.5"><?= e($horaInici ?? '?') ?> — <?= e($horaFi ?? '?') ?></p>
                     <?php endif; ?>
                 </div>
-                <span class="inline-block px-2 py-0.5 rounded text-xs <?= $torn['actiu'] ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500' ?>">
-                    <?= $torn['actiu'] ? 'Actiu' : 'Inactiu' ?>
+                <span class="inline-block px-2 py-0.5 rounded text-xs <?= $isActiu ? 'bg-green-50 text-green-700' : 'bg-gray-200 text-gray-600' ?>">
+                    <?= $isActiu ? 'Actiu' : 'Inactiu' ?>
                 </span>
             </div>
             <div class="flex gap-1 mb-4">
                 <?php foreach ($diesNoms as $key => $label): ?>
-                    <span class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium <?= in_array($key, $dies) ? 'bg-brand-light text-brand-dark' : 'bg-gray-50 text-gray-300' ?>">
+                    <span class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium <?= $isActiu && in_array($key, $dies, true) ? 'bg-brand-light text-brand-dark' : 'bg-gray-100 text-gray-300' ?>">
                         <?= $label ?>
                     </span>
                 <?php endforeach; ?>
@@ -56,10 +57,17 @@ ob_start();
             <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
             <div class="flex gap-3 pt-3 border-t border-gray-100">
                 <a href="<?= url('torns/edit/' . $torn['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
+                <?php if ($isActiu): ?>
                 <form method="POST" action="<?= url('torns/delete/' . $torn['id']) ?>" onsubmit="return confirm('Segur que vols desactivar aquest torn?')">
                     <?= csrf_field() ?>
                     <button type="submit" class="text-sm text-red-500 hover:text-red-700 transition">Desactivar</button>
                 </form>
+                <?php else: ?>
+                <form method="POST" action="<?= url('torns/activate/' . $torn['id']) ?>">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="text-sm text-green-600 hover:text-green-800 transition">Activar</button>
+                </form>
+                <?php endif; ?>
             </div>
             <?php endif; ?>
         </div>

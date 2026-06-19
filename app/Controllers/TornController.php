@@ -136,6 +136,25 @@ class TornController extends Controller
         $this->redirect('torns');
     }
 
+    public function activate(string $id): void
+    {
+        $this->requireRole(['superadmin', 'admin_instalacio']);
+        if (!verify_csrf()) {
+            $this->setFlash('error', 'Token de seguretat invàlid.');
+            $this->redirect('torns');
+        }
+
+        $torn = Torn::find((int)$id);
+        if (!$torn || $torn['instalacio_id'] != $this->currentInstalacioId()) {
+            $this->setFlash('error', 'Torn no trobat.');
+            $this->redirect('torns');
+        }
+
+        Torn::update((int)$id, ['actiu' => 1]);
+        $this->setFlash('success', 'Torn activat correctament.');
+        $this->redirect('torns');
+    }
+
     private function getUsuarisInstalacio(): array
     {
         if (!Torn::supportsUsuariTorn()) {
