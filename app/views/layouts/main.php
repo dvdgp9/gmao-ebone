@@ -39,17 +39,22 @@
     if (!empty($_SESSION['instalacio_id'])) {
         try {
             $__db = \App\Models\Database::getInstance();
-            $__st = $__db->prepare('
-                SELECT COUNT(*)
-                FROM tasques_pla tp
-                LEFT JOIN espais es ON es.id = tp.espai_id
-                WHERE tp.instalacio_id = ?
-                  AND tp.en_curs = 1
-                  AND (tp.espai_id IS NULL OR es.actiu = 1)
-                  AND tp.data_propera_realitzacio < CURDATE()
-            ');
-            $__st->execute([$_SESSION['instalacio_id']]);
-            $__badgeVencudes = (int)$__st->fetchColumn();
+            $__instalacioId = (int)$_SESSION['instalacio_id'];
+            $__isTecnic = empty($_SESSION['is_superadmin'])
+                && ($_SESSION['current_role'] ?? '') === 'tecnic'
+                && \App\Models\Torn::supportsUsuariTorn();
+
+            if ($__isTecnic) {
+                $__tornIds = \App\Models\Torn::tornIdsByUsuariInstalacio(
+                    (int)($_SESSION['user_id'] ?? 0),
+                    $__instalacioId
+                );
+                $__badgeVencudes = empty($__tornIds)
+                    ? 0
+                    : \App\Models\TascaPla::tasquesVençudes($__instalacioId, $__tornIds);
+            } else {
+                $__badgeVencudes = \App\Models\TascaPla::tasquesVençudes($__instalacioId);
+            }
 
             if (!empty($_SESSION['is_superadmin']) || in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment'])) {
                 $__stInc = $__db->prepare('SELECT COUNT(*) FROM incidencies_tasques WHERE instalacio_id = ? AND vista = 0');

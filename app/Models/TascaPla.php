@@ -208,16 +208,18 @@ class TascaPla extends Model
         return (int)($result[0]['total'] ?? 0);
     }
 
-    public static function tasquesVençudes(int $instalacioId): int
+    public static function tasquesVençudes(int $instalacioId, int|array|null $torn = null): int
     {
+        $params = [$instalacioId];
+        $tornClause = static::tornFilterClause($torn, $params);
         $result = static::query(
             'SELECT COUNT(*) AS total
              FROM tasques_pla tp
              LEFT JOIN espais es ON es.id = tp.espai_id
              WHERE tp.instalacio_id = ? AND tp.en_curs = 1
                AND (tp.espai_id IS NULL OR es.actiu = 1)
-               AND tp.data_propera_realitzacio < CURDATE()',
-            [$instalacioId]
+               AND tp.data_propera_realitzacio < CURDATE()' . $tornClause,
+            $params
         );
         return (int)($result[0]['total'] ?? 0);
     }
