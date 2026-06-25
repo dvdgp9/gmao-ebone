@@ -71,19 +71,32 @@ echo "  (Superadmin té accés global automàtic)\n";
 // 2. Crear Torns
 // =====================================================================
 echo "\n=== 2. Creant torns ===\n";
-$tornsData = [
-    ['Cap Manteniment', '["dll","dm","dx","dj","dv"]'],
-    ['Matí', '["dll","dm","dx","dj","dv"]'],
-    ['Tarda', '["dll","dm","dx","dj","dv"]'],
-    ['Cap de Setmana', '["ds","dg"]'],
-];
+// Els torns surten EXCLUSIVAMENT del pla de manteniment (columna P / ' TORN'
+// de la fulla TASQUES PLA_M). Cada instal·lació queda aïllada amb els seus torns.
+$wsPlaTorns = $spreadsheet->getSheetByName('TASQUES PLA_M');
 $tornMap = [];
 $stmtTorn = $pdo->prepare('INSERT INTO torns (instalacio_id, nom, dies_setmana, actiu) VALUES (?, ?, ?, 1)');
-foreach ($tornsData as $t) {
-    $stmtTorn->execute([$instalacioId, $t[0], $t[1]]);
-    $tornMap[$t[0]] = (int)$pdo->lastInsertId();
-    echo "  Torn: {$t[0]} -> ID={$tornMap[$t[0]]}\n";
+// Clau normalitzada: minúscules + espais col·lapsats, per fusionar variants
+// del mateix torn (p.ex. "Matí", "matí " i "MATÍ" → un sol torn).
+$tornKey = function (string $nom): string {
+    return mb_strtolower(trim(preg_replace('/\s+/u', ' ', $nom)));
+};
+if ($wsPlaTorns !== null) {
+    for ($row = 2; $row <= $wsPlaTorns->getHighestRow(); $row++) {
+        $nom = trim(preg_replace('/\s+/u', ' ', (string)$wsPlaTorns->getCell("P{$row}")->getValue()));
+        $key = $tornKey($nom);
+        if ($key === '' || isset($tornMap[$key])) {
+            continue;
+        }
+        $isWeekend = str_contains($key, 'cap de setmana')
+            || (bool)preg_match('/\b(ds|dg|dissabte|diumenge)\b/', $key);
+        $dies = $isWeekend ? '["ds","dg"]' : '["dll","dm","dx","dj","dv"]';
+        $stmtTorn->execute([$instalacioId, $nom, $dies]);
+        $tornMap[$key] = (int)$pdo->lastInsertId();
+        echo "  Torn: {$nom} -> ID={$tornMap[$key]}\n";
+    }
 }
+echo "  " . count($tornMap) . " torns creats des del pla.\n";
 
 // =====================================================================
 // 3. Importar Espais (de la hoja LLISTES)
@@ -354,7 +367,7 @@ for ($row = 2; $row <= $wsPla->getHighestRow(); $row++) {
     
     $espaiId = $espaiMap[mb_strtolower($espaiNom)] ?? null;
     $periodicitatId = $periodicitatMap[mb_strtolower($periodicitat)] ?? null;
-    $tornId = $tornMap[$torn] ?? null;
+    $tornId = $tornMap[$tornKey($torn)] ?? null;
     
     // Fallback: heretar periodicitat del catàleg
     if (!$periodicitatId && $tascaCatalegId) {

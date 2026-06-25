@@ -1165,16 +1165,10 @@ class ImportController extends Controller
 
         $stmt = $db->prepare('INSERT INTO torns (instalacio_id, nom, dies_setmana, actiu) VALUES (?, ?, ?, 1)');
 
-        // Torns per defecte de base
-        $defaults = [
-            'Cap Manteniment',
-            'Matí',
-            'Tarda',
-            'Cap de Setmana',
-        ];
-
-        // Afegir els torns reals que apareixen al pla (columna P / ' TORN')
-        $tornNoms = $defaults;
+        // Els torns surten EXCLUSIVAMENT del pla de manteniment de cada
+        // instal·lació (columna P / ' TORN' de la fulla TASQUES PLA_M).
+        // Així cada instal·lació queda totalment aïllada amb els seus torns.
+        $tornNoms = [];
         if ($plaSheet !== null) {
             for ($row = 2; $row <= $plaSheet->getHighestRow(); $row++) {
                 $nom = $this->cellString($plaSheet->getCell("P{$row}"));
