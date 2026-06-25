@@ -62,7 +62,8 @@ ob_start();
             'tecnic' => 'bg-green-50 text-green-700',
             'lectura' => 'bg-gray-100 text-gray-600',
         ];
-        $color = $rolColors[$u['rol_nom'] ?? ''] ?? 'bg-gray-50 text-gray-600';
+        $assignacions = $u['assignacions'] ?? [];
+        $rolsDistints = array_values(array_unique(array_filter(array_column($assignacions, 'rol_nom'))));
         ?>
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 <?= !$u['actiu'] ? 'opacity-70' : '' ?>">
             <div class="flex items-start justify-between gap-3">
@@ -84,11 +85,13 @@ ob_start();
             <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
                 <div>
                     <div class="text-gray-400">Rol</div>
-                    <div class="mt-0.5">
+                    <div class="mt-0.5 flex flex-wrap gap-1">
                         <?php if (!empty($u['is_superadmin'])): ?>
                             <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-red-50 text-red-700">Superadmin</span>
-                        <?php elseif (!empty($u['rol_nom'])): ?>
-                            <span class="inline-block text-xs px-2 py-0.5 rounded-full font-medium <?= $color ?>"><?= e(ucfirst(str_replace('_', ' ', $u['rol_nom']))) ?></span>
+                        <?php elseif (!empty($rolsDistints)): ?>
+                            <?php foreach ($rolsDistints as $rolNom): ?>
+                                <span class="inline-block text-xs px-2 py-0.5 rounded-full font-medium <?= $rolColors[$rolNom] ?? 'bg-gray-50 text-gray-600' ?>"><?= e(ucfirst(str_replace('_', ' ', $rolNom))) ?></span>
+                            <?php endforeach; ?>
                         <?php else: ?>
                             <span class="text-gray-500">Sense rol</span>
                         <?php endif; ?>
@@ -100,7 +103,15 @@ ob_start();
                 </div>
                 <div class="col-span-2">
                     <div class="text-gray-400">Instal·lació</div>
-                    <div class="text-gray-700 mt-0.5"><?= e($u['instalacio_nom'] ?? '—') ?></div>
+                    <div class="mt-0.5 flex flex-wrap gap-1">
+                        <?php if (!empty($assignacions)): ?>
+                            <?php foreach ($assignacions as $a): ?>
+                                <span class="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded"><?= e($a['instalacio_nom']) ?></span>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <span class="text-gray-700">—</span>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
             <div class="flex items-center justify-end gap-3 mt-4 pt-3 border-t border-gray-100">
@@ -147,31 +158,44 @@ ob_start();
                                 </div>
                             </div>
                         </td>
+                        <?php
+                        $rolColors = [
+                            'admin_instalacio' => 'bg-orange-50 text-orange-700',
+                            'cap_manteniment' => 'bg-brand-light text-brand-dark',
+                            'tecnic' => 'bg-green-50 text-green-700',
+                            'lectura' => 'bg-gray-100 text-gray-600',
+                        ];
+                        $assignacions = $u['assignacions'] ?? [];
+                        $rolsDistints = array_values(array_unique(array_filter(array_column($assignacions, 'rol_nom'))));
+                        ?>
                         <td class="px-4 py-3">
                             <?php if (!empty($u['is_superadmin'])): ?>
                                 <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-red-50 text-red-700">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                                     Superadmin
                                 </span>
-                            <?php elseif (!empty($u['rol_nom'])): ?>
-                                <?php
-                                $rolColors = [
-                                    'admin_instalacio' => 'bg-orange-50 text-orange-700',
-                                    'cap_manteniment' => 'bg-brand-light text-brand-dark',
-                                    'tecnic' => 'bg-green-50 text-green-700',
-                                    'lectura' => 'bg-gray-100 text-gray-600',
-                                ];
-                                $color = $rolColors[$u['rol_nom']] ?? 'bg-gray-50 text-gray-600';
-                                ?>
-                                <span class="inline-block text-xs px-2 py-0.5 rounded-full font-medium <?= $color ?>">
-                                    <?= e(ucfirst(str_replace('_', ' ', $u['rol_nom']))) ?>
-                                </span>
+                            <?php elseif (!empty($rolsDistints)): ?>
+                                <div class="flex flex-wrap gap-1">
+                                <?php foreach ($rolsDistints as $rolNom): ?>
+                                    <span class="inline-block text-xs px-2 py-0.5 rounded-full font-medium <?= $rolColors[$rolNom] ?? 'bg-gray-50 text-gray-600' ?>">
+                                        <?= e(ucfirst(str_replace('_', ' ', $rolNom))) ?>
+                                    </span>
+                                <?php endforeach; ?>
+                                </div>
                             <?php else: ?>
                                 <span class="text-gray-400 text-xs italic">Sense rol</span>
                             <?php endif; ?>
                         </td>
                         <td class="px-4 py-3 text-gray-500 text-xs">
-                            <?= e($u['instalacio_nom'] ?? '—') ?>
+                            <?php if (!empty($assignacions)): ?>
+                                <div class="flex flex-wrap gap-1">
+                                <?php foreach ($assignacions as $a): ?>
+                                    <span class="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded"><?= e($a['instalacio_nom']) ?></span>
+                                <?php endforeach; ?>
+                                </div>
+                            <?php else: ?>
+                                —
+                            <?php endif; ?>
                         </td>
                         <td class="px-4 py-3 text-center">
                             <?php if ($u['actiu']): ?>

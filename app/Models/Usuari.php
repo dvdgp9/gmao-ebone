@@ -55,7 +55,7 @@ class Usuari extends Model
     public static function allWithRoles(?int $instalacioId = null): array
     {
         if ($instalacioId) {
-            return static::query('
+            $rows = static::query('
                 SELECT u.*, r.nom AS rol_nom, ui.instalacio_id, i.nom AS instalacio_nom
                 FROM usuaris u
                 JOIN usuari_instalacio ui ON ui.usuari_id = u.id AND ui.instalacio_id = ?
@@ -63,15 +63,45 @@ class Usuari extends Model
                 JOIN instalacions i ON i.id = ui.instalacio_id
                 ORDER BY u.nom
             ', [$instalacioId]);
+
+            foreach ($rows as &$row) {
+                $row['assignacions'] = [[
+                    'instalacio_nom' => $row['instalacio_nom'],
+                    'rol_nom' => $row['rol_nom'],
+                ]];
+            }
+            unset($row);
+
+            return $rows;
         }
-        return static::query('
+
+        // Sense filtre (superadmin): la consulta retorna una fila per assignació;
+        // les agrupem per usuari en PHP per evitar duplicats a la llista.
+        $rows = static::query('
             SELECT u.*, r.nom AS rol_nom, ui.instalacio_id, i.nom AS instalacio_nom
             FROM usuaris u
             LEFT JOIN usuari_instalacio ui ON ui.usuari_id = u.id
             LEFT JOIN rols r ON r.id = ui.rol_id
             LEFT JOIN instalacions i ON i.id = ui.instalacio_id
-            ORDER BY u.nom
+            ORDER BY u.nom, i.nom
         ');
+
+        $usuaris = [];
+        foreach ($rows as $row) {
+            $id = (int)$row['id'];
+            if (!isset($usuaris[$id])) {
+                $usuaris[$id] = $row;
+                $usuaris[$id]['assignacions'] = [];
+            }
+            if (!empty($row['instalacio_id'])) {
+                $usuaris[$id]['assignacions'][] = [
+                    'instalacio_nom' => $row['instalacio_nom'],
+                    'rol_nom' => $row['rol_nom'],
+                ];
+            }
+        }
+
+        return array_values($usuaris);
     }
 
     public static function activeByInstalacio(int $instalacioId): array

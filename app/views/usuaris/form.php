@@ -66,25 +66,33 @@ ob_start();
     <?php if (!empty($isSuperadmin)): ?>
     <!-- Superadmin: assignació a múltiples instal·lacions, cada una amb el seu rol -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 class="text-lg font-semibold text-gray-800 mb-1">Assignació a instal·lacions</h3>
-        <p class="text-sm text-gray-500 mb-4">Assigna un rol a cada instal·lació on treballi aquesta persona. Deixa «Sense assignar» per treure-la d'una instal·lació.</p>
+        <div class="flex items-start justify-between gap-4 mb-1">
+            <h3 class="text-lg font-semibold text-gray-800">Instal·lacions i rols</h3>
+            <span class="assign-count text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full whitespace-nowrap">0 assignades</span>
+        </div>
+        <p class="text-sm text-gray-500 mb-4">Tria un rol per a cada instal·lació on treballi aquesta persona. Les que deixis sense rol no hi tindran accés.</p>
 
-        <div class="space-y-4">
+        <div class="space-y-3">
             <?php foreach ($instalacions as $inst): ?>
             <?php
                 $instId = (int)$inst['id'];
                 $rolSel = $rolPerInst[$instId] ?? 0;
                 $tornsInst = $tornsPerInstalacio[$instId] ?? [];
                 $tornsSel = $tornsAssignatsPerInst[$instId] ?? [];
+                $assignada = $rolSel > 0;
             ?>
-            <div class="assign-inst border border-gray-200 rounded-lg p-4" data-instalacio="<?= $instId ?>">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1"><?= e($inst['nom']) ?></label>
+            <div class="assign-inst rounded-xl border-2 transition-all overflow-hidden <?= $assignada ? 'border-brand bg-brand/5' : 'border-gray-200 bg-white' ?>" data-instalacio="<?= $instId ?>">
+                <div class="flex items-center gap-3 p-4">
+                    <div class="assign-icon w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition <?= $assignada ? 'bg-brand/15 text-brand' : 'bg-gray-100 text-gray-400' ?>">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m14 0h2M5 21H3m4-13h2m-2 4h2m6-4h2m-2 4h2"/></svg>
                     </div>
-                    <div>
-                        <select name="assign[<?= $instId ?>][rol]" class="assign-rol w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
-                            <option value="">— Sense assignar —</option>
+                    <div class="min-w-0 flex-1">
+                        <p class="font-medium text-gray-800 truncate"><?= e($inst['nom']) ?></p>
+                        <p class="assign-status text-xs <?= $assignada ? 'text-brand-dark' : 'text-gray-400' ?>"><?= $assignada ? 'Assignada' : 'Sense assignar' ?></p>
+                    </div>
+                    <div class="w-40 sm:w-48 flex-shrink-0">
+                        <select name="assign[<?= $instId ?>][rol]" class="assign-rol w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+                            <option value="">Sense rol</option>
                             <?php foreach ($rols as $r): ?>
                                 <option value="<?= $r['id'] ?>" <?= (int)$r['id'] === $rolSel ? 'selected' : '' ?>><?= e(ucfirst(str_replace('_', ' ', $r['nom']))) ?></option>
                             <?php endforeach; ?>
@@ -93,16 +101,16 @@ ob_start();
                 </div>
 
                 <?php if (!empty($tornsInst)): ?>
-                <div class="mt-3">
-                    <p class="text-xs text-gray-400 mb-2">Torns en què treballa en aquesta instal·lació:</p>
+                <div class="assign-torns border-t border-brand/10 bg-white/60 px-4 py-3 <?= $assignada ? '' : 'hidden' ?>">
+                    <p class="text-xs font-medium text-gray-500 mb-2">Torns en aquesta instal·lació</p>
                     <div class="flex flex-wrap gap-2">
                         <?php foreach ($tornsInst as $t): ?>
-                        <label class="flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2 cursor-pointer hover:bg-gray-100 transition">
+                        <label class="cursor-pointer">
                             <input type="checkbox" name="assign[<?= $instId ?>][torns][]" value="<?= (int)$t['id'] ?>"
                                    <?= in_array((int)$t['id'], $tornsSel, true) ? 'checked' : '' ?>
-                                   <?= $rolSel ? '' : 'disabled' ?>
-                                   class="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand">
-                            <span class="text-sm text-gray-700"><?= e($t['nom']) ?></span>
+                                   <?= $assignada ? '' : 'disabled' ?>
+                                   class="peer sr-only">
+                            <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-sm text-gray-600 transition peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white peer-disabled:opacity-40"><?= e($t['nom']) ?></span>
                         </label>
                         <?php endforeach; ?>
                     </div>
@@ -189,22 +197,59 @@ ob_start();
 </form>
 
 <script>
-// Superadmin: per cada instal·lació, els torns només s'activen si té un rol assignat.
+// Superadmin: estat visual de cada instal·lació segons si té rol assignat.
 (function () {
-    document.querySelectorAll('.assign-inst').forEach(function (block) {
+    var blocks = document.querySelectorAll('.assign-inst');
+    var counter = document.querySelector('.assign-count');
+    if (!blocks.length) return;
+
+    function updateCounter() {
+        var n = 0;
+        blocks.forEach(function (b) {
+            if (b.querySelector('.assign-rol').value !== '') n++;
+        });
+        if (counter) counter.textContent = n + (n === 1 ? ' assignada' : ' assignades');
+    }
+
+    blocks.forEach(function (block) {
         var rolSelect = block.querySelector('.assign-rol');
+        var icon = block.querySelector('.assign-icon');
+        var status = block.querySelector('.assign-status');
+        var tornsBlock = block.querySelector('.assign-torns');
         var checks = block.querySelectorAll('input[type="checkbox"]');
-        if (!rolSelect || !checks.length) return;
+        if (!rolSelect) return;
 
         function sync() {
             var hasRol = rolSelect.value !== '';
+
+            block.classList.toggle('border-brand', hasRol);
+            block.classList.toggle('bg-brand/5', hasRol);
+            block.classList.toggle('border-gray-200', !hasRol);
+            block.classList.toggle('bg-white', !hasRol);
+
+            if (icon) {
+                icon.classList.toggle('bg-brand/15', hasRol);
+                icon.classList.toggle('text-brand', hasRol);
+                icon.classList.toggle('bg-gray-100', !hasRol);
+                icon.classList.toggle('text-gray-400', !hasRol);
+            }
+            if (status) {
+                status.textContent = hasRol ? 'Assignada' : 'Sense assignar';
+                status.classList.toggle('text-brand-dark', hasRol);
+                status.classList.toggle('text-gray-400', !hasRol);
+            }
+            if (tornsBlock) tornsBlock.classList.toggle('hidden', !hasRol);
+
             checks.forEach(function (input) {
                 input.disabled = !hasRol;
                 if (!hasRol) input.checked = false;
             });
+            updateCounter();
         }
         rolSelect.addEventListener('change', sync);
     });
+
+    updateCounter();
 })();
 
 // Admin d'instal·lació: torns de la instal·lació única seleccionada.
