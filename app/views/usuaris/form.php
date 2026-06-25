@@ -55,6 +55,66 @@ ob_start();
         </div>
     </div>
 
+    <?php
+    // Mapa instalacio_id => rol_id de les assignacions actuals (per preseleccionar).
+    $rolPerInst = [];
+    foreach ($assignacions ?? [] as $a) {
+        $rolPerInst[(int)$a['instalacio_id']] = (int)$a['rol_id'];
+    }
+    ?>
+
+    <?php if (!empty($isSuperadmin)): ?>
+    <!-- Superadmin: assignació a múltiples instal·lacions, cada una amb el seu rol -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-1">Assignació a instal·lacions</h3>
+        <p class="text-sm text-gray-500 mb-4">Assigna un rol a cada instal·lació on treballi aquesta persona. Deixa «Sense assignar» per treure-la d'una instal·lació.</p>
+
+        <div class="space-y-4">
+            <?php foreach ($instalacions as $inst): ?>
+            <?php
+                $instId = (int)$inst['id'];
+                $rolSel = $rolPerInst[$instId] ?? 0;
+                $tornsInst = $tornsPerInstalacio[$instId] ?? [];
+                $tornsSel = $tornsAssignatsPerInst[$instId] ?? [];
+            ?>
+            <div class="assign-inst border border-gray-200 rounded-lg p-4" data-instalacio="<?= $instId ?>">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1"><?= e($inst['nom']) ?></label>
+                    </div>
+                    <div>
+                        <select name="assign[<?= $instId ?>][rol]" class="assign-rol w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+                            <option value="">— Sense assignar —</option>
+                            <?php foreach ($rols as $r): ?>
+                                <option value="<?= $r['id'] ?>" <?= (int)$r['id'] === $rolSel ? 'selected' : '' ?>><?= e(ucfirst(str_replace('_', ' ', $r['nom']))) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <?php if (!empty($tornsInst)): ?>
+                <div class="mt-3">
+                    <p class="text-xs text-gray-400 mb-2">Torns en què treballa en aquesta instal·lació:</p>
+                    <div class="flex flex-wrap gap-2">
+                        <?php foreach ($tornsInst as $t): ?>
+                        <label class="flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-2 cursor-pointer hover:bg-gray-100 transition">
+                            <input type="checkbox" name="assign[<?= $instId ?>][torns][]" value="<?= (int)$t['id'] ?>"
+                                   <?= in_array((int)$t['id'], $tornsSel, true) ? 'checked' : '' ?>
+                                   <?= $rolSel ? '' : 'disabled' ?>
+                                   class="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand">
+                            <span class="text-sm text-gray-700"><?= e($t['nom']) ?></span>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <?php else: ?>
+    <!-- Admin d'instal·lació: només la seva instal·lació activa -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">Assignació a instal·lació</h3>
 
@@ -116,6 +176,7 @@ ob_start();
         </div>
         <?php endif; ?>
     </div>
+    <?php endif; ?>
 
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <button type="submit" class="bg-brand text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-dark transition">
@@ -128,6 +189,25 @@ ob_start();
 </form>
 
 <script>
+// Superadmin: per cada instal·lació, els torns només s'activen si té un rol assignat.
+(function () {
+    document.querySelectorAll('.assign-inst').forEach(function (block) {
+        var rolSelect = block.querySelector('.assign-rol');
+        var checks = block.querySelectorAll('input[type="checkbox"]');
+        if (!rolSelect || !checks.length) return;
+
+        function sync() {
+            var hasRol = rolSelect.value !== '';
+            checks.forEach(function (input) {
+                input.disabled = !hasRol;
+                if (!hasRol) input.checked = false;
+            });
+        }
+        rolSelect.addEventListener('change', sync);
+    });
+})();
+
+// Admin d'instal·lació: torns de la instal·lació única seleccionada.
 (function () {
     var select = document.getElementById('instalacio-select');
     var groups = document.querySelectorAll('.torns-group');

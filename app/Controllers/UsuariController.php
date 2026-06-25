@@ -41,6 +41,8 @@ class UsuariController extends Controller
             'rols' => $this->getRols(),
             'tornsPerInstalacio' => $this->getTornsPerInstalacio($instalacions),
             'tornsAssignats' => [],
+            'tornsAssignatsPerInst' => [],
+            'isSuperadmin' => (bool)($_SESSION['is_superadmin'] ?? false),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -85,7 +87,9 @@ class UsuariController extends Controller
             'actiu' => $this->post('actiu', 1) ? 1 : 0,
         ]);
 
-        if ($instalacioId && $rolId) {
+        if ($_SESSION['is_superadmin'] ?? false) {
+            $this->syncAssignacionsSuperadmin($id);
+        } elseif ($instalacioId && $rolId) {
             Usuari::assignInstalacio($id, $instalacioId, $rolId);
             Torn::syncTornsForUsuari($id, $instalacioId, $this->postedTorns());
         }
@@ -111,11 +115,11 @@ class UsuariController extends Controller
         $instalacions = $this->getInstalacionsDisponibles();
 
         $tornsAssignats = [];
+        $tornsAssignatsPerInst = [];
         foreach ($instalacions as $inst) {
-            $tornsAssignats = array_merge(
-                $tornsAssignats,
-                Torn::tornIdsByUsuariInstalacio((int)$id, (int)$inst['id'])
-            );
+            $ids = Torn::tornIdsByUsuariInstalacio((int)$id, (int)$inst['id']);
+            $tornsAssignatsPerInst[(int)$inst['id']] = $ids;
+            $tornsAssignats = array_merge($tornsAssignats, $ids);
         }
 
         $this->view('usuaris.form', [
@@ -126,6 +130,8 @@ class UsuariController extends Controller
             'rols' => $this->getRols(),
             'tornsPerInstalacio' => $this->getTornsPerInstalacio($instalacions),
             'tornsAssignats' => $tornsAssignats,
+            'tornsAssignatsPerInst' => $tornsAssignatsPerInst,
+            'isSuperadmin' => (bool)($_SESSION['is_superadmin'] ?? false),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -170,16 +176,20 @@ class UsuariController extends Controller
 
         Usuari::update((int)$id, $data);
 
-        $instalacioId = (int)$this->post('instalacio_id');
-        $rolId = (int)$this->post('rol_id');
-        if ($instalacioId && $rolId) {
-            if (!$this->canAssignInstalacio($instalacioId) || !$this->canAssignRole($rolId)) {
-                $this->setFlash('error', 'Assignació no permesa per al teu rol.');
-                $this->redirect('usuaris/edit/' . (int)$id);
-            }
+        if ($_SESSION['is_superadmin'] ?? false) {
+            $this->syncAssignacionsSuperadmin((int)$id);
+        } else {
+            $instalacioId = (int)$this->post('instalacio_id');
+            $rolId = (int)$this->post('rol_id');
+            if ($instalacioId && $rolId) {
+                if (!$this->canAssignInstalacio($instalacioId) || !$this->canAssignRole($rolId)) {
+                    $this->setFlash('error', 'Assignació no permesa per al teu rol.');
+                    $this->redirect('usuaris/edit/' . (int)$id);
+                }
 
-            Usuari::assignInstalacio((int)$id, $instalacioId, $rolId);
-            Torn::syncTornsForUsuari((int)$id, $instalacioId, $this->postedTorns());
+                Usuari::assignInstalacio((int)$id, $instalacioId, $rolId);
+                Torn::syncTornsForUsuari((int)$id, $instalacioId, $this->postedTorns());
+            }
         }
 
         $this->setFlash('success', 'Usuari actualitzat correctament.');
@@ -241,6 +251,38 @@ class UsuariController extends Controller
     {
         $torns = $this->post('torns', []);
         return is_array($torns) ? $torns : [];
+    }
+
+    /**
+     * Sincronitza les assignacions instal·lació→rol (i torns) d'un usuari quan
+     * qui edita és superadmin. Format del POST:
+     *   assign[<instalacioId>][rol]      = <rolId>   (0 o buit = desassignar)
+     *   assign[<instalacioId>][torns][]  = <tornId>
+     * Recorre TOTES les instal·lacions actives: les que tenen rol s'assignen,
+     * la resta es desassignen (idempotent).
+     */
+    private function syncAssignacionsSuperadmin(int $usuariId): void
+    {
+        $assign = $this->post('assign', []);
+        if (!is_array($assign)) {
+            $assign = [];
+        }
+
+        foreach (Instalacio::actives() as $inst) {
+            $instId = (int)$inst['id'];
+            $row = $assign[$instId] ?? null;
+            $rolId = is_array($row) ? (int)($row['rol'] ?? 0) : 0;
+
+            if ($rolId > 0 && $this->canAssignRole($rolId)) {
+                Usuari::assignInstalacio($usuariId, $instId, $rolId);
+                $torns = (is_array($row) && isset($row['torns']) && is_array($row['torns'])) ? $row['torns'] : [];
+                Torn::syncTornsForUsuari($usuariId, $instId, $torns);
+            } else {
+                // Desassignar: neteja també els torns d'aquesta instal·lació.
+                Torn::syncTornsForUsuari($usuariId, $instId, []);
+                Usuari::removeInstalacio($usuariId, $instId);
+            }
+        }
     }
 
     private function getInstalacionsDisponibles(): array
