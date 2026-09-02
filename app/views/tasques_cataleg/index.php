@@ -6,7 +6,7 @@ ob_start();
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
     <div>
         <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Catàleg de Tasques</h2>
-        <p class="text-gray-500 text-sm mt-1">Base de dades global de tasques de manteniment</p>
+        <p class="text-gray-500 text-sm mt-1">Catàleg de referència de tasques de la instal·lació</p>
     </div>
     <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
     <a href="<?= url('tasques-cataleg/create') ?>" class="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition flex items-center gap-2">

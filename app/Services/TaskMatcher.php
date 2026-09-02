@@ -49,7 +49,7 @@ class TaskMatcher
                 'status' => self::STATUS_NEW,
                 'score' => 0,
                 'matched_task' => null,
-                'message' => 'Es crearà una tasca nova al catàleg global.',
+                'message' => 'Es crearà una tasca nova al catàleg de la instal·lació.',
             ];
         }
 
@@ -69,7 +69,7 @@ class TaskMatcher
                 'status' => self::STATUS_NEW,
                 'score' => 0,
                 'matched_task' => null,
-                'message' => 'Es crearà una tasca nova al catàleg global.',
+                'message' => 'Es crearà una tasca nova al catàleg de la instal·lació.',
             ];
         }
 
@@ -103,7 +103,7 @@ class TaskMatcher
             'status' => self::STATUS_NEW,
             'score' => $score,
             'matched_task' => null,
-            'message' => 'Es crearà una tasca nova al catàleg global.',
+            'message' => 'Es crearà una tasca nova al catàleg de la instal·lació.',
         ];
     }
 

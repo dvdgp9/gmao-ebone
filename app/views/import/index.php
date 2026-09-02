@@ -53,7 +53,7 @@ ob_start();
                     <option value="completa_instalacio" <?= !$hasActiveInstalacio ? 'disabled' : '' ?> <?= $recommendedType === 'completa_instalacio' ? 'selected' : '' ?>>Excel complet de la instal·lació activa</option>
                     <option value="pla_rapid" <?= !$hasActiveInstalacio ? 'disabled' : '' ?> <?= $recommendedType === 'pla_rapid' ? 'selected' : '' ?>>Pla ràpid: tasca + periodicitat</option>
                     <option value="tasques_pla" <?= !$hasActiveInstalacio ? 'disabled' : '' ?> <?= $recommendedType === 'tasques_pla' ? 'selected' : '' ?>>Només tasques al Pla de Manteniment</option>
-                    <option value="tasques_cataleg" <?= $recommendedType === 'tasques_cataleg' ? 'selected' : '' ?>>Només tasques al Catàleg global</option>
+                    <option value="tasques_cataleg" <?= $recommendedType === 'tasques_cataleg' ? 'selected' : '' ?>>Només tasques al Catàleg de la instal·lació</option>
                 </select>
                 <?php if (!$hasActiveInstalacio): ?>
                     <p class="text-xs text-amber-600 mt-1">Per importar un pla cal tenir una instal·lació activa seleccionada.</p>
@@ -62,7 +62,7 @@ ob_start();
                 <?php elseif ($recommendedType === 'completa_instalacio'): ?>
                     <p class="text-xs text-gray-500 mt-1">Espera les fulles LLISTES, INVENTARI, BD TASQUES, TASQUES PLA_M i REGISTRE TASQUES.</p>
                 <?php else: ?>
-                    <p class="text-xs text-gray-500 mt-1">El pla ràpid crearà tasques mínimes al catàleg global només quan no trobi una coincidència segura.</p>
+                    <p class="text-xs text-gray-500 mt-1">El pla ràpid crearà tasques mínimes al catàleg de la instal·lació quan no trobi una coincidència segura.</p>
                 <?php endif; ?>
             </div>
 
@@ -115,7 +115,7 @@ ob_start();
 
                 <div>
                     <p class="font-medium text-gray-800 mb-1">Només Catàleg</p>
-                    <p>Actualitza el catàleg global sense crear pla per una instal·lació.</p>
+                    <p>Actualitza el catàleg de referència de la instal·lació sense crear pla.</p>
                     <div class="mt-2 bg-gray-50 rounded-lg p-3 text-xs font-mono">
                         A: Codi sistema | B: Nom tasca | C: Tipus equip | D: (alternatiu nom) | E: Periodicitat | F: Empresa
                     </div>
@@ -146,7 +146,7 @@ ob_start();
                     <span class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-light text-xs font-bold text-brand-dark">2</span>
                     <div>
                         <p class="font-medium text-gray-800">Crea només si no existeix</p>
-                        <p class="text-xs text-gray-500 mt-1">Les tasques noves es guarden al catàleg global amb dades mínimes.</p>
+                        <p class="text-xs text-gray-500 mt-1">Les tasques noves es guarden al catàleg de la instal·lació amb dades mínimes.</p>
                     </div>
                 </div>
                 <div class="import-step flex gap-3">

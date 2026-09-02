@@ -308,14 +308,17 @@ class ImportController extends Controller
     private function importTasquesPla($sheet): array
     {
         $db = Database::getInstance();
-        $instalacioId = $this->currentInstalacioId();
+        $instalacioId = (int)$this->currentInstalacioId();
+        if (!$instalacioId) {
+            return ['imported' => 0, 'skipped' => 0, 'errors' => ['No hi ha una instal·lació activa.']];
+        }
 
         // Mapa de tasques catàleg per nom (només de la instal·lació activa)
         $stmtCat = $db->prepare('SELECT id, nom FROM tasques_cataleg WHERE activa = 1 AND instalacio_id = ?');
         $stmtCat->execute([$instalacioId]);
         $catalegMap = [];
         foreach ($stmtCat->fetchAll() as $r) {
-            $catalegMap[mb_strtolower(mb_substr($r['nom'], 0, 80))] = (int)$r['id'];
+            $catalegMap[TaskMatcher::normalize((string)$r['nom'])] = (int)$r['id'];
         }
 
         $espaiMap = [];
@@ -343,26 +346,6 @@ class ImportController extends Controller
             $nomTasca = trim((string)$sheet->getCell("B{$row}")->getValue());
             if (empty($nomTasca)) { $skipped++; continue; }
 
-            // Buscar al catàleg
-            $catalegId = $catalegMap[mb_strtolower(mb_substr($nomTasca, 0, 80))] ?? null;
-            if (!$catalegId) {
-                $nomLow = mb_strtolower($nomTasca);
-                foreach ($catalegMap as $key => $cId) {
-                    if (str_contains($nomLow, mb_substr($key, 0, 40)) || str_contains($key, mb_substr($nomLow, 0, 40))) {
-                        $catalegId = $cId;
-                        break;
-                    }
-                }
-            }
-
-            if (!$catalegId) {
-                $skipped++;
-                if (count($errors) < 10) {
-                    $errors[] = "Fila {$row}: tasca '{$nomTasca}' no trobada al catàleg";
-                }
-                continue;
-            }
-
             $espaiNom = trim((string)$sheet->getCell("D{$row}")->getValue());
             $tornNom = trim((string)$sheet->getCell("F{$row}")->getValue());
             $periodicitat = trim((string)$sheet->getCell("E{$row}")->getValue());
@@ -370,6 +353,9 @@ class ImportController extends Controller
             $espaiId = $espaiMap[mb_strtolower($espaiNom)] ?? null;
             $tornId = $tornMap[mb_strtolower($tornNom)] ?? null;
             $periodicitatId = $periodicitatMap[mb_strtolower($periodicitat)] ?? null;
+
+            // El catàleg és una referència: si la tasca no hi és, es crea i s'importa igualment.
+            $catalegId = $this->resolveOrCreateCatalegTask($nomTasca, $instalacioId, $catalegMap, $periodicitatId);
 
             try {
                 $stmt->execute([$instalacioId, $catalegId, $espaiId, $tornId, $periodicitatId]);
@@ -1340,7 +1326,7 @@ class ImportController extends Controller
         $stmtExisting = $db->prepare('SELECT id, nom FROM tasques_cataleg WHERE activa = 1 AND instalacio_id = ?');
         $stmtExisting->execute([$instalacioId]);
         foreach ($stmtExisting->fetchAll() as $row) {
-            $existing[mb_strtolower(mb_substr($row['nom'], 0, 80))] = (int)$row['id'];
+            $existing[TaskMatcher::normalize((string)$row['nom'])] = (int)$row['id'];
         }
 
         $stmt = $db->prepare('INSERT INTO tasques_cataleg (instalacio_id, codi, sistema_id, tipus_equip_id, nom, periodicitat_normativa_id, normativa_id, empresa_responsable, activa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)');
@@ -1361,8 +1347,8 @@ class ImportController extends Controller
                 $lastSistema = $codi;
             }
 
-            $key = mb_strtolower(mb_substr($nom, 0, 80));
-            if (isset($existing[$key])) {
+            $key = TaskMatcher::normalize($nom);
+            if ($key === '' || isset($existing[$key])) {
                 $skipped++;
                 continue;
             }
@@ -1398,9 +1384,16 @@ class ImportController extends Controller
 
     private function importCompletePla($db, $sheet, int $instalacioId, array $espaiMap, array $tornMap, array $tascaCatalegMap, array $periodicitatMap): array
     {
+        // Mapa per nom, el que necessita el registre històric per enllaçar execucions.
         $existing = [];
-        foreach ($db->query('SELECT tp.id, tc.nom AS tasca_nom FROM tasques_pla tp JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id WHERE tp.instalacio_id = ' . (int)$instalacioId)->fetchAll() as $row) {
-            $existing[mb_strtolower(mb_substr($row['tasca_nom'], 0, 50))] = (int)$row['id'];
+        // Índex de duplicats real: la mateixa tasca pot estar al pla en espais o torns diferents.
+        $seen = [];
+        foreach ($db->query('SELECT tp.id, tp.espai_id, tp.torn_id, tc.nom AS tasca_nom FROM tasques_pla tp JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id WHERE tp.instalacio_id = ' . (int)$instalacioId)->fetchAll() as $row) {
+            $nomKey = mb_strtolower(mb_substr($row['tasca_nom'], 0, 50));
+            if (!isset($existing[$nomKey])) {
+                $existing[$nomKey] = (int)$row['id'];
+            }
+            $seen[$this->planRowKey((string)$row['tasca_nom'], $row['espai_id'], $row['torn_id'])] = true;
         }
 
         $stmt = $db->prepare('INSERT INTO tasques_pla (instalacio_id, tasca_cataleg_id, equip_id, espai_id, torn_id, periodicitat_id, observacions, data_darrera_realitzacio, data_propera_realitzacio, en_curs, comentaris) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -1415,26 +1408,30 @@ class ImportController extends Controller
                 continue;
             }
 
-            $key = mb_strtolower(mb_substr($nomTasca, 0, 50));
-            if (isset($existing[$key])) {
-                $skipped++;
-                continue;
-            }
-
-            $tascaCatalegId = $this->resolveTaskId($nomTasca, $tascaCatalegMap);
-            if (!$tascaCatalegId) {
-                $skipped++;
-                if (count($errors) < 10) {
-                    $errors[] = "Pla fila {$row}: tasca '{$nomTasca}' no trobada al catàleg";
-                }
-                continue;
-            }
-
             $espaiNom = trim((string)$sheet->getCell("D{$row}")->getValue());
             $periodicitat = trim((string)$sheet->getCell("J{$row}")->getValue());
             $torn = trim((string)$sheet->getCell("P{$row}")->getValue());
             $observacions = trim((string)$sheet->getCell("Q{$row}")->getValue());
             $comentaris = trim((string)$sheet->getCell("U{$row}")->getValue());
+            $espaiId = $espaiMap[mb_strtolower($espaiNom)] ?? null;
+            $tornId = $tornMap[mb_strtolower($torn)] ?? null;
+
+            $rowKey = $this->planRowKey($nomTasca, $espaiId, $tornId);
+            if (isset($seen[$rowKey])) {
+                $skipped++;
+                continue;
+            }
+
+            // El catàleg és una referència, no un requisit: si la tasca del pla no hi és,
+            // es crea al catàleg de la instal·lació i el pla s'importa igualment.
+            $periodicitatNormativa = trim((string)$sheet->getCell("I{$row}")->getValue());
+            $tascaCatalegId = $this->resolveOrCreateCatalegTask(
+                $nomTasca,
+                $instalacioId,
+                $tascaCatalegMap,
+                $periodicitatMap[mb_strtolower($periodicitatNormativa)] ?? $periodicitatMap[mb_strtolower($periodicitat)] ?? null
+            );
+
             $periodicitatId = $periodicitatMap[mb_strtolower($periodicitat)] ?? null;
 
             if (!$periodicitatId) {
@@ -1449,8 +1446,8 @@ class ImportController extends Controller
                     $instalacioId,
                     $tascaCatalegId,
                     null,
-                    $espaiMap[mb_strtolower($espaiNom)] ?? null,
-                    $tornMap[mb_strtolower($torn)] ?? null,
+                    $espaiId,
+                    $tornId,
                     $periodicitatId,
                     $observacions ?: null,
                     $this->parseExcelDateValue($sheet->getCell("G{$row}")),
@@ -1458,7 +1455,12 @@ class ImportController extends Controller
                     $this->parseBooleanCell($sheet->getCell("O{$row}")),
                     $comentaris ?: null,
                 ]);
-                $existing[$key] = (int)$db->lastInsertId();
+                $newId = (int)$db->lastInsertId();
+                $seen[$rowKey] = true;
+                $nomKey = mb_strtolower(mb_substr($nomTasca, 0, 50));
+                if (!isset($existing[$nomKey])) {
+                    $existing[$nomKey] = $newId;
+                }
                 $imported++;
             } catch (\Throwable $e) {
                 $skipped++;
@@ -1531,6 +1533,47 @@ class ImportController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Clau de duplicat d'una fila de pla: la mateixa tasca pot repetir-se en
+     * espais o torns diferents i són files legítimes i distintes.
+     */
+    private function planRowKey(string $nomTasca, $espaiId, $tornId): string
+    {
+        return TaskMatcher::normalize($nomTasca) . '|' . (int)$espaiId . '|' . (int)$tornId;
+    }
+
+    /**
+     * El catàleg de tasques és una referència per instal·lació, no un requisit previ:
+     * si la tasca del pla no hi és, es crea i s'afegeix al mapa perquè les files
+     * següents la reutilitzin.
+     */
+    private function resolveOrCreateCatalegTask(string $nom, int $instalacioId, array &$map, ?int $periodicitatNormativaId = null): int
+    {
+        $key = TaskMatcher::normalize($nom);
+        if ($key !== '' && isset($map[$key])) {
+            return (int)$map[$key];
+        }
+
+        $id = TascaCataleg::create([
+            'instalacio_id' => $instalacioId,
+            'codi' => null,
+            'sistema_id' => null,
+            'tipus_equip_id' => null,
+            'nom' => $nom,
+            'descripcio' => null,
+            'periodicitat_normativa_id' => $periodicitatNormativaId,
+            'normativa_id' => null,
+            'empresa_responsable' => null,
+            'activa' => 1,
+        ]);
+
+        if ($key !== '') {
+            $map[$key] = $id;
+        }
+
+        return (int)$id;
     }
 
     private function resolveTaskId(string $name, array $map, int $keyLength = 80, int $matchLength = 40): ?int
