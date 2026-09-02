@@ -54,9 +54,10 @@ class TascaPla extends Model
                 OR eq.nom_mn LIKE ?
                 OR es.nom LIKE ?
                 OR t.nom LIKE ?
+                OR p.nom LIKE ?
             )';
             $like = "%{$search}%";
-            $params = array_merge($params, [$like, $like, $like, $like, $like]);
+            $params = array_merge($params, [$like, $like, $like, $like, $like, $like]);
         }
 
         $sql .= ' ORDER BY ' . $orderBy;
@@ -241,6 +242,35 @@ class TascaPla extends Model
         $pendents = (int)($result[0]['pendents'] ?? 0);
 
         return $total > 0 ? round((($total - $pendents) / $total) * 100, 2) : 0;
+    }
+
+    /**
+     * Assigna la mateixa data de propera realització a diverses tasques del pla.
+     * El filtre per instal·lació va dins de l'UPDATE: mai es toca una tasca d'una altra instal·lació.
+     * Retorna quantes tasques de la llista pertanyen realment a la instal·lació.
+     */
+    public static function programarPropera(array $ids, string $data, int $instalacioId): int
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+
+        static::execute(
+            'UPDATE tasques_pla SET data_propera_realitzacio = ?
+             WHERE instalacio_id = ? AND id IN (' . $placeholders . ')',
+            array_merge([$data, $instalacioId], $ids)
+        );
+
+        $result = static::query(
+            'SELECT COUNT(*) AS total FROM tasques_pla
+             WHERE instalacio_id = ? AND id IN (' . $placeholders . ')',
+            array_merge([$instalacioId], $ids)
+        );
+
+        return (int)($result[0]['total'] ?? 0);
     }
 
     public static function recalcularPropera(int $id): void

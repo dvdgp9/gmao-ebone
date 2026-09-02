@@ -79,6 +79,7 @@ $router->post('pla/store', TascaPlaController::class, 'store');
 $router->get('pla/edit/{id}', TascaPlaController::class, 'edit');
 $router->post('pla/update/{id}', TascaPlaController::class, 'update');
 $router->post('pla/delete/{id}', TascaPlaController::class, 'delete');
+$router->post('pla/programar', TascaPlaController::class, 'programar');
 
 // Vista Setmanal
 $router->get('pla/alta-rapida', TascaPlaController::class, 'altaRapida');

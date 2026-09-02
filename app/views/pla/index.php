@@ -1,20 +1,71 @@
 <?php
 $title = 'Pla de Manteniment';
+
+$potProgramar = in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment']);
+$idsTotes = array_values(array_map(static fn(array $t): int => (int)$t['id'], $tasques));
+$idsSenseData = array_values(array_map(
+    static fn(array $t): int => (int)$t['id'],
+    array_filter($tasques, static fn(array $t): bool => empty($t['data_propera_realitzacio']))
+));
+
 ob_start();
 ?>
+
+<div x-data="{
+        mode: false,
+        sel: {},
+        totes: <?= htmlspecialchars(json_encode($idsTotes), ENT_QUOTES) ?>,
+        senseData: <?= htmlspecialchars(json_encode($idsSenseData), ENT_QUOTES) ?>,
+        get ids() { return Object.keys(this.sel).filter(id => this.sel[id]) },
+        get total() { return this.ids.length },
+        toggle(id) { this.sel[id] = !this.sel[id] },
+        marcar(llista) { llista.forEach(id => this.sel[id] = true) },
+        netejar() { this.sel = {} },
+        sortir() { this.mode = false; this.netejar() }
+     }">
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
     <div>
         <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Pla de Manteniment</h2>
         <p class="text-gray-500 text-sm mt-1">Tasques assignades a la instal·lació</p>
     </div>
-    <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment'])): ?>
-    <a href="<?= url('pla/create') ?>" class="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Afegir Tasca
-    </a>
+    <?php if ($potProgramar): ?>
+    <div class="flex items-center gap-2">
+        <?php if (!empty($tasques)): ?>
+        <button type="button" @click="mode ? sortir() : mode = true"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border"
+                :class="mode ? 'bg-gray-100 text-gray-600 border-gray-300' : 'bg-white text-brand border-brand/40 hover:bg-brand-light'">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <span x-text="mode ? 'Cancel·lar' : 'Programar dates'"></span>
+        </button>
+        <?php endif; ?>
+        <a href="<?= url('pla/create') ?>" class="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Afegir Tasca
+        </a>
+    </div>
     <?php endif; ?>
 </div>
+
+<?php if ($potProgramar && !empty($tasques)): ?>
+<div x-show="mode" style="display:none" class="mb-3 bg-brand-light/60 border border-brand/20 rounded-xl px-4 py-3">
+    <p class="text-sm text-gray-700 font-medium">Selecciona les tasques i indica la data de propera realització.</p>
+    <p class="text-xs text-gray-500 mt-1">Consell: filtra primer (per exemple per periodicitat o per espai) i després marca "Totes les filtrades".</p>
+    <div class="flex flex-wrap items-center gap-2 mt-3">
+        <button type="button" @click="marcar(totes)" class="text-xs bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition">
+            Totes les filtrades (<?= count($idsTotes) ?>)
+        </button>
+        <?php if (!empty($idsSenseData)): ?>
+        <button type="button" @click="marcar(senseData)" class="text-xs bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition">
+            Només les que no tenen data (<?= count($idsSenseData) ?>)
+        </button>
+        <?php endif; ?>
+        <button type="button" @click="netejar()" class="text-xs text-gray-500 px-3 py-1.5 rounded-lg hover:bg-white transition">
+            Desmarcar totes
+        </button>
+    </div>
+</div>
+<?php endif; ?>
 
 <div class="mb-3 max-w-full overflow-x-hidden">
     <form method="GET" action="<?= url('pla') ?>" class="flex flex-col sm:flex-row gap-2">
@@ -48,6 +99,11 @@ ob_start();
              class="w-full max-w-full overflow-hidden bg-white rounded-lg shadow-sm border px-3 py-2.5 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($avui ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
             <div class="min-w-0">
                 <div class="flex items-start gap-2 min-w-0">
+                    <?php if ($potProgramar): ?>
+                    <input type="checkbox" x-show="mode" style="display:none"
+                           :checked="!!sel[<?= (int)$t['id'] ?>]" @change="toggle(<?= (int)$t['id'] ?>)"
+                           class="shrink-0 mt-0.5 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand">
+                    <?php endif; ?>
                     <span class="font-mono text-[11px] text-brand shrink-0 pt-0.5"><?= e($t['tasca_codi'] ?? '-') ?></span>
                     <span class="text-sm leading-5 text-gray-800 break-words min-w-0"><?= e($t['tasca_nom']) ?></span>
                 </div>
@@ -118,6 +174,9 @@ ob_start();
         <table class="w-full text-sm">
             <thead>
                 <tr class="bg-gray-50 border-b border-gray-200">
+                    <?php if ($potProgramar): ?>
+                    <th x-show="mode" style="display:none" class="w-10 px-4 py-3"></th>
+                    <?php endif; ?>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Codi</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Tasca</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Espai</th>
@@ -137,7 +196,14 @@ ob_start();
                         $vencuda = $t['data_propera_realitzacio'] && $t['data_propera_realitzacio'] < date('Y-m-d');
                         $avui = $t['data_propera_realitzacio'] === date('Y-m-d');
                     ?>
-                    <tr class="hover:bg-gray-50 transition <?= $vencuda ? 'bg-red-50' : ($avui ? 'bg-yellow-50' : '') ?>">
+                    <tr class="hover:bg-gray-50 transition <?= $vencuda ? 'bg-red-50' : ($avui ? 'bg-yellow-50' : '') ?>"
+                        :class="mode && sel[<?= (int)$t['id'] ?>] ? 'bg-brand-light/70' : ''">
+                        <?php if ($potProgramar): ?>
+                        <td x-show="mode" style="display:none" class="px-4 py-3">
+                            <input type="checkbox" :checked="!!sel[<?= (int)$t['id'] ?>]" @change="toggle(<?= (int)$t['id'] ?>)"
+                                   class="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand">
+                        </td>
+                        <?php endif; ?>
                         <td class="px-4 py-3 font-mono text-xs text-brand"><?= e($t['tasca_codi'] ?? '-') ?></td>
                         <td class="px-4 py-3">
                             <div class="max-w-xs truncate" title="<?= e($t['tasca_nom']) ?>"><?= e($t['tasca_nom']) ?></div>
@@ -196,6 +262,43 @@ ob_start();
             <span>per a "<?= e($search) ?>"</span>
         <?php endif; ?>
     </div>
+</div>
+
+<?php if ($potProgramar && !empty($tasques)): ?>
+<!-- Barra fixa: només apareix amb tasques seleccionades -->
+<div x-show="mode && total > 0" style="display:none"
+     class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] px-4 py-3">
+    <form method="POST" action="<?= url('pla/programar') ?>" class="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3">
+        <?= csrf_field() ?>
+        <input type="hidden" name="q" value="<?= e($search ?? '') ?>">
+        <template x-for="id in ids" :key="id">
+            <input type="hidden" name="ids[]" :value="id">
+        </template>
+
+        <span class="text-sm text-gray-600 shrink-0">
+            <span class="font-semibold text-brand" x-text="total"></span>
+            <span x-text="total === 1 ? 'tasca seleccionada' : 'tasques seleccionades'"></span>
+        </span>
+
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+            <label for="data_massiva" class="text-sm text-gray-500 shrink-0 hidden sm:block">Propera realització</label>
+            <input type="date" id="data_massiva" name="data_propera_realitzacio" required
+                   value="<?= date('Y-m-d') ?>"
+                   class="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+            <button type="button" @click="sortir()" class="px-4 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition">Cancel·lar</button>
+            <button type="submit" class="bg-brand text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark active:scale-[0.98] transition">
+                Aplicar data
+            </button>
+        </div>
+    </form>
+</div>
+<!-- Espai perquè la barra fixa no tapi les últimes tasques -->
+<div x-show="mode && total > 0" style="display:none" class="h-44 sm:h-24"></div>
+<?php endif; ?>
+
 </div>
 
 <?php

@@ -316,6 +316,54 @@ class TascaPlaController extends Controller
         $this->redirect('pla');
     }
 
+    /**
+     * Assignació massiva de la data de propera realització a les tasques seleccionades.
+     * Pensat per a instal·lacions noves, on l'Excel arriba sense dates i posar-les
+     * una a una és inviable.
+     */
+    public function programar(): void
+    {
+        $this->requireRole(['superadmin', 'admin_instalacio', 'cap_manteniment']);
+        if (!verify_csrf()) {
+            $this->setFlash('error', 'Token de seguretat invàlid.');
+            $this->redirect('pla');
+        }
+
+        $instalacioId = $this->currentInstalacioId();
+        if (!$instalacioId) {
+            $this->setFlash('error', 'Selecciona una instal·lació.');
+            $this->redirect('dashboard');
+        }
+
+        // Es torna al mateix filtre des d'on s'ha programat.
+        $search = trim((string)$this->post('q', ''));
+        $tornarA = 'pla' . ($search !== '' ? '?q=' . urlencode($search) : '');
+
+        $ids = (array)$this->post('ids', []);
+        if (empty($ids)) {
+            $this->setFlash('error', 'No has seleccionat cap tasca.');
+            $this->redirect($tornarA);
+        }
+
+        $data = trim((string)$this->post('data_propera_realitzacio', ''));
+        $dataValida = \DateTime::createFromFormat('Y-m-d', $data);
+        if (!$dataValida || $dataValida->format('Y-m-d') !== $data) {
+            $this->setFlash('error', 'Cal indicar una data vàlida.');
+            $this->redirect($tornarA);
+        }
+
+        $afectades = TascaPla::programarPropera($ids, $data, $instalacioId);
+        if ($afectades === 0) {
+            $this->setFlash('error', 'No s\'ha pogut programar cap tasca de les seleccionades.');
+            $this->redirect($tornarA);
+        }
+
+        $this->setFlash('success', $afectades === 1
+            ? 'Tasca programada per al ' . format_date($data) . '.'
+            : "{$afectades} tasques programades per al " . format_date($data) . '.');
+        $this->redirect($tornarA);
+    }
+
     public function setmana(): void
     {
         $this->requireAuth();
