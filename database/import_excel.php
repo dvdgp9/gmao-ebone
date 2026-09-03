@@ -286,10 +286,10 @@ echo "  {$tcCount} tasques catàleg importades\n";
 echo "\n=== 7. Important pla de manteniment (TASQUES PLA_M) ===\n";
 $wsPla = $spreadsheet->getSheetByName('TASQUES PLA_M');
 $stmtPla = $pdo->prepare('
-    INSERT INTO tasques_pla (instalacio_id, tasca_cataleg_id, equip_id, espai_id, torn_id,
+    INSERT INTO tasques_pla (instalacio_id, codi, tasca_cataleg_id, equip_id, espai_id, torn_id,
                              periodicitat_id, observacions, data_darrera_realitzacio, 
                              data_propera_realitzacio, en_curs, comentaris)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ');
 $plaCount = 0;
 $plaSkipped = 0;
@@ -329,6 +329,7 @@ function parseExcelDate($cell): ?string {
 for ($row = 2; $row <= $wsPla->getHighestRow(); $row++) {
     $nomTasca = trim((string)$wsPla->getCell("B{$row}")->getValue());
     if (empty($nomTasca)) continue;
+    $codiTasca = mb_substr(trim((string)$wsPla->getCell("A{$row}")->getValue()), 0, 50);
     
     // Buscar tasca al catàleg
     $tascaCatalegId = $tascaCatalegMap[mb_strtolower(mb_substr($nomTasca, 0, 80))] ?? null;
@@ -380,7 +381,7 @@ for ($row = 2; $row <= $wsPla->getHighestRow(); $row++) {
     }
     
     $stmtPla->execute([
-        $instalacioId, $tascaCatalegId, null, $espaiId, $tornId,
+        $instalacioId, $codiTasca ?: null, $tascaCatalegId, null, $espaiId, $tornId,
         $periodicitatId, $observacions ?: null,
         $dataDarreraStr, $dataProperaStr,
         $enCursVal,

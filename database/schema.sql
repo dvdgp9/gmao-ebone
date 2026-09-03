@@ -237,6 +237,7 @@ DROP TABLE IF EXISTS `tasques_pla`;
 CREATE TABLE `tasques_pla` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `instalacio_id` INT UNSIGNED NOT NULL,
+    `codi` VARCHAR(50) DEFAULT NULL,
     `tasca_cataleg_id` INT UNSIGNED NOT NULL,
     `equip_id` INT UNSIGNED DEFAULT NULL,
     `espai_id` INT UNSIGNED DEFAULT NULL,

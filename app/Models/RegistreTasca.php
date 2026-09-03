@@ -11,7 +11,7 @@ class RegistreTasca extends Model
     public static function allByInstalacio(int $instalacioId, int $limit = 50, int $offset = 0): array
     {
         return static::query('
-            SELECT rt.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
+            SELECT rt.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    es.nom AS espai_nom, u.nom AS usuari_nom,
                    t.nom AS torn_nom
             FROM registre_tasques rt
@@ -32,7 +32,7 @@ class RegistreTasca extends Model
         [$where, $params] = static::buildFilterWhere($instalacioId, $filters);
 
         return static::query('
-            SELECT rt.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
+            SELECT rt.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    es.nom AS espai_nom, u.nom AS usuari_nom,
                    t.nom AS torn_nom
             FROM registre_tasques rt
@@ -105,12 +105,12 @@ class RegistreTasca extends Model
     {
         return [
             'tasques' => static::query('
-                SELECT DISTINCT tp.id, tc.codi AS tasca_codi, tc.nom AS tasca_nom
+                SELECT DISTINCT tp.id, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom
                 FROM registre_tasques rt
                 JOIN tasques_pla tp ON tp.id = rt.tasca_pla_id
                 JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
                 WHERE rt.instalacio_id = ?
-                ORDER BY tc.codi ASC, tc.nom ASC
+                ORDER BY tasca_codi ASC, tc.nom ASC
             ', [$instalacioId]),
             'espais' => static::query('
                 SELECT DISTINCT es.id, es.nom
@@ -170,7 +170,8 @@ class RegistreTasca extends Model
 
         if (!empty($filters['q'])) {
             $conditions[] = '(
-                tc.codi LIKE ?
+                tp.codi LIKE ?
+                OR tc.codi LIKE ?
                 OR tc.nom LIKE ?
                 OR es.nom LIKE ?
                 OR t.nom LIKE ?
@@ -178,7 +179,7 @@ class RegistreTasca extends Model
                 OR rt.comentaris LIKE ?
             )';
             $like = '%' . $filters['q'] . '%';
-            array_push($params, $like, $like, $like, $like, $like, $like);
+            array_push($params, $like, $like, $like, $like, $like, $like, $like);
         }
 
         return [implode(' AND ', $conditions), $params];

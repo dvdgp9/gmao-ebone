@@ -27,6 +27,7 @@ ob_start();
         <table class="w-full text-sm">
             <thead>
                 <tr class="border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    <th class="px-4 py-3 min-w-[110px]">Codi</th>
                     <th class="px-4 py-3 min-w-[260px]">Tasca <span class="text-red-500">*</span></th>
                     <th class="px-4 py-3 min-w-[150px]">Periodicitat <span class="text-red-500">*</span></th>
                     <th class="px-4 py-3 min-w-[150px]">Primera execució</th>
@@ -37,6 +38,10 @@ ob_start();
             <tbody>
                 <template x-for="i in files" :key="i">
                     <tr class="border-b border-gray-100">
+                        <td class="px-4 py-2">
+                            <input type="text" name="codi[]" maxlength="50" placeholder="Opcional"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+                        </td>
                         <td class="px-4 py-2">
                             <input type="text" name="nom[]" placeholder="p.ex. Revisió de la temperatura de l'aigua"
                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">

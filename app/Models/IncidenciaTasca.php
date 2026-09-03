@@ -11,7 +11,7 @@ class IncidenciaTasca extends Model
     public static function obertesByInstalacio(int $instalacioId): array
     {
         return static::query('
-            SELECT it.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
+            SELECT it.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    es.nom AS espai_nom, t.nom AS torn_nom,
                    u.nom AS usuari_nom
             FROM incidencies_tasques it

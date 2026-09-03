@@ -161,7 +161,7 @@ class PlantillaBuilder
 
     public static function tasquesColumns(array $moduls): array
     {
-        $cols = ['TASCA', 'PERIODICITAT'];
+        $cols = ['TASCA', 'PERIODICITAT', 'CODI'];
         if (in_array('espais', $moduls, true)) {
             $cols[] = 'ESPAI';
         }

@@ -66,7 +66,7 @@ class DashboardController extends Controller
             $stats['registres_mes'] = (int)($r[0]['total'] ?? 0);
 
             $stats['properes_tasques'] = TascaPla::query('
-                SELECT tp.id, tp.data_propera_realitzacio, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
+                SELECT tp.id, tp.data_propera_realitzacio, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                        es.nom AS espai_nom, t.nom AS torn_nom
                 FROM tasques_pla tp
                 JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id

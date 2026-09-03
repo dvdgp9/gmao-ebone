@@ -317,8 +317,8 @@ class ImportController extends Controller
         $periodicitatMap = $this->buildMap('SELECT id, nom FROM periodicitats');
 
         $stmt = $db->prepare('
-            INSERT INTO tasques_pla (instalacio_id, tasca_cataleg_id, espai_id, torn_id, periodicitat_id, en_curs)
-            VALUES (?, ?, ?, ?, ?, 1)
+            INSERT INTO tasques_pla (instalacio_id, codi, tasca_cataleg_id, espai_id, torn_id, periodicitat_id, en_curs)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
         ');
 
         $imported = 0;
@@ -329,6 +329,7 @@ class ImportController extends Controller
             $nomTasca = trim((string)$sheet->getCell("B{$row}")->getValue());
             if (empty($nomTasca)) { $skipped++; continue; }
 
+            $codiTasca = mb_substr($this->cellString($sheet->getCell("A{$row}")), 0, 50);
             $espaiNom = trim((string)$sheet->getCell("D{$row}")->getValue());
             $tornNom = trim((string)$sheet->getCell("F{$row}")->getValue());
             $periodicitat = trim((string)$sheet->getCell("E{$row}")->getValue());
@@ -341,7 +342,7 @@ class ImportController extends Controller
             $catalegId = $this->resolveOrCreateCatalegTask($nomTasca, $instalacioId, $catalegMap, $periodicitatId);
 
             try {
-                $stmt->execute([$instalacioId, $catalegId, $espaiId, $tornId, $periodicitatId]);
+                $stmt->execute([$instalacioId, $codiTasca ?: null, $catalegId, $espaiId, $tornId, $periodicitatId]);
                 $imported++;
             } catch (\Exception $e) {
                 $skipped++;
@@ -500,6 +501,7 @@ class ImportController extends Controller
 
                 TascaPla::create([
                     'instalacio_id' => $instalacioId,
+                    'codi' => $input['codi_raw'] ?: null,
                     'tasca_cataleg_id' => $tascaCatalegId,
                     'equip_id' => $input['equip_id'],
                     'espai_id' => $input['espai_id'],
@@ -588,6 +590,7 @@ class ImportController extends Controller
     private function readQuickPlanRow($sheet, array $headers, int $row): array
     {
         $nom = $this->readQuickCell($sheet, $headers, $row, ['tasca', 'tarea', 'nom tasca', 'nombre tarea', 'mantenimiento', 'manteniment']);
+        $codiRaw = $this->readQuickCell($sheet, $headers, $row, ['codi tasca', 'codigo tarea', 'codi', 'codigo']);
         $periodicitatRaw = $this->readQuickCell($sheet, $headers, $row, ['periodicitat', 'periodicidad', 'frecuencia']);
         $normativaRaw = $this->readQuickCell($sheet, $headers, $row, ['normativa', 'norma']);
         $sistemaRaw = $this->readQuickCell($sheet, $headers, $row, ['sistema', 'codi sistema', 'codigo sistema']);
@@ -596,7 +599,7 @@ class ImportController extends Controller
         $tornRaw = $this->readQuickCell($sheet, $headers, $row, ['torn', 'turno']);
         $equipRaw = $this->readQuickCell($sheet, $headers, $row, ['equip', 'equipo', 'nom equip', 'codigo equipo']);
 
-        $values = [$nom, $periodicitatRaw, $normativaRaw, $sistemaRaw, $tipusRaw, $espaiRaw, $tornRaw, $equipRaw];
+        $values = [$nom, $codiRaw, $periodicitatRaw, $normativaRaw, $sistemaRaw, $tipusRaw, $espaiRaw, $tornRaw, $equipRaw];
         $isEmpty = !array_filter($values, static fn(string $value): bool => trim($value) !== '');
 
         $periodicitatId = $this->resolveIdByNormalizedValue('periodicitats', 'nom', $periodicitatRaw);
@@ -607,6 +610,7 @@ class ImportController extends Controller
         return [
             'is_empty' => $isEmpty,
             'nom' => trim($nom),
+            'codi_raw' => mb_substr(trim($codiRaw), 0, 50),
             'periodicitat_raw' => trim($periodicitatRaw),
             'normativa_raw' => trim($normativaRaw),
             'sistema_raw' => trim($sistemaRaw),
@@ -1035,6 +1039,7 @@ class ImportController extends Controller
 
             TascaPla::create([
                 'instalacio_id' => $instalacioId,
+                'codi' => $input['codi_raw'] ?: null,
                 'tasca_cataleg_id' => $tascaCatalegId,
                 'equip_id' => $input['equip_id'],
                 'espai_id' => $input['espai_id'],
@@ -1502,15 +1507,19 @@ class ImportController extends Controller
         $existing = [];
         // Índex de duplicats real: la mateixa tasca pot estar al pla en espais o torns diferents.
         $seen = [];
-        foreach ($db->query('SELECT tp.id, tp.espai_id, tp.torn_id, tc.nom AS tasca_nom FROM tasques_pla tp JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id WHERE tp.instalacio_id = ' . (int)$instalacioId)->fetchAll() as $row) {
+        foreach ($db->query('SELECT tp.id, tp.codi, tp.espai_id, tp.torn_id, tc.nom AS tasca_nom FROM tasques_pla tp JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id WHERE tp.instalacio_id = ' . (int)$instalacioId)->fetchAll() as $row) {
             $nomKey = mb_strtolower(mb_substr($row['tasca_nom'], 0, 50));
             if (!isset($existing[$nomKey])) {
                 $existing[$nomKey] = (int)$row['id'];
             }
-            $seen[$this->planRowKey((string)$row['tasca_nom'], $row['espai_id'], $row['torn_id'])] = true;
+            $seen[$this->planRowKey((string)$row['tasca_nom'], $row['espai_id'], $row['torn_id'])] = [
+                'id' => (int)$row['id'],
+                'codi' => trim((string)($row['codi'] ?? '')),
+            ];
         }
 
-        $stmt = $db->prepare('INSERT INTO tasques_pla (instalacio_id, tasca_cataleg_id, equip_id, espai_id, torn_id, periodicitat_id, observacions, data_darrera_realitzacio, data_propera_realitzacio, en_curs, comentaris) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt = $db->prepare('INSERT INTO tasques_pla (instalacio_id, codi, tasca_cataleg_id, equip_id, espai_id, torn_id, periodicitat_id, observacions, data_darrera_realitzacio, data_propera_realitzacio, en_curs, comentaris) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmtRecoverCode = $db->prepare("UPDATE tasques_pla SET codi = ? WHERE id = ? AND (codi IS NULL OR codi = '')");
         $imported = 0;
         $skipped = 0;
         $errors = [];
@@ -1522,6 +1531,7 @@ class ImportController extends Controller
                 continue;
             }
 
+            $codiTasca = mb_substr($this->cellString($sheet->getCell("A{$row}")), 0, 50);
             $espaiNom = trim((string)$sheet->getCell("D{$row}")->getValue());
             $periodicitat = trim((string)$sheet->getCell("J{$row}")->getValue());
             $torn = trim((string)$sheet->getCell("P{$row}")->getValue());
@@ -1532,7 +1542,17 @@ class ImportController extends Controller
 
             $rowKey = $this->planRowKey($nomTasca, $espaiId, $tornId);
             if (isset($seen[$rowKey])) {
-                $skipped++;
+                if ($codiTasca !== '' && $seen[$rowKey]['codi'] === '') {
+                    $stmtRecoverCode->execute([$codiTasca, $seen[$rowKey]['id']]);
+                    if ($stmtRecoverCode->rowCount() > 0) {
+                        $imported++;
+                        $seen[$rowKey]['codi'] = $codiTasca;
+                    } else {
+                        $skipped++;
+                    }
+                } else {
+                    $skipped++;
+                }
                 continue;
             }
 
@@ -1558,6 +1578,7 @@ class ImportController extends Controller
             try {
                 $stmt->execute([
                     $instalacioId,
+                    $codiTasca ?: null,
                     $tascaCatalegId,
                     null,
                     $espaiId,
@@ -1570,7 +1591,7 @@ class ImportController extends Controller
                     $comentaris ?: null,
                 ]);
                 $newId = (int)$db->lastInsertId();
-                $seen[$rowKey] = true;
+                $seen[$rowKey] = ['id' => $newId, 'codi' => $codiTasca];
                 $nomKey = mb_strtolower(mb_substr($nomTasca, 0, 50));
                 if (!isset($existing[$nomKey])) {
                     $existing[$nomKey] = $newId;

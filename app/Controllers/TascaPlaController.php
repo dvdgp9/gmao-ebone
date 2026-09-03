@@ -95,6 +95,7 @@ class TascaPlaController extends Controller
         }
 
         $noms = (array)$this->post('nom', []);
+        $codis = (array)$this->post('codi', []);
         $periodicitats = (array)$this->post('periodicitat_id', []);
         $dates = (array)$this->post('data_primera', []);
         $espais = (array)$this->post('espai_id', []);
@@ -157,6 +158,7 @@ class TascaPlaController extends Controller
 
             TascaPla::create([
                 'instalacio_id' => $instalacioId,
+                'codi' => mb_substr(trim((string)($codis[$i] ?? '')), 0, 50) ?: null,
                 'tasca_cataleg_id' => $catalegId,
                 'equip_id' => null,
                 'espai_id' => $espaiId,
@@ -478,6 +480,7 @@ class TascaPlaController extends Controller
     private function getFormData(): array
     {
         return [
+            'codi' => mb_substr(trim($this->post('codi', '')), 0, 50) ?: null,
             'tasca_cataleg_id' => (int)$this->post('tasca_cataleg_id'),
             'equip_id' => $this->post('equip_id') ?: null,
             'espai_id' => $this->post('espai_id') ?: null,

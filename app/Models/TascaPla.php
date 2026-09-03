@@ -11,7 +11,7 @@ class TascaPla extends Model
     public static function allByInstalacio(int $instalacioId, string $orderBy = 'data_propera_realitzacio ASC'): array
     {
         return static::query('
-            SELECT tp.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
+            SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
                    es.actiu AS espai_actiu,
                    t.nom AS torn_nom, p.nom AS periodicitat_nom,
@@ -32,7 +32,7 @@ class TascaPla extends Model
     public static function searchByInstalacio(int $instalacioId, string $search = '', string $orderBy = 'data_propera_realitzacio ASC'): array
     {
         $sql = '
-            SELECT tp.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
+            SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
                    es.actiu AS espai_actiu,
                    t.nom AS torn_nom, p.nom AS periodicitat_nom,
@@ -49,7 +49,8 @@ class TascaPla extends Model
 
         if ($search !== '') {
             $sql .= ' AND (
-                tc.codi LIKE ?
+                tp.codi LIKE ?
+                OR tc.codi LIKE ?
                 OR tc.nom LIKE ?
                 OR eq.nom_mn LIKE ?
                 OR es.nom LIKE ?
@@ -57,7 +58,7 @@ class TascaPla extends Model
                 OR p.nom LIKE ?
             )';
             $like = "%{$search}%";
-            $params = array_merge($params, [$like, $like, $like, $like, $like, $like]);
+            $params = array_merge($params, [$like, $like, $like, $like, $like, $like, $like]);
         }
 
         $sql .= ' ORDER BY ' . $orderBy;
@@ -95,7 +96,7 @@ class TascaPla extends Model
     public static function getSetmana(int $instalacioId, string $dilluns, string $diumenge, ?int $tornId = null): array
     {
         $sql = '
-            SELECT tp.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
+            SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
                    t.nom AS torn_nom, p.nom AS periodicitat_nom,
                    p.dies_interval
@@ -116,7 +117,7 @@ class TascaPla extends Model
             $params[] = $tornId;
         }
 
-        $sql .= ' ORDER BY tp.data_propera_realitzacio ASC, es.nom ASC, tc.codi ASC';
+        $sql .= " ORDER BY tp.data_propera_realitzacio ASC, es.nom ASC, COALESCE(NULLIF(tp.codi, ''), tc.codi) ASC";
 
         return static::query($sql, $params);
     }
@@ -124,7 +125,7 @@ class TascaPla extends Model
     public static function getDia(int $instalacioId, string $data, int|array|null $torn = null, string $search = ''): array
     {
         $sql = '
-            SELECT tp.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
+            SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
                    t.nom AS torn_nom, p.nom AS periodicitat_nom,
                    p.dies_interval
@@ -144,16 +145,17 @@ class TascaPla extends Model
 
         if ($search !== '') {
             $sql .= ' AND (
-                tc.codi LIKE ?
+                tp.codi LIKE ?
+                OR tc.codi LIKE ?
                 OR tc.nom LIKE ?
                 OR eq.nom_mn LIKE ?
                 OR es.nom LIKE ?
             )';
             $like = "%{$search}%";
-            $params = array_merge($params, [$like, $like, $like, $like]);
+            $params = array_merge($params, [$like, $like, $like, $like, $like]);
         }
 
-        $sql .= ' ORDER BY tp.data_propera_realitzacio ASC, es.nom ASC, tc.codi ASC';
+        $sql .= " ORDER BY tp.data_propera_realitzacio ASC, es.nom ASC, COALESCE(NULLIF(tp.codi, ''), tc.codi) ASC";
 
         return static::query($sql, $params);
     }
@@ -161,7 +163,7 @@ class TascaPla extends Model
     public static function getSetmanaSearch(int $instalacioId, string $dilluns, string $diumenge, int|array|null $torn = null, string $search = ''): array
     {
         $sql = '
-            SELECT tp.*, tc.codi AS tasca_codi, tc.nom AS tasca_nom,
+            SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
                    t.nom AS torn_nom, p.nom AS periodicitat_nom,
                    p.dies_interval
@@ -181,16 +183,17 @@ class TascaPla extends Model
 
         if ($search !== '') {
             $sql .= ' AND (
-                tc.codi LIKE ?
+                tp.codi LIKE ?
+                OR tc.codi LIKE ?
                 OR tc.nom LIKE ?
                 OR eq.nom_mn LIKE ?
                 OR es.nom LIKE ?
             )';
             $like = "%{$search}%";
-            $params = array_merge($params, [$like, $like, $like, $like]);
+            $params = array_merge($params, [$like, $like, $like, $like, $like]);
         }
 
-        $sql .= ' ORDER BY tp.data_propera_realitzacio ASC, es.nom ASC, tc.codi ASC';
+        $sql .= " ORDER BY tp.data_propera_realitzacio ASC, es.nom ASC, COALESCE(NULLIF(tp.codi, ''), tc.codi) ASC";
 
         return static::query($sql, $params);
     }
