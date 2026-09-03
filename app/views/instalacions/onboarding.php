@@ -1,13 +1,11 @@
 <?php
 $title = 'Configurar Instal·lació';
 $returnTo = 'instalacions/onboarding/' . (int)$instalacio['id'];
-$supportsModuls = !empty($supportsModuls);
 $modulsActius = $modulsActius ?? ['espais', 'torns', 'equips'];
-$haTriatModuls = !$supportsModuls || ($modulsTriats ?? null) !== null;
 $isSuperadmin = !empty($_SESSION['is_superadmin']);
 
 $plantillaUrl = url('import/plantilla');
-$importUrl = url('import?return_to=' . urlencode($returnTo) . '&recommended=plantilla');
+$importUrl = url('import?return_to=' . urlencode($returnTo));
 
 $modulsInfo = [
     'espais' => [
@@ -109,65 +107,12 @@ ob_start();
             <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">Posem en marxa <?= e($instalacio['nom']) ?></h2>
             <p class="text-gray-500 text-sm mt-1">Aquesta pantalla et guia pas a pas. Pots tornar-hi sempre que vulguis.</p>
         </div>
-        <?php if ($haTriatModuls): ?>
         <div class="bg-brand-light text-brand-dark rounded-xl px-4 py-3 text-sm">
             <div class="font-semibold"><?= $completed ?> de <?= count($steps) ?> blocs amb dades</div>
         </div>
-        <?php endif; ?>
     </div>
 </div>
 
-<?php if ($supportsModuls): ?>
-<!-- Pas 0: selecció de mòduls -->
-<div x-data="{ obert: <?= $haTriatModuls ? 'false' : 'true' ?> }" class="bg-white rounded-xl shadow-sm border <?= $haTriatModuls ? 'border-gray-200' : 'border-brand/40' ?> p-5 sm:p-6 mb-6">
-    <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-                <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold <?= $haTriatModuls ? 'bg-green-100 text-green-700' : 'bg-brand text-white' ?>">0</span>
-                <h3 class="text-lg font-semibold text-gray-800">Què necessita aquesta instal·lació?</h3>
-            </div>
-            <p class="text-sm text-gray-500 mt-2">
-                Cada instal·lació és diferent. Tria només els blocs que necessites: el menú i la plantilla s'adaptaran.
-                El <span class="font-medium text-gray-700">pla de tasques sempre està inclòs</span>.
-                Podràs canviar-ho més endavant sense perdre res.
-            </p>
-            <?php if ($haTriatModuls): ?>
-            <p class="text-sm text-gray-600 mt-2">
-                Blocs actius:
-                <span class="font-medium text-gray-800"><?= empty($modulsActius) ? 'cap (només pla de tasques)' : e(implode(', ', array_map(fn($m) => $modulsInfo[$m]['titol'], $modulsActius))) ?></span>
-            </p>
-            <?php endif; ?>
-        </div>
-        <?php if ($haTriatModuls): ?>
-        <button type="button" @click="obert = !obert" class="shrink-0 text-sm text-brand hover:text-brand-dark transition" x-text="obert ? 'Tancar' : 'Canviar'"></button>
-        <?php endif; ?>
-    </div>
-
-    <form x-show="obert" x-collapse method="POST" action="<?= url('instalacions/moduls/' . (int)$instalacio['id']) ?>" class="mt-5">
-        <?= csrf_field() ?>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <?php foreach ($modulsInfo as $clau => $info): ?>
-            <label class="flex flex-col gap-2 rounded-xl border border-gray-200 p-4 cursor-pointer hover:border-brand/50 transition has-[:checked]:border-brand has-[:checked]:bg-brand-light/40">
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" name="moduls[]" value="<?= $clau ?>" <?= in_array($clau, $modulsActius, true) && $haTriatModuls ? 'checked' : '' ?>
-                           class="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand">
-                    <span class="font-semibold text-gray-800"><?= e($info['titol']) ?></span>
-                </div>
-                <p class="text-xs font-medium text-gray-700"><?= e($info['pregunta']) ?></p>
-                <p class="text-xs text-gray-500"><?= e($info['explicacio']) ?></p>
-                <p class="text-xs text-green-700"><span class="font-medium">Sí, si:</span> <?= e($info['quan_si']) ?></p>
-                <p class="text-xs text-gray-400"><span class="font-medium">No cal, si:</span> <?= e($info['quan_no']) ?></p>
-            </label>
-            <?php endforeach; ?>
-        </div>
-        <button type="submit" class="mt-4 bg-brand text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-dark transition">
-            Desar i continuar
-        </button>
-    </form>
-</div>
-<?php endif; ?>
-
-<?php if ($haTriatModuls): ?>
 <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
     <div class="xl:col-span-2 space-y-4">
 
@@ -270,12 +215,11 @@ ob_start();
             <div class="mt-3 space-y-3 text-sm text-gray-600">
                 <p><span class="font-medium text-gray-800">Puc fer-ho en diverses sessions?</span> Sí. Tot el que desis es queda, i aquesta pantalla mostra el progrés.</p>
                 <p><span class="font-medium text-gray-800">M'he equivocat en un bloc?</span> Pots editar o esborrar qualsevol element des del seu apartat del menú.</p>
-                <p><span class="font-medium text-gray-800">Puc activar un bloc més endavant?</span> Sí, des del pas 0 d'aquesta pantalla, sense perdre res.</p>
+                <p><span class="font-medium text-gray-800">He d'activar algun apartat?</span> No. Espais, torns i equips estan sempre disponibles.</p>
             </div>
         </div>
     </div>
 </div>
-<?php endif; ?>
 
 <?php
 $content = ob_get_clean();

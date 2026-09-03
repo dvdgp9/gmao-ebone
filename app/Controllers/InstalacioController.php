@@ -13,17 +13,9 @@ class InstalacioController extends Controller
         $this->requireRole(['superadmin']);
         $instalacions = Instalacio::all([], 'nom ASC');
 
-        // Instal·lacions encara en posada en marxa (sense pla): mostren "Configurar"
-        $db = Database::getInstance();
-        $ambPla = [];
-        foreach ($db->query('SELECT instalacio_id, COUNT(*) AS total FROM tasques_pla GROUP BY instalacio_id')->fetchAll() as $row) {
-            $ambPla[(int)$row['instalacio_id']] = (int)$row['total'] > 0;
-        }
-
         $this->view('instalacions.index', [
             'title' => 'Instal·lacions',
             'instalacions' => $instalacions,
-            'ambPla' => $ambPla,
             'flash' => $this->getFlash(),
         ]);
     }
@@ -96,8 +88,6 @@ class InstalacioController extends Controller
             'title' => 'Configurar Instal·lació',
             'instalacio' => $instalacio,
             'stats' => $stats,
-            'supportsModuls' => Instalacio::supportsModuls(),
-            'modulsTriats' => $instalacio['moduls'] ?? null, // null = encara no ha triat
             'modulsActius' => Instalacio::modulsActius($instalacio),
             'flash' => $this->getFlash(),
         ]);
@@ -123,7 +113,7 @@ class InstalacioController extends Controller
 
         $moduls = $this->post('moduls', []);
         Instalacio::setModuls((int)$id, is_array($moduls) ? $moduls : []);
-        $this->setFlash('success', 'Configuració de mòduls desada. Pots canviar-la quan vulguis des d\'aquesta mateixa pantalla.');
+        $this->setFlash('success', 'Tots els apartats de la instal·lació estan disponibles.');
         $this->redirect('instalacions/onboarding/' . (int)$id);
     }
 

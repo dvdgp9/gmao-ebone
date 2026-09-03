@@ -5,12 +5,16 @@ $typeLabels = [
     'tasques_cataleg' => 'Tasques al Catàleg',
     'tasques_pla' => 'Tasques al Pla',
     'pla_rapid' => 'Pla ràpid',
+    'plantilla' => 'Plantilla de configuració',
     'completa_instalacio' => 'Importació completa',
+    'unknown' => 'Format no reconegut',
 ];
 $isQuickPlan = ($importType ?? '') === 'pla_rapid';
-$summary = $importSummary ?? [];
+$diagnostic = $importSummary ?? [];
+$summary = $diagnostic['quick_stats'] ?? [];
 $hasReviewRows = $isQuickPlan && ((int)($summary['review'] ?? 0) > 0);
 $hasErrorRows = $isQuickPlan && ((int)($summary['error'] ?? 0) > 0);
+$hasDiagnosticErrors = !empty($diagnostic['errors']);
 ob_start();
 ?>
 
@@ -22,9 +26,27 @@ ob_start();
     <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mt-2">Vista prèvia</h2>
     <p class="text-gray-500 text-sm mt-1">
         Tipus: <span class="font-medium"><?= e($typeLabels[$importType] ?? 'Importació') ?></span>
-        — <?= $totalRows ?> files detectades
+        — <?= $totalRows ?> elements detectats
     </p>
 </div>
+
+<?php if (!empty($diagnostic['warnings'])): ?>
+<div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+    <div class="font-semibold mb-1">Avisos de la detecció</div>
+    <ul class="list-disc list-inside space-y-1">
+        <?php foreach ($diagnostic['warnings'] as $warning): ?><li><?= e($warning) ?></li><?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
+
+<?php if ($hasDiagnosticErrors): ?>
+<div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+    <div class="font-semibold mb-1">No es pot importar aquest fitxer</div>
+    <ul class="list-disc list-inside space-y-1">
+        <?php foreach ($diagnostic['errors'] as $error): ?><li><?= e($error) ?></li><?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
 
 <?php if ($isQuickPlan): ?>
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -199,14 +221,14 @@ ob_start();
     <?php if (!empty($returnTo ?? '')): ?>
         <input type="hidden" name="return_to" value="<?= e($returnTo) ?>">
     <?php endif; ?>
-    <?php if ($hasErrorRows): ?>
+    <?php if ($hasErrorRows || $hasDiagnosticErrors): ?>
         <button type="button" disabled class="cursor-not-allowed bg-gray-200 text-gray-500 px-6 py-2.5 rounded-lg text-sm font-medium">
             Corregeix els errors abans d'importar
         </button>
     <?php else: ?>
         <button type="submit" class="bg-green-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 active:scale-[0.98] transition"
-                onclick="return confirm('Segur que vols importar <?= $totalRows ?> registres?')">
-            Confirmar importació (<?= $totalRows ?> registres)
+                onclick="return confirm('Segur que vols confirmar aquesta importació?')">
+            Confirmar importació
         </button>
     <?php endif; ?>
     <a href="<?= $backUrl ?>" class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition">

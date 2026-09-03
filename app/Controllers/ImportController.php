@@ -12,6 +12,8 @@ use App\Models\Espai;
 use App\Models\Torn;
 use App\Models\Periodicitat;
 use App\Models\Instalacio;
+use App\Models\Sistema;
+use App\Services\ImportWorkbookInspector;
 use App\Services\TaskMatcher;
 use App\Services\PlantillaBuilder;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -22,13 +24,10 @@ class ImportController extends Controller
     public function index(): void
     {
         $this->requireRole(['superadmin', 'admin_instalacio']);
-        $recommendedType = $this->getRecommendedType($this->getReturnTo());
         $this->view('import.index', [
             'title' => 'Importar Excel',
             'returnTo' => $this->getReturnTo(),
             'currentInstalacioId' => $this->currentInstalacioId(),
-            'recommendedType' => $recommendedType,
-            'modulsActius' => Instalacio::modulsActiusById($this->currentInstalacioId()),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -75,97 +74,27 @@ class ImportController extends Controller
             $this->redirect('import');
         }
 
+        if (!$this->currentInstalacioId()) {
+            $this->setFlash('error', 'Selecciona una instal·lació abans d’importar un Excel.');
+            $this->redirect('import');
+        }
+
         $tmpPath = $file['tmp_name'];
-        $tipus = $this->post('import_type', 'tasques_cataleg');
 
         try {
             $spreadsheet = IOFactory::load($tmpPath);
             $quickPreview = [];
-            $importSummary = [];
+            $systemCodes = array_column(Sistema::allOrdered(), 'codi');
+            $importSummary = ImportWorkbookInspector::inspect($spreadsheet, $systemCodes);
+            $tipus = $importSummary['type'];
+            $headers = [1 => 'element', 2 => 'registres', 3 => 'acció'];
+            $previewData = $this->buildDetectedPreviewRows($importSummary);
 
-            if ($tipus === 'plantilla') {
-                if (!$this->currentInstalacioId()) {
-                    $this->setFlash('error', 'Cal tenir una instal·lació activa per importar la plantilla.');
-                    $this->redirect('import');
-                }
-
-                $summary = $this->buildPlantillaPreview($spreadsheet);
-                $headers = [1 => 'full', 2 => 'sheet', 3 => 'rows'];
-                $previewData = [];
-                foreach ($summary['sheets'] as $sheetName => $rowCount) {
-                    $previewData[] = [
-                        1 => 'Sí',
-                        2 => $sheetName,
-                        3 => (string)$rowCount,
-                    ];
-                }
-                $highestRow = $summary['total_rows'] + 1;
-            } elseif ($tipus === 'completa_instalacio') {
-                if (!$this->currentInstalacioId()) {
-                    $this->setFlash('error', 'Cal tenir una instal·lació activa per fer una importació completa.');
-                    $this->redirect('import');
-                }
-
-                $summary = $this->buildCompleteImportPreview($spreadsheet);
-                $headers = [1 => 'full', 2 => 'sheet', 3 => 'rows'];
-                $previewData = [];
-                foreach ($summary['sheets'] as $sheetName => $rowCount) {
-                    $previewData[] = [
-                        1 => 'Sí',
-                        2 => $sheetName,
-                        3 => (string)$rowCount,
-                    ];
-                }
-                $highestRow = $summary['total_rows'] + 1;
-            } elseif ($tipus === 'pla_rapid') {
-                if (!$this->currentInstalacioId()) {
-                    $this->setFlash('error', 'Cal tenir una instal·lació activa per fer una importació ràpida del pla.');
-                    $this->redirect('import');
-                }
-
+            if ($tipus === 'pla_rapid' && empty($importSummary['errors'])) {
                 $sheet = $spreadsheet->getActiveSheet();
                 $analysis = $this->analyzeQuickPlanImport($sheet);
-                $headers = $analysis['headers'];
                 $quickPreview = $analysis['rows'];
-                $importSummary = $analysis['summary'];
-                $previewData = [];
-                foreach (array_slice($quickPreview, 0, 20) as $row) {
-                    $previewData[] = [
-                        1 => $row['task_name'],
-                        2 => $row['periodicitat_label'],
-                        3 => $row['action_label'],
-                        4 => $row['matched_task_name'] ?? '',
-                    ];
-                }
-                $highestRow = $analysis['total_rows'] + 1;
-            } else {
-                $sheet = $spreadsheet->getActiveSheet();
-                $highestRow = $sheet->getHighestRow();
-
-                if ($highestRow < 2) {
-                    $this->setFlash('error', 'El fitxer no conté dades (mínim 2 files: capçalera + dades).');
-                    $this->redirect('import');
-                }
-
-                $headers = [];
-                $highestCol = $sheet->getHighestColumn();
-                $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
-                for ($col = 1; $col <= $highestColIndex; $col++) {
-                    $val = trim((string)$sheet->getCellByColumnAndRow($col, 1)->getValue());
-                    $headers[$col] = mb_strtolower($val);
-                }
-
-                $previewData = [];
-                $maxPreview = min($highestRow, 20);
-                for ($row = 2; $row <= $maxPreview; $row++) {
-                    $rowData = [];
-                    for ($col = 1; $col <= $highestColIndex; $col++) {
-                        $rowData[$col] = trim((string)$sheet->getCellByColumnAndRow($col, $row)->getValue());
-                    }
-                    if (array_filter($rowData)) {
-                        $previewData[] = $rowData;
-                    }
-                }
+                $importSummary['quick_stats'] = $analysis['summary'];
             }
 
             $storagePath = dirname(__DIR__, 2) . '/storage/';
@@ -176,7 +105,8 @@ class ImportController extends Controller
                 'file' => $tmpFile,
                 'type' => $tipus,
                 'headers' => $headers,
-                'total_rows' => $highestRow - 1,
+                'total_rows' => $importSummary['total_rows'],
+                'inspection' => $importSummary,
                 'return_to' => $this->getReturnTo('', true),
             ];
 
@@ -184,10 +114,10 @@ class ImportController extends Controller
                 'title' => 'Vista prèvia importació',
                 'headers' => $headers,
                 'preview' => $previewData,
-                'totalRows' => $highestRow - 1,
+                'totalRows' => $importSummary['total_rows'],
                 'importType' => $tipus,
                 'returnTo' => $this->getReturnTo('', true),
-                'isWorkbookSummary' => in_array($tipus, ['completa_instalacio', 'plantilla'], true),
+                'isWorkbookSummary' => $tipus !== 'pla_rapid',
                 'quickPreview' => $quickPreview,
                 'importSummary' => $importSummary,
                 'flash' => $this->getFlash(),
@@ -216,6 +146,11 @@ class ImportController extends Controller
         $tipus = $importData['type'];
         $filePath = $importData['file'];
 
+        if (!empty($importData['inspection']['errors'])) {
+            $this->setFlash('error', 'La importació està bloquejada perquè el fitxer té errors de format.');
+            $this->redirect('import');
+        }
+
         try {
             $spreadsheet = IOFactory::load($filePath);
 
@@ -232,7 +167,7 @@ class ImportController extends Controller
             @unlink($filePath);
             unset($_SESSION['import']);
 
-            $msg = "Importació completada: {$result['imported']} registres importats, {$result['skipped']} omesos.";
+            $msg = $this->formatImportResultMessage($result);
             if (!empty($result['errors'])) {
                 $msg .= ' Errors: ' . implode('; ', array_slice($result['errors'], 0, 5));
             }
@@ -251,6 +186,49 @@ class ImportController extends Controller
             $this->setFlash('error', 'Error durant la importació: ' . $e->getMessage());
             $this->redirect('import');
         }
+    }
+
+    private function buildDetectedPreviewRows(array $inspection): array
+    {
+        $labels = [
+            'espais' => 'Espais',
+            'torns' => 'Torns',
+            'equips' => 'Equips',
+            'sistemes' => 'Sistemes detectats',
+            'tasques_cataleg' => 'Tasques de catàleg',
+            'tasques_pla' => 'Tasques del pla',
+            'registre' => 'Registres històrics',
+        ];
+
+        $rows = [];
+        foreach ($labels as $key => $label) {
+            $count = (int)($inspection['counts'][$key] ?? 0);
+            if ($count === 0 && !in_array($inspection['type'], ['completa_instalacio', 'plantilla'], true)) {
+                continue;
+            }
+            $action = $key === 'sistemes' && !empty($inspection['new_system_codes'])
+                ? count($inspection['new_system_codes']) . ' nous'
+                : 'Importar';
+            $rows[] = [1 => $label, 2 => (string)$count, 3 => $action];
+        }
+        return $rows;
+    }
+
+    private function formatImportResultMessage(array $result): string
+    {
+        $msg = "Importació completada: {$result['imported']} registres importats, {$result['skipped']} omesos.";
+        $labels = [
+            'espais' => 'espais', 'torns' => 'torns', 'equips' => 'equips',
+            'sistemes' => 'sistemes', 'tasques_cataleg' => 'tasques de catàleg',
+            'tasques_pla' => 'tasques del pla', 'registre' => 'registres',
+        ];
+        $parts = [];
+        foreach (($result['details'] ?? []) as $key => $count) {
+            if ((int)$count > 0 && isset($labels[$key])) {
+                $parts[] = (int)$count . ' ' . $labels[$key];
+            }
+        }
+        return $parts === [] ? $msg : $msg . ' Detall: ' . implode(', ', $parts) . '.';
     }
 
     private function importTasquesCataleg($sheet): array
@@ -302,7 +280,12 @@ class ImportController extends Controller
             }
         }
 
-        return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
+        return [
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'errors' => $errors,
+            'details' => ['tasques_cataleg' => $imported],
+        ];
     }
 
     private function importTasquesPla($sheet): array
@@ -368,7 +351,12 @@ class ImportController extends Controller
             }
         }
 
-        return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
+        return [
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'errors' => $errors,
+            'details' => ['tasques_pla' => $imported],
+        ];
     }
 
     private function analyzeQuickPlanImport($sheet): array
@@ -537,7 +525,12 @@ class ImportController extends Controller
             return ['imported' => 0, 'skipped' => 0, 'errors' => [$e->getMessage()]];
         }
 
-        return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
+        return [
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'errors' => $errors,
+            'details' => ['tasques_pla' => $imported],
+        ];
     }
 
     private function validateQuickPlanRelations(array $input, int $instalacioId): ?string
@@ -802,22 +795,22 @@ class ImportController extends Controller
 
             $espaisSheet = $spreadsheet->getSheetByName(PlantillaBuilder::SHEET_ESPAIS);
             if ($espaisSheet) {
-                $results[] = $this->importPlantillaEspais($db, $espaisSheet, $instalacioId);
+                $results['espais'] = $this->importPlantillaEspais($db, $espaisSheet, $instalacioId);
             }
 
             $tornsSheet = $spreadsheet->getSheetByName(PlantillaBuilder::SHEET_TORNS);
             if ($tornsSheet) {
-                $results[] = $this->importPlantillaTorns($db, $tornsSheet, $instalacioId);
+                $results['torns'] = $this->importPlantillaTorns($db, $tornsSheet, $instalacioId);
             }
 
             $equipsSheet = $spreadsheet->getSheetByName(PlantillaBuilder::SHEET_EQUIPS);
             if ($equipsSheet) {
-                $results[] = $this->importPlantillaEquips($db, $equipsSheet, $instalacioId);
+                $results['equips'] = $this->importPlantillaEquips($db, $equipsSheet, $instalacioId);
             }
 
             $tasquesSheet = $spreadsheet->getSheetByName(PlantillaBuilder::SHEET_TASQUES);
             if ($tasquesSheet) {
-                $results[] = $this->importPlantillaTasques($tasquesSheet, $instalacioId);
+                $results['tasques_pla'] = $this->importPlantillaTasques($tasquesSheet, $instalacioId);
             }
 
             $db->commit();
@@ -826,6 +819,7 @@ class ImportController extends Controller
                 'imported' => array_sum(array_column($results, 'imported')),
                 'skipped' => array_sum(array_column($results, 'skipped')),
                 'errors' => array_slice(array_merge(...array_column($results, 'errors')), 0, 10),
+                'details' => array_map(static fn(array $result): int => (int)$result['imported'], $results),
             ];
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
@@ -1100,12 +1094,21 @@ class ImportController extends Controller
         $db->beginTransaction();
 
         try {
-            $summary = $this->buildCompleteImportPreview($spreadsheet);
+            $this->buildCompleteImportPreview($spreadsheet);
 
-            $tornMap = $this->importCompleteTorns($db, $instalacioId, $spreadsheet->getSheetByName('TASQUES PLA_M'));
+            $systemData = $this->importCompleteSystems($db, $spreadsheet->getSheetByName('BD TASQUES'));
+            $tornData = $this->importCompleteTorns($db, $instalacioId, $spreadsheet->getSheetByName('TASQUES PLA_M'));
+            $tornMap = $tornData['map'];
             $espaiData = $this->importCompleteEspais($db, $spreadsheet->getSheetByName('LLISTES'), $instalacioId);
             $catalogMaps = $this->getCatalogMaps($db);
-            $equipData = $this->importCompleteEquips($db, $spreadsheet->getSheetByName('INVENTARI'), $instalacioId, $catalogMaps);
+            $equipData = $this->importCompleteEquips(
+                $db,
+                $spreadsheet->getSheetByName('INVENTARI'),
+                $instalacioId,
+                $catalogMaps,
+                $espaiData['map'],
+                $espaiData['code_map']
+            );
             $tascaCatalegData = $this->importCompleteTasquesCataleg($db, $spreadsheet->getSheetByName('BD TASQUES'), $catalogMaps, $instalacioId);
             $plaData = $this->importCompletePla($db, $spreadsheet->getSheetByName('TASQUES PLA_M'), $instalacioId, $espaiData['map'], $tornMap, $tascaCatalegData['map'], $catalogMaps['periodicitatMap']);
             $registreData = $this->importCompleteRegistre($db, $spreadsheet->getSheetByName('REGISTRE TASQUES'), $instalacioId, $plaData['map']);
@@ -1129,9 +1132,18 @@ class ImportController extends Controller
             );
 
             return [
-                'imported' => $espaiData['imported'] + $equipData['imported'] + $tascaCatalegData['imported'] + $plaData['imported'] + $registreData['imported'] + count($tornMap),
+                'imported' => $espaiData['imported'] + $equipData['imported'] + $tascaCatalegData['imported'] + $plaData['imported'] + $registreData['imported'] + $tornData['imported'] + $systemData['imported'],
                 'skipped' => $espaiData['skipped'] + $equipData['skipped'] + $tascaCatalegData['skipped'] + $plaData['skipped'] + $registreData['skipped'],
                 'errors' => array_slice($errors, 0, 10),
+                'details' => [
+                    'espais' => $espaiData['imported'],
+                    'torns' => $tornData['imported'],
+                    'equips' => $equipData['imported'],
+                    'sistemes' => $systemData['imported'],
+                    'tasques_cataleg' => $tascaCatalegData['imported'],
+                    'tasques_pla' => $plaData['imported'],
+                    'registre' => $registreData['imported'],
+                ],
             ];
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
@@ -1164,6 +1176,7 @@ class ImportController extends Controller
             }
         }
 
+        $imported = 0;
         foreach ($tornNoms as $nom) {
             $key = mb_strtolower($nom);
             if ($key === '' || isset($existing[$key])) {
@@ -1172,9 +1185,10 @@ class ImportController extends Controller
 
             $stmt->execute([$instalacioId, $nom, $this->guessTornDies($nom)]);
             $existing[$key] = (int)$db->lastInsertId();
+            $imported++;
         }
 
-        return $existing;
+        return ['map' => $existing, 'imported' => $imported];
     }
 
     private function guessTornDies(string $nom): string
@@ -1190,8 +1204,12 @@ class ImportController extends Controller
     private function importCompleteEspais($db, $sheet, int $instalacioId): array
     {
         $map = [];
+        $codeMap = [];
         foreach (Espai::allByInstalacio($instalacioId) as $espai) {
             $map[mb_strtolower($espai['nom'])] = (int)$espai['id'];
+            if (isset($espai['codi']) && trim((string)$espai['codi']) !== '') {
+                $codeMap[mb_strtolower((string)$espai['codi'])] = (int)$espai['id'];
+            }
         }
 
         $stmt = $db->prepare('INSERT INTO espais (instalacio_id, codi, nom, planta, actiu) VALUES (?, ?, ?, ?, 1)');
@@ -1204,9 +1222,7 @@ class ImportController extends Controller
             $codi = $this->cellString($sheet->getCell("D{$row}"));
             $planta = $this->cellString($sheet->getCell("E{$row}"));
 
-            // Els espais reals sempre tenen codi; les files sense codi de LLISTES
-            // són altres llistes (periodicitats, etc.) i no s'han d'importar.
-            if ($nom === '' || $codi === '') {
+            if ($nom === '') {
                 $skipped++;
                 continue;
             }
@@ -1219,7 +1235,11 @@ class ImportController extends Controller
 
             try {
                 $stmt->execute([$instalacioId, $codi ?: null, $nom, $planta ?: null]);
-                $map[$key] = (int)$db->lastInsertId();
+                $newId = (int)$db->lastInsertId();
+                $map[$key] = $newId;
+                if ($codi !== '') {
+                    $codeMap[mb_strtolower($codi)] = $newId;
+                }
                 $imported++;
             } catch (\Throwable $e) {
                 $skipped++;
@@ -1229,7 +1249,38 @@ class ImportController extends Controller
             }
         }
 
-        return ['map' => $map, 'imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
+        return ['map' => $map, 'code_map' => $codeMap, 'imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
+    }
+
+    private function importCompleteSystems($db, $sheet): array
+    {
+        $existing = [];
+        foreach ($db->query('SELECT id, codi FROM sistemes')->fetchAll() as $row) {
+            $existing[TaskMatcher::normalize((string)$row['codi'])] = (int)$row['id'];
+        }
+
+        $stmt = $db->prepare('INSERT INTO sistemes (codi, nom, descripcio) VALUES (?, ?, ?)');
+        $lastCode = '';
+        $imported = 0;
+        for ($row = 2; $row <= $sheet->getHighestRow(); $row++) {
+            $code = $this->cellString($sheet->getCell("A{$row}"));
+            if ($code !== '') {
+                $lastCode = $code;
+            }
+            if ($this->cellString($sheet->getCell("D{$row}")) === '' || $lastCode === '') {
+                continue;
+            }
+
+            $key = TaskMatcher::normalize($lastCode);
+            if ($key === '' || isset($existing[$key])) {
+                continue;
+            }
+            $stmt->execute([$lastCode, $lastCode, 'Creat automàticament des de la importació Excel.']);
+            $existing[$key] = (int)$db->lastInsertId();
+            $imported++;
+        }
+
+        return ['map' => $existing, 'imported' => $imported];
     }
 
     private function getCatalogMaps($db): array
@@ -1243,13 +1294,28 @@ class ImportController extends Controller
         ];
     }
 
-    private function importCompleteEquips($db, $sheet, int $instalacioId, array $catalogMaps): array
+    private function importCompleteEquips(
+        $db,
+        $sheet,
+        int $instalacioId,
+        array $catalogMaps,
+        array $espaiMap = [],
+        array $espaiCodeMap = []
+    ): array
     {
         $equipMap = [];
         foreach (Equip::allByInstalacio($instalacioId) as $equip) {
+            if (!empty($equip['nom_equip'])) {
+                $equipMap[mb_strtolower($equip['nom_equip'])] = (int)$equip['id'];
+            }
             if (!empty($equip['nom_mn'])) {
                 $equipMap[mb_strtolower($equip['nom_mn'])] = (int)$equip['id'];
             }
+        }
+
+        $inventoryLayout = ImportWorkbookInspector::detectInventoryLayout($sheet);
+        if ($inventoryLayout['format'] === 'simple') {
+            return $this->importCompleteSimpleEquips($db, $sheet, $instalacioId, $equipMap, $espaiMap, $espaiCodeMap);
         }
 
         $stmt = $db->prepare('INSERT INTO equips (instalacio_id, sistema_id, tipus_equip_id, numero, nom_mn, nom_equip, notes, model, dona_servei_a, equipament, planta, empresa_mantenedora, data_installacio, fi_garantia, estat_id, actiu) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)');
@@ -1313,6 +1379,54 @@ class ImportController extends Controller
                 $skipped++;
                 if (count($errors) < 10) {
                     $errors[] = "Equips fila {$row}: " . $e->getMessage();
+                }
+            }
+        }
+
+        return ['map' => $equipMap, 'imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
+    }
+
+    private function importCompleteSimpleEquips(
+        $db,
+        $sheet,
+        int $instalacioId,
+        array $equipMap,
+        array $espaiMap,
+        array $espaiCodeMap
+    ): array {
+        $stmt = $db->prepare('INSERT INTO equips (instalacio_id, nom_equip, notes, model, espai_id, planta, actiu) VALUES (?, ?, ?, ?, ?, ?, 1)');
+        $imported = 0;
+        $skipped = 0;
+        $errors = [];
+
+        foreach (ImportWorkbookInspector::extractSimpleInventoryRows($sheet) as $row) {
+            $key = mb_strtolower($row['nom_equip']);
+            if (isset($equipMap[$key])) {
+                $skipped++;
+                continue;
+            }
+
+            $spaceId = $espaiCodeMap[mb_strtolower($row['codi_espai'])] ?? null;
+            if (!$spaceId && $row['ubicacio'] !== '') {
+                $spaceId = $espaiMap[mb_strtolower($row['ubicacio'])] ?? null;
+            }
+
+            try {
+                $notes = $row['ubicacio'] !== '' ? 'Ubicació original: ' . $row['ubicacio'] : null;
+                $stmt->execute([
+                    $instalacioId,
+                    $row['nom_equip'],
+                    $notes,
+                    $row['model'] ?: null,
+                    $spaceId,
+                    $row['planta'] ?: null,
+                ]);
+                $equipMap[$key] = (int)$db->lastInsertId();
+                $imported++;
+            } catch (\Throwable $e) {
+                $skipped++;
+                if (count($errors) < 10) {
+                    $errors[] = "Equips fila {$row['row']}: " . $e->getMessage();
                 }
             }
         }
@@ -1686,19 +1800,4 @@ class ImportController extends Controller
         return $default;
     }
 
-    private function getRecommendedType(string $returnTo): string
-    {
-        $allowed = ['plantilla', 'pla_rapid', 'tasques_cataleg', 'tasques_pla', 'completa_instalacio'];
-        $recommended = (string)$this->get('recommended', '');
-
-        if (in_array($recommended, $allowed, true)) {
-            return $recommended;
-        }
-
-        if ($returnTo !== '' && str_starts_with($returnTo, 'instalacions/onboarding/')) {
-            return 'plantilla';
-        }
-
-        return $this->currentInstalacioId() ? 'pla_rapid' : 'tasques_cataleg';
-    }
 }
