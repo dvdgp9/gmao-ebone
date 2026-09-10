@@ -41,7 +41,7 @@ ob_start();
         <?php endif; ?>
         <a href="<?= url('pla/create') ?>" class="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Afegir Tasca
+            Nova tasca
         </a>
     </div>
     <?php endif; ?>
@@ -150,9 +150,9 @@ ob_start();
                 <div class="flex items-center justify-end gap-3 pt-2">
                     <a href="<?= url('pla/edit/' . $t['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
                     <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
-                    <form method="POST" action="<?= url('pla/delete/' . $t['id']) ?>" onsubmit="return confirm('Segur que vols eliminar aquesta tasca del pla?')">
+                    <form method="POST" action="<?= url('pla/delete/' . $t['id']) ?>" onsubmit="return confirm('Segur que vols desactivar aquesta tasca del pla? La podràs recuperar des del repositori.')">
                         <?= csrf_field() ?>
-                        <button type="submit" class="text-sm text-red-600 hover:text-red-700 transition">Eliminar</button>
+                        <button type="submit" class="text-sm text-red-600 hover:text-red-700 transition">Desactivar</button>
                     </form>
                     <?php endif; ?>
                 </div>
@@ -241,9 +241,9 @@ ob_start();
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                 </a>
                                 <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
-                                <form method="POST" action="<?= url('pla/delete/' . $t['id']) ?>" onsubmit="return confirm('Segur que vols eliminar aquesta tasca del pla?')">
+                                <form method="POST" action="<?= url('pla/delete/' . $t['id']) ?>" onsubmit="return confirm('Segur que vols desactivar aquesta tasca del pla? La podràs recuperar des del repositori.')">
                                     <?= csrf_field() ?>
-                                    <button type="submit" class="text-gray-400 hover:text-red-600 transition" title="Eliminar">
+                                    <button type="submit" class="text-gray-400 hover:text-red-600 transition" title="Desactivar">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                     </button>
                                 </form>

@@ -11,6 +11,8 @@ use App\Models\Torn;
 use App\Models\Periodicitat;
 use App\Models\Normativa;
 use App\Models\Instalacio;
+use App\Models\Sistema;
+use App\Models\Database;
 
 class TascaPlaController extends Controller
 {
@@ -45,10 +47,23 @@ class TascaPlaController extends Controller
             $this->redirect('dashboard');
         }
 
+        $preselectedCatalogId = (int)$this->get('tasca_cataleg_id', 0);
+        $selectedCatalog = $preselectedCatalogId > 0 ? TascaCataleg::find($preselectedCatalogId) : null;
+        if ($selectedCatalog && (int)$selectedCatalog['instalacio_id'] !== $instalacioId) {
+            $selectedCatalog = null;
+            $preselectedCatalogId = 0;
+        }
+
         $this->view('pla.form', [
-            'title' => 'Afegir Tasca al Pla',
+            'title' => 'Nova tasca',
             'tasca' => null,
             'cataleg' => TascaCataleg::allWithRelations($instalacioId),
+            'selectedCatalog' => $selectedCatalog,
+            'preselectedCatalogId' => $preselectedCatalogId,
+            'origen' => $this->get('origen') === 'cataleg' ? 'cataleg' : 'pla',
+            'afegirAlPla' => $this->get('afegir') === '1' || $this->get('origen') !== 'cataleg',
+            'sistemes' => Sistema::allOrdered(),
+            'tipusEquip' => $this->getTipusEquip(),
             'equips' => Equip::allByInstalacio($instalacioId),
             'espais' => Espai::allByInstalacio($instalacioId),
             'torns' => Torn::allByInstalacio($instalacioId),
@@ -212,28 +227,79 @@ class TascaPlaController extends Controller
             $this->setFlash('error', 'Selecciona una instal·lació abans de crear tasques del pla.');
             $this->redirect('dashboard');
         }
-        $data = $this->getFormData();
-        $data['instalacio_id'] = $instalacioId;
-        if (!$this->tornBelongsToCurrentInstalacio($data['torn_id'], $instalacioId)) {
+        $planData = $this->getFormData();
+        $catalogData = $this->getCatalogFormData();
+        $catalogId = (int)$this->post('tasca_cataleg_id', 0);
+        $afegirAlPla = (bool)$this->post('afegir_al_pla', false);
+        $origen = $this->post('origen') === 'cataleg' ? 'cataleg' : 'pla';
+
+        // El codi pot identificar una assignació concreta del pla. En reutilitzar
+        // una tasca no sobreescrivim el codi base del repositori.
+        if ($catalogId > 0 && $afegirAlPla) {
+            unset($catalogData['codi']);
+        }
+
+        if ($catalogId > 0 && !TascaCataleg::belongsToInstalacio($catalogId, $instalacioId)) {
+            $this->setFlash('error', 'La tasca del repositori no és vàlida per a aquesta instal·lació.');
+            $this->redirect('pla/create?origen=' . $origen);
+        }
+        if ($catalogId === 0 && $catalogData['nom'] === '') {
+            $this->setFlash('error', 'Cal indicar el nom de la tasca.');
+            $this->redirect('pla/create?origen=' . $origen);
+        }
+        if (!$afegirAlPla) {
+            $catalogData['instalacio_id'] = $instalacioId;
+            $catalogData['activa'] = 1;
+            if ($catalogId > 0) {
+                TascaCataleg::update($catalogId, $catalogData);
+            } else {
+                TascaCataleg::create($catalogData);
+            }
+            $this->setFlash('success', 'Tasca desada al repositori. La podràs activar al pla quan la necessitis.');
+            $this->redirect('tasques-cataleg');
+        }
+
+        $planData['instalacio_id'] = $instalacioId;
+        if (!$this->tornBelongsToCurrentInstalacio($planData['torn_id'], $instalacioId)) {
             $this->setFlash('error', 'Torn no vàlid per a aquesta instal·lació.');
             $this->redirect('pla/create');
         }
-        if (!$this->espaiBelongsToCurrentInstalacio($data['espai_id'], $instalacioId)) {
+        if (!$this->espaiBelongsToCurrentInstalacio($planData['espai_id'], $instalacioId)) {
             $this->setFlash('error', 'Espai no vàlid per a aquesta instal·lació.');
             $this->redirect('pla/create');
         }
-        if (!$this->equipBelongsToCurrentInstalacio($data['equip_id'], $instalacioId)) {
+        if (!$this->equipBelongsToCurrentInstalacio($planData['equip_id'], $instalacioId)) {
             $this->setFlash('error', 'Equip no vàlid per a aquesta instal·lació.');
             $this->redirect('pla/create');
         }
 
-        $id = TascaPla::create($data);
+        $db = Database::getInstance();
+        try {
+            $db->beginTransaction();
+            $catalogData['instalacio_id'] = $instalacioId;
+            $catalogData['activa'] = 1;
+            if ($catalogId > 0) {
+                TascaCataleg::update($catalogId, $catalogData);
+            } else {
+                $catalogId = TascaCataleg::create($catalogData);
+            }
 
-        if ($data['data_darrera_realitzacio'] && $data['periodicitat_id']) {
-            TascaPla::recalcularPropera($id);
+            $planData['tasca_cataleg_id'] = $catalogId;
+            $id = TascaPla::create($planData);
+
+            if ($planData['data_darrera_realitzacio'] && $planData['periodicitat_id']) {
+                TascaPla::recalcularPropera($id);
+            }
+            $db->commit();
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            $this->setFlash('error', 'No s\'ha pogut crear la tasca. Revisa les dades i torna-ho a provar.');
+            $this->redirect('pla/create?origen=' . $origen);
         }
 
-        $this->setFlash('success', 'Tasca afegida al pla correctament.');
+        $this->setFlash('success', 'Tasca creada i afegida al pla de manteniment.');
         $this->redirect('pla');
     }
 
@@ -252,6 +318,11 @@ class TascaPlaController extends Controller
             'title' => 'Editar Tasca del Pla',
             'tasca' => $tasca,
             'cataleg' => TascaCataleg::allWithRelations($instalacioId),
+            'selectedCatalog' => TascaCataleg::find((int)$tasca['tasca_cataleg_id']),
+            'preselectedCatalogId' => (int)$tasca['tasca_cataleg_id'],
+            'origen' => 'pla',
+            'sistemes' => Sistema::allOrdered(),
+            'tipusEquip' => $this->getTipusEquip(),
             'equips' => Equip::allByInstalacio($instalacioId),
             'espais' => Espai::allByInstalacio($instalacioId),
             'torns' => Torn::allByInstalacio($instalacioId),
@@ -289,10 +360,30 @@ class TascaPlaController extends Controller
             $this->redirect('pla/edit/' . (int)$id);
         }
 
-        TascaPla::update((int)$id, $data);
+        $catalogId = (int)$data['tasca_cataleg_id'];
+        if (!TascaCataleg::belongsToInstalacio($catalogId, (int)$tasca['instalacio_id'])) {
+            $this->setFlash('error', 'La tasca del repositori no és vàlida per a aquesta instal·lació.');
+            $this->redirect('pla/edit/' . (int)$id);
+        }
 
-        if ($data['data_darrera_realitzacio'] && $data['periodicitat_id']) {
-            TascaPla::recalcularPropera((int)$id);
+        $db = Database::getInstance();
+        try {
+            $db->beginTransaction();
+            $catalogData = $this->getCatalogFormData();
+            unset($catalogData['codi']);
+            TascaCataleg::update($catalogId, $catalogData);
+            TascaPla::update((int)$id, $data);
+
+            if ($data['data_darrera_realitzacio'] && $data['periodicitat_id']) {
+                TascaPla::recalcularPropera((int)$id);
+            }
+            $db->commit();
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            $this->setFlash('error', 'No s\'ha pogut actualitzar la tasca.');
+            $this->redirect('pla/edit/' . (int)$id);
         }
 
         $this->setFlash('success', 'Tasca del pla actualitzada correctament.');
@@ -313,8 +404,28 @@ class TascaPlaController extends Controller
             $this->redirect('pla');
         }
 
-        TascaPla::delete((int)$id);
-        $this->setFlash('success', 'Tasca eliminada del pla.');
+        TascaPla::update((int)$id, ['en_curs' => 0]);
+        $this->setFlash('success', 'Tasca desactivada del pla. La pots recuperar des del repositori.');
+        $this->redirect('pla');
+    }
+
+    public function reactivate(string $id): void
+    {
+        $this->requireRole(['superadmin', 'admin_instalacio', 'cap_manteniment']);
+        if (!verify_csrf()) {
+            $this->setFlash('error', 'Token de seguretat invàlid.');
+            $this->redirect('tasques-cataleg');
+        }
+
+        $tasca = TascaPla::find((int)$id);
+        if (!$tasca || $tasca['instalacio_id'] != $this->currentInstalacioId()) {
+            $this->setFlash('error', 'Tasca no trobada.');
+            $this->redirect('tasques-cataleg');
+        }
+
+        TascaPla::update((int)$id, ['en_curs' => 1]);
+        TascaCataleg::update((int)$tasca['tasca_cataleg_id'], ['activa' => 1]);
+        $this->setFlash('success', 'Tasca reactivada al pla de manteniment.');
         $this->redirect('pla');
     }
 
@@ -494,6 +605,25 @@ class TascaPlaController extends Controller
             'en_curs' => $this->post('en_curs', 1) ? 1 : 0,
             'comentaris' => trim($this->post('comentaris', '')) ?: null,
         ];
+    }
+
+    private function getCatalogFormData(): array
+    {
+        return [
+            'codi' => mb_substr(trim($this->post('codi', '')), 0, 50) ?: null,
+            'sistema_id' => $this->post('sistema_id') ?: null,
+            'tipus_equip_id' => $this->post('tipus_equip_id') ?: null,
+            'nom' => trim($this->post('nom', '')),
+            'descripcio' => trim($this->post('descripcio', '')) ?: null,
+            'periodicitat_normativa_id' => $this->post('periodicitat_normativa_id') ?: null,
+            'normativa_id' => $this->post('normativa_id') ?: null,
+            'empresa_responsable' => trim($this->post('empresa_responsable', '')) ?: null,
+        ];
+    }
+
+    private function getTipusEquip(): array
+    {
+        return Database::getInstance()->query('SELECT * FROM tipus_equip ORDER BY codi ASC')->fetchAll();
     }
 
     private function tornBelongsToCurrentInstalacio(?int $tornId, ?int $instalacioId): bool

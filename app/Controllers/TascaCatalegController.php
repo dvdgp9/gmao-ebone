@@ -21,12 +21,10 @@ class TascaCatalegController extends Controller
         }
 
         $search = trim($this->get('q', ''));
-        $tasques = $search
-            ? TascaCataleg::search($instalacioId, $search)
-            : TascaCataleg::allWithRelations($instalacioId);
+        $tasques = TascaCataleg::repository($instalacioId, $search);
 
         $this->view('tasques_cataleg.index', [
-            'title' => 'Catàleg de Tasques',
+            'title' => 'Repositori de Tasques',
             'tasques' => $tasques,
             'search' => $search,
             'flash' => $this->getFlash(),
@@ -36,15 +34,7 @@ class TascaCatalegController extends Controller
     public function create(): void
     {
         $this->requireRole(['superadmin', 'admin_instalacio']);
-        $this->view('tasques_cataleg.form', [
-            'title' => 'Nova Tasca',
-            'tasca' => null,
-            'sistemes' => Sistema::allOrdered(),
-            'tipusEquip' => $this->getTipusEquip(),
-            'periodicitats' => Periodicitat::allOrdered(),
-            'normatives' => Normativa::allOrdered(),
-            'flash' => $this->getFlash(),
-        ]);
+        $this->redirect('pla/create?origen=cataleg');
     }
 
     public function store(): void
@@ -121,8 +111,32 @@ class TascaCatalegController extends Controller
             $this->redirect('tasques-cataleg');
         }
 
+        if (TascaCataleg::hasActivePlan((int)$id, (int)$tasca['instalacio_id'])) {
+            $this->setFlash('error', 'Desactiva primer la tasca del pla abans d\'arxivar-la.');
+            $this->redirect('tasques-cataleg');
+        }
+
         TascaCataleg::update((int)$id, ['activa' => 0]);
-        $this->setFlash('success', 'Tasca desactivada correctament.');
+        $this->setFlash('success', 'Tasca arxivada al repositori.');
+        $this->redirect('tasques-cataleg');
+    }
+
+    public function activate(string $id): void
+    {
+        $this->requireRole(['superadmin', 'admin_instalacio']);
+        if (!verify_csrf()) {
+            $this->setFlash('error', 'Token de seguretat invàlid.');
+            $this->redirect('tasques-cataleg');
+        }
+
+        $tasca = TascaCataleg::find((int)$id);
+        if (!$tasca || $tasca['instalacio_id'] != $this->currentInstalacioId()) {
+            $this->setFlash('error', 'Tasca no trobada.');
+            $this->redirect('tasques-cataleg');
+        }
+
+        TascaCataleg::update((int)$id, ['activa' => 1]);
+        $this->setFlash('success', 'Tasca recuperada al repositori.');
         $this->redirect('tasques-cataleg');
     }
 
