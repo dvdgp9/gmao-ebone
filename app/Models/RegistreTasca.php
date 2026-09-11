@@ -101,34 +101,41 @@ class RegistreTasca extends Model
         return (int)($result[0]['total'] ?? 0);
     }
 
-    public static function filterOptionsByInstalacio(int $instalacioId): array
+    public static function filterOptionsByInstalacio(int $instalacioId, ?int $usuariId = null): array
     {
+        $scopeSql = 'rt.instalacio_id = ?';
+        $params = [$instalacioId];
+        if ($usuariId !== null) {
+            $scopeSql .= ' AND rt.usuari_id = ?';
+            $params[] = $usuariId;
+        }
+
         return [
             'tasques' => static::query('
                 SELECT DISTINCT tp.id, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom
                 FROM registre_tasques rt
                 JOIN tasques_pla tp ON tp.id = rt.tasca_pla_id
                 JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
-                WHERE rt.instalacio_id = ?
+                WHERE ' . $scopeSql . '
                 ORDER BY tasca_codi ASC, tc.nom ASC
-            ', [$instalacioId]),
+            ', $params),
             'espais' => static::query('
                 SELECT DISTINCT es.id, es.nom
                 FROM registre_tasques rt
                 JOIN tasques_pla tp ON tp.id = rt.tasca_pla_id
                 JOIN espais es ON es.id = tp.espai_id
-                WHERE rt.instalacio_id = ?
+                WHERE ' . $scopeSql . '
                 ORDER BY es.nom ASC
-            ', [$instalacioId]),
+            ', $params),
             'torns' => static::query('
                 SELECT DISTINCT t.id, t.nom
                 FROM registre_tasques rt
                 JOIN tasques_pla tp ON tp.id = rt.tasca_pla_id
                 LEFT JOIN tasca_pla_torn tpt ON tpt.tasca_pla_id = tp.id
                 JOIN torns t ON t.id = COALESCE(tpt.torn_id, tp.torn_id)
-                WHERE rt.instalacio_id = ?
+                WHERE ' . $scopeSql . '
                 ORDER BY t.nom ASC
-            ', [$instalacioId]),
+            ', $params),
         ];
     }
 
@@ -136,6 +143,11 @@ class RegistreTasca extends Model
     {
         $conditions = ['rt.instalacio_id = ?'];
         $params = [$instalacioId];
+
+        if (!empty($filters['usuari_id'])) {
+            $conditions[] = 'rt.usuari_id = ?';
+            $params[] = (int)$filters['usuari_id'];
+        }
 
         if (!empty($filters['date_from'])) {
             $conditions[] = 'rt.data_execucio >= ?';

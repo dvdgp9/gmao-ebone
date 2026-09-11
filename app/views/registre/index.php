@@ -1,5 +1,6 @@
 <?php
-$title = 'Registre de Tasques';
+$isTecnic = $isTecnic ?? false;
+$title = $isTecnic ? 'El meu registre' : 'Registre de Tasques';
 $filters = $filters ?? [];
 $filterOptions = $filterOptions ?? ['tasques' => [], 'espais' => [], 'torns' => []];
 $activeFilters = array_filter($filters, fn($value) => $value !== null && $value !== '');
@@ -20,8 +21,8 @@ ob_start();
 <div class="mb-5">
     <div class="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-3">
         <div>
-            <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Registre de Tasques</h2>
-            <p class="text-gray-500 text-sm mt-1">Historial d'execucions de tasques de manteniment</p>
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-800"><?= $isTecnic ? 'El meu registre' : 'Registre de Tasques' ?></h2>
+            <p class="text-gray-500 text-sm mt-1"><?= $isTecnic ? 'Historial de les execucions que has registrat' : 'Historial d\'execucions de tasques de manteniment' ?></p>
         </div>
         <div class="text-sm text-gray-500">
             <?= $pagination['total'] ?> registres<?= !empty($activeFilters) ? ' filtrats' : '' ?>
@@ -37,7 +38,7 @@ ob_start();
                 <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m1.1-5.15a6.25 6.25 0 11-12.5 0 6.25 6.25 0 0112.5 0z"/>
                 </svg>
-                <input type="text" name="q" value="<?= e($filters['q'] ?? '') ?>" placeholder="Cercar per tasca, codi, espai, torn, tècnic o comentari"
+                <input type="text" name="q" value="<?= e($filters['q'] ?? '') ?>" placeholder="<?= $isTecnic ? 'Cercar per tasca, codi, espai, torn o comentari' : 'Cercar per tasca, codi, espai, torn, tècnic o comentari' ?>"
                        class="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
             </div>
         </div>
@@ -148,10 +149,12 @@ ob_start();
                     <div class="text-gray-400">Data</div>
                     <div class="text-gray-700 mt-0.5"><?= format_date($r['data_execucio']) ?></div>
                 </div>
+                <?php if (!$isTecnic): ?>
                 <div>
                     <div class="text-gray-400">Tècnic</div>
                     <div class="text-gray-700 mt-0.5"><?= e($r['usuari_nom'] ?? '-') ?></div>
                 </div>
+                <?php endif; ?>
                 <div>
                     <div class="text-gray-400">Espai</div>
                     <div class="text-gray-700 mt-0.5"><?= e($r['espai_nom'] ?? '-') ?></div>
@@ -186,14 +189,16 @@ ob_start();
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Tasca</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Espai</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Torn</th>
-                    <th class="text-left px-4 py-3 font-medium text-gray-600">Tècnic</th>
+                    <?php if (!$isTecnic): ?>
+                        <th class="text-left px-4 py-3 font-medium text-gray-600">Tècnic</th>
+                    <?php endif; ?>
                     <th class="text-center px-4 py-3 font-medium text-gray-600">Estat</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Comentaris</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 <?php if (empty($registres)): ?>
-                    <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">No hi ha registres d'execucions.</td></tr>
+                    <tr><td colspan="<?= $isTecnic ? 7 : 8 ?>" class="px-4 py-8 text-center text-gray-400">No hi ha registres d'execucions.</td></tr>
                 <?php else: ?>
                     <?php foreach ($registres as $r): ?>
                     <tr class="hover:bg-gray-50 transition">
@@ -210,7 +215,9 @@ ob_start();
                                 <span class="text-gray-400">-</span>
                             <?php endif; ?>
                         </td>
-                        <td class="px-4 py-3 text-gray-500 text-xs"><?= e($r['usuari_nom'] ?? '-') ?></td>
+                        <?php if (!$isTecnic): ?>
+                            <td class="px-4 py-3 text-gray-500 text-xs"><?= e($r['usuari_nom'] ?? '-') ?></td>
+                        <?php endif; ?>
                         <td class="px-4 py-3 text-center">
                             <?php if ($r['realitzada']): ?>
                                 <span class="inline-block bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded">Fet</span>
