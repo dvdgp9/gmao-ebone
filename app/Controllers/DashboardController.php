@@ -7,6 +7,7 @@ use App\Models\Database;
 use App\Models\Equip;
 use App\Models\TascaPla;
 use App\Models\RegistreTasca;
+use App\Models\Torn;
 
 class DashboardController extends Controller
 {
@@ -29,6 +30,11 @@ class DashboardController extends Controller
             && TascaPla::count(['instalacio_id' => $instalacioId]) === 0
         ) {
             $this->redirect('instalacions/onboarding/' . $instalacioId);
+        }
+
+        if (empty($_SESSION['is_superadmin']) && $this->currentRole() === 'tecnic') {
+            $this->tecnicDashboard($instalacioId);
+            return;
         }
 
         $stats = [
@@ -67,7 +73,7 @@ class DashboardController extends Controller
 
             $stats['properes_tasques'] = TascaPla::query('
                 SELECT tp.id, tp.data_propera_realitzacio, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
-                       es.nom AS espai_nom, t.nom AS torn_nom
+                       es.nom AS espai_nom, ' . TascaPla::tornNamesSql() . ' AS torn_nom
                 FROM tasques_pla tp
                 JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
                 LEFT JOIN espais es ON es.id = tp.espai_id
@@ -80,14 +86,15 @@ class DashboardController extends Controller
             ', [$instalacioId]);
 
             $stats['tasques_per_torn'] = TascaPla::query('
-                SELECT t.nom AS torn_nom, COUNT(*) AS total,
+                SELECT t.nom AS torn_nom, COUNT(DISTINCT tp.id) AS total,
                        SUM(CASE WHEN tp.data_propera_realitzacio < CURDATE() THEN 1 ELSE 0 END) AS vencudes
                 FROM tasques_pla tp
                 LEFT JOIN espais es ON es.id = tp.espai_id
-                LEFT JOIN torns t ON t.id = tp.torn_id
+                LEFT JOIN tasca_pla_torn tpt ON tpt.tasca_pla_id = tp.id
+                LEFT JOIN torns t ON t.id = COALESCE(tpt.torn_id, tp.torn_id)
                 WHERE tp.instalacio_id = ? AND tp.en_curs = 1
                   AND (tp.espai_id IS NULL OR es.actiu = 1)
-                GROUP BY tp.torn_id, t.nom
+                GROUP BY t.id, t.nom
                 ORDER BY t.nom
             ', [$instalacioId]);
 
@@ -109,6 +116,57 @@ class DashboardController extends Controller
             'flash' => $this->getFlash(),
             'stats' => $stats,
             'instalacioId' => $instalacioId,
+        ]);
+    }
+
+    private function tecnicDashboard(?int $instalacioId): void
+    {
+        $stats = [
+            'pendents_avui' => 0,
+            'vencudes' => 0,
+            'fetes_avui' => 0,
+            'fetes_mes' => 0,
+            'properes_tasques' => [],
+        ];
+        $tornsAssignats = [];
+        $senseTornsAssignats = false;
+
+        if ($instalacioId) {
+            $tornIds = Torn::tornIdsByUsuariInstalacio($this->currentUserId(), $instalacioId);
+            $senseTornsAssignats = empty($tornIds);
+
+            if (!$senseTornsAssignats) {
+                $tornsAssignats = array_values(array_filter(
+                    Torn::allByInstalacio($instalacioId),
+                    static fn(array $torn): bool => in_array((int)$torn['id'], $tornIds, true)
+                ));
+                $stats['pendents_avui'] = TascaPla::tasquesPendents($instalacioId, $tornIds);
+                $stats['vencudes'] = TascaPla::tasquesVençudes($instalacioId, $tornIds);
+                $stats['properes_tasques'] = TascaPla::properesByInstalacio($instalacioId, $tornIds);
+
+                $primerDiaMes = date('Y-m-01');
+                $avui = date('Y-m-d');
+                $resum = RegistreTasca::query(
+                    'SELECT
+                        SUM(CASE WHEN data_execucio = ? THEN 1 ELSE 0 END) AS fetes_avui,
+                        COUNT(*) AS fetes_mes
+                     FROM registre_tasques
+                     WHERE instalacio_id = ? AND usuari_id = ? AND realitzada = 1
+                       AND data_execucio BETWEEN ? AND ?',
+                    [$avui, $instalacioId, $this->currentUserId(), $primerDiaMes, $avui]
+                );
+                $stats['fetes_avui'] = (int)($resum[0]['fetes_avui'] ?? 0);
+                $stats['fetes_mes'] = (int)($resum[0]['fetes_mes'] ?? 0);
+            }
+        }
+
+        $this->view('dashboard.tecnic', [
+            'title' => 'La meva jornada',
+            'flash' => $this->getFlash(),
+            'stats' => $stats,
+            'instalacioId' => $instalacioId,
+            'tornsAssignats' => $tornsAssignats,
+            'senseTornsAssignats' => $senseTornsAssignats,
         ]);
     }
 

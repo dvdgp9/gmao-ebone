@@ -34,6 +34,9 @@ $assertContains('reactivable_plan_id', $catalogModel, 'El repositorio debe local
 $assertContains('Reactivar', $catalogIndex, 'El repositorio debe ofrecer la reactivación.');
 $assertContains('Nova tasca', $catalogIndex, 'El botón del repositorio debe decir Nova tasca.');
 $assertContains('Nova tasca', $planIndex, 'El botón del plan debe decir Nova tasca.');
+$assertContains('$potEditar = $potProgramar;', $planIndex, 'Editar tareas debe limitarse a los roles autorizados para gestionar el plan.');
+$assertContains('<?php if ($potEditar): ?>', $planIndex, 'Los enlaces de edición deben ocultarse a los técnicos.');
+$assertNotContains("in_array(\$_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio']))", $planIndex, 'La visibilidad de acciones debe usar permisos centralizados en la vista.');
 
 if ($failures !== []) {
     fwrite(STDERR, "TaskLifecycleTest failed:\n- " . implode("\n- ", $failures) . "\n");

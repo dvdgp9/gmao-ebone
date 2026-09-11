@@ -25,15 +25,34 @@ class TascaPlaController extends Controller
             $this->redirect('dashboard');
         }
 
+        $isTecnic = empty($_SESSION['is_superadmin']) && $this->currentRole() === 'tecnic';
+        $tornIdsTecnic = $isTecnic
+            ? Torn::tornIdsByUsuariInstalacio($this->currentUserId(), $instalacioId)
+            : null;
+        $senseTornsAssignats = $isTecnic && empty($tornIdsTecnic);
+        $tornsAssignats = $isTecnic
+            ? array_values(array_filter(
+                Torn::allByInstalacio($instalacioId),
+                static fn(array $torn): bool => in_array((int)$torn['id'], $tornIdsTecnic, true)
+            ))
+            : [];
+
         $search = trim($this->get('q', ''));
-        $tasques = $search !== ''
-            ? TascaPla::searchByInstalacio($instalacioId, $search)
-            : TascaPla::allByInstalacio($instalacioId);
+        if ($senseTornsAssignats) {
+            $tasques = [];
+        } else {
+            $tasques = $search !== ''
+                ? TascaPla::searchByInstalacio($instalacioId, $search, 'data_propera_realitzacio ASC', $tornIdsTecnic)
+                : TascaPla::allByInstalacio($instalacioId, 'data_propera_realitzacio ASC', $tornIdsTecnic);
+        }
 
         $this->view('pla.index', [
             'title' => 'Pla de Manteniment',
             'tasques' => $tasques,
             'search' => $search,
+            'isTecnic' => $isTecnic,
+            'tornsAssignats' => $tornsAssignats,
+            'senseTornsAssignats' => $senseTornsAssignats,
             'flash' => $this->getFlash(),
         ]);
     }
@@ -67,6 +86,7 @@ class TascaPlaController extends Controller
             'equips' => Equip::allByInstalacio($instalacioId),
             'espais' => Espai::allByInstalacio($instalacioId),
             'torns' => Torn::allByInstalacio($instalacioId),
+            'selectedTornIds' => [],
             'periodicitats' => Periodicitat::allOrdered(),
             'normatives' => Normativa::allOrdered(),
             'flash' => $this->getFlash(),
@@ -227,7 +247,8 @@ class TascaPlaController extends Controller
             $this->setFlash('error', 'Selecciona una instal·lació abans de crear tasques del pla.');
             $this->redirect('dashboard');
         }
-        $planData = $this->getFormData();
+        $tornIds = $this->getTornIds();
+        $planData = $this->getFormData($tornIds);
         $catalogData = $this->getCatalogFormData();
         $catalogId = (int)$this->post('tasca_cataleg_id', 0);
         $afegirAlPla = (bool)$this->post('afegir_al_pla', false);
@@ -260,8 +281,8 @@ class TascaPlaController extends Controller
         }
 
         $planData['instalacio_id'] = $instalacioId;
-        if (!$this->tornBelongsToCurrentInstalacio($planData['torn_id'], $instalacioId)) {
-            $this->setFlash('error', 'Torn no vàlid per a aquesta instal·lació.');
+        if (!$this->tornsBelongToCurrentInstalacio($tornIds, $instalacioId)) {
+            $this->setFlash('error', 'Hi ha torns no vàlids per a aquesta instal·lació.');
             $this->redirect('pla/create');
         }
         if (!$this->espaiBelongsToCurrentInstalacio($planData['espai_id'], $instalacioId)) {
@@ -286,6 +307,7 @@ class TascaPlaController extends Controller
 
             $planData['tasca_cataleg_id'] = $catalogId;
             $id = TascaPla::create($planData);
+            TascaPla::syncTorns($id, $tornIds, $instalacioId);
 
             if ($planData['data_darrera_realitzacio'] && $planData['periodicitat_id']) {
                 TascaPla::recalcularPropera($id);
@@ -326,6 +348,7 @@ class TascaPlaController extends Controller
             'equips' => Equip::allByInstalacio($instalacioId),
             'espais' => Espai::allByInstalacio($instalacioId),
             'torns' => Torn::allByInstalacio($instalacioId),
+            'selectedTornIds' => TascaPla::tornIds((int)$id),
             'periodicitats' => Periodicitat::allOrdered(),
             'normatives' => Normativa::allOrdered(),
             'flash' => $this->getFlash(),
@@ -346,9 +369,10 @@ class TascaPlaController extends Controller
             $this->redirect('pla');
         }
 
-        $data = $this->getFormData();
-        if (!$this->tornBelongsToCurrentInstalacio($data['torn_id'], (int)$tasca['instalacio_id'])) {
-            $this->setFlash('error', 'Torn no vàlid per a aquesta instal·lació.');
+        $tornIds = $this->getTornIds();
+        $data = $this->getFormData($tornIds);
+        if (!$this->tornsBelongToCurrentInstalacio($tornIds, (int)$tasca['instalacio_id'])) {
+            $this->setFlash('error', 'Hi ha torns no vàlids per a aquesta instal·lació.');
             $this->redirect('pla/edit/' . (int)$id);
         }
         if (!$this->espaiBelongsToCurrentInstalacio($data['espai_id'], (int)$tasca['instalacio_id'])) {
@@ -373,6 +397,7 @@ class TascaPlaController extends Controller
             unset($catalogData['codi']);
             TascaCataleg::update($catalogId, $catalogData);
             TascaPla::update((int)$id, $data);
+            TascaPla::syncTorns((int)$id, $tornIds, (int)$tasca['instalacio_id']);
 
             if ($data['data_darrera_realitzacio'] && $data['periodicitat_id']) {
                 TascaPla::recalcularPropera((int)$id);
@@ -556,7 +581,7 @@ class TascaPlaController extends Controller
     /**
      * Determina l'àmbit de torns visible per a l'usuari actual.
      * Per al rol tecnic: només els seus torns assignats; un ?torn= aliè s'ignora;
-     * sense filtre explícit es mostren tots els seus torns (+ tasques sense torn).
+     * sense filtre explícit es mostren tots els seus torns.
      * Retorna [torns visibles, tornId seleccionat, filtre per la consulta, avís o null].
      */
     private function resolveTornScope(int $instalacioId, ?int $tornId): array
@@ -564,8 +589,7 @@ class TascaPlaController extends Controller
         $torns = Torn::allByInstalacio($instalacioId);
 
         $isTecnic = empty($_SESSION['is_superadmin'])
-            && $this->currentRole() === 'tecnic'
-            && Torn::supportsUsuariTorn();
+            && $this->currentRole() === 'tecnic';
 
         if (!$isTecnic) {
             return [$torns, $tornId, $tornId, null];
@@ -588,14 +612,14 @@ class TascaPlaController extends Controller
         return [$torns, $tornId, $tornId ?: $allowedIds, null];
     }
 
-    private function getFormData(): array
+    private function getFormData(array $tornIds = []): array
     {
         return [
             'codi' => mb_substr(trim($this->post('codi', '')), 0, 50) ?: null,
             'tasca_cataleg_id' => (int)$this->post('tasca_cataleg_id'),
             'equip_id' => $this->post('equip_id') ?: null,
             'espai_id' => $this->post('espai_id') ?: null,
-            'torn_id' => $this->post('torn_id') ? (int)$this->post('torn_id') : null,
+            'torn_id' => $tornIds[0] ?? null,
             'periodicitat_id' => $this->post('periodicitat_id') ?: null,
             'periodicitat_normativa_id' => $this->post('periodicitat_normativa_id') ?: null,
             'normativa_id' => $this->post('normativa_id') ?: null,
@@ -605,6 +629,16 @@ class TascaPlaController extends Controller
             'en_curs' => $this->post('en_curs', 1) ? 1 : 0,
             'comentaris' => trim($this->post('comentaris', '')) ?: null,
         ];
+    }
+
+    private function getTornIds(): array
+    {
+        $ids = (array)$this->post('torn_ids', []);
+        if (empty($ids) && $this->post('torn_id')) {
+            $ids = [$this->post('torn_id')];
+        }
+
+        return array_values(array_unique(array_filter(array_map('intval', $ids))));
     }
 
     private function getCatalogFormData(): array
@@ -626,9 +660,9 @@ class TascaPlaController extends Controller
         return Database::getInstance()->query('SELECT * FROM tipus_equip ORDER BY codi ASC')->fetchAll();
     }
 
-    private function tornBelongsToCurrentInstalacio(?int $tornId, ?int $instalacioId): bool
+    private function tornsBelongToCurrentInstalacio(array $tornIds, ?int $instalacioId): bool
     {
-        if ($tornId === null) {
+        if (empty($tornIds)) {
             return true;
         }
 
@@ -636,7 +670,13 @@ class TascaPlaController extends Controller
             return false;
         }
 
-        return Torn::belongsToInstalacio($tornId, $instalacioId);
+        foreach ($tornIds as $tornId) {
+            if (!Torn::belongsToInstalacio((int)$tornId, $instalacioId)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function espaiBelongsToCurrentInstalacio(mixed $espaiId, ?int $instalacioId): bool

@@ -8,13 +8,83 @@ class TascaPla extends Model
 {
     protected static string $table = 'tasques_pla';
 
-    public static function allByInstalacio(int $instalacioId, string $orderBy = 'data_propera_realitzacio ASC'): array
+    public static function create(array $data): int
     {
+        $id = parent::create($data);
+        if (!empty($data['torn_id'])) {
+            static::syncTorns($id, [(int)$data['torn_id']], (int)$data['instalacio_id']);
+        }
+        return $id;
+    }
+
+    public static function tornIds(int $tascaPlaId): array
+    {
+        $rows = static::query(
+            'SELECT torn_id FROM tasca_pla_torn WHERE tasca_pla_id = ? ORDER BY id ASC',
+            [$tascaPlaId]
+        );
+        if (!empty($rows)) {
+            return array_values(array_map(static fn(array $row): int => (int)$row['torn_id'], $rows));
+        }
+
+        $tasca = static::find($tascaPlaId);
+        return !empty($tasca['torn_id']) ? [(int)$tasca['torn_id']] : [];
+    }
+
+    public static function syncTorns(int $tascaPlaId, array $tornIds, int $instalacioId): void
+    {
+        $tornIds = array_values(array_unique(array_filter(array_map('intval', $tornIds))));
+        if (!empty($tornIds)) {
+            $placeholders = implode(',', array_fill(0, count($tornIds), '?'));
+            $validRows = static::query(
+                "SELECT id FROM torns WHERE instalacio_id = ? AND id IN ({$placeholders})",
+                array_merge([$instalacioId], $tornIds)
+            );
+            $validIds = array_map(static fn(array $row): int => (int)$row['id'], $validRows);
+            sort($tornIds);
+            sort($validIds);
+            if ($tornIds !== $validIds) {
+                throw new \InvalidArgumentException('Hi ha torns que no pertanyen a la instal·lació.');
+            }
+        }
+
+        static::execute('DELETE FROM tasca_pla_torn WHERE tasca_pla_id = ?', [$tascaPlaId]);
+        foreach ($tornIds as $tornId) {
+            static::execute(
+                'INSERT INTO tasca_pla_torn (tasca_pla_id, torn_id) VALUES (?, ?)',
+                [$tascaPlaId, $tornId]
+            );
+        }
+
+        // Compatibilitat amb consultes/importacions antigues: el primer torn
+        // continua disponible a la columna original.
+        static::update($tascaPlaId, ['torn_id' => $tornIds[0] ?? null]);
+    }
+
+    public static function tornNamesSql(string $taskAlias = 'tp'): string
+    {
+        return "COALESCE(NULLIF((
+                    SELECT GROUP_CONCAT(t_multi.nom ORDER BY t_multi.nom SEPARATOR ' · ')
+                    FROM tasca_pla_torn tpt_multi
+                    JOIN torns t_multi ON t_multi.id = tpt_multi.torn_id
+                    WHERE tpt_multi.tasca_pla_id = {$taskAlias}.id
+                ), ''), t.nom)";
+    }
+
+    public static function allByInstalacio(
+        int $instalacioId,
+        string $orderBy = 'data_propera_realitzacio ASC',
+        int|array|null $torn = null
+    ): array
+    {
+        $params = [$instalacioId];
+        $tornClause = static::tornFilterClause($torn, $params);
+
         return static::query('
             SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
                    es.actiu AS espai_actiu,
-                   t.nom AS torn_nom, p.nom AS periodicitat_nom,
+                   ' . static::tornNamesSql() . ' AS torn_nom, p.nom AS periodicitat_nom,
                    n.nom AS normativa_nom
             FROM tasques_pla tp
             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
@@ -23,19 +93,24 @@ class TascaPla extends Model
             LEFT JOIN torns t ON t.id = tp.torn_id
             LEFT JOIN periodicitats p ON p.id = tp.periodicitat_id
             LEFT JOIN normatives n ON n.id = tp.normativa_id
-            WHERE tp.instalacio_id = ? AND tp.en_curs = 1
+            WHERE tp.instalacio_id = ? AND tp.en_curs = 1' . $tornClause . '
             ORDER BY ' . $orderBy,
-            [$instalacioId]
+            $params
         );
     }
 
-    public static function searchByInstalacio(int $instalacioId, string $search = '', string $orderBy = 'data_propera_realitzacio ASC'): array
+    public static function searchByInstalacio(
+        int $instalacioId,
+        string $search = '',
+        string $orderBy = 'data_propera_realitzacio ASC',
+        int|array|null $torn = null
+    ): array
     {
         $sql = '
             SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
                    es.actiu AS espai_actiu,
-                   t.nom AS torn_nom, p.nom AS periodicitat_nom,
+                   ' . static::tornNamesSql() . ' AS torn_nom, p.nom AS periodicitat_nom,
                    n.nom AS normativa_nom
             FROM tasques_pla tp
             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
@@ -46,6 +121,7 @@ class TascaPla extends Model
             LEFT JOIN normatives n ON n.id = tp.normativa_id
             WHERE tp.instalacio_id = ? AND tp.en_curs = 1';
         $params = [$instalacioId];
+        $sql .= static::tornFilterClause($torn, $params);
 
         if ($search !== '') {
             $sql .= ' AND (
@@ -55,10 +131,15 @@ class TascaPla extends Model
                 OR eq.nom_mn LIKE ?
                 OR es.nom LIKE ?
                 OR t.nom LIKE ?
+                OR EXISTS (
+                    SELECT 1 FROM tasca_pla_torn tpt_search
+                    JOIN torns t_search ON t_search.id = tpt_search.torn_id
+                    WHERE tpt_search.tasca_pla_id = tp.id AND t_search.nom LIKE ?
+                )
                 OR p.nom LIKE ?
             )';
             $like = "%{$search}%";
-            $params = array_merge($params, [$like, $like, $like, $like, $like, $like, $like]);
+            $params = array_merge($params, [$like, $like, $like, $like, $like, $like, $like, $like]);
         }
 
         $sql .= ' ORDER BY ' . $orderBy;
@@ -69,25 +150,32 @@ class TascaPla extends Model
     /**
      * Construeix la condició de filtre per torn.
      * - int: només aquest torn (filtre explícit).
-     * - array d'ids: qualsevol d'aquests torns O tasques sense torn
-     *   (cas tècnic: veu els seus torns + tasques no assignades a cap torn).
-     * - null/buit: sense filtre.
+     * - array d'ids: qualsevol d'aquests torns (cas tècnic: només els seus torns).
+     * - array buit: cap tasca (filtre segur per a tècnics sense torn).
+     * - null: sense filtre.
      */
     private static function tornFilterClause(int|array|null $torn, array &$params): string
     {
         if (is_int($torn) && $torn > 0) {
-            $params[] = $torn;
-            return ' AND tp.torn_id = ?';
+            array_push($params, $torn, $torn);
+            return ' AND (
+                EXISTS (SELECT 1 FROM tasca_pla_torn tpt_filter WHERE tpt_filter.tasca_pla_id = tp.id AND tpt_filter.torn_id = ?)
+                OR (NOT EXISTS (SELECT 1 FROM tasca_pla_torn tpt_any WHERE tpt_any.tasca_pla_id = tp.id) AND tp.torn_id = ?)
+            )';
         }
 
-        if (is_array($torn) && !empty($torn)) {
+        if (is_array($torn)) {
             $ids = array_values(array_filter(array_map('intval', $torn)));
             if (empty($ids)) {
                 return ' AND 1 = 0';
             }
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
-            $params = array_merge($params, $ids);
-            return " AND (tp.torn_id IN ({$placeholders}) OR tp.torn_id IS NULL)";
+            $params = array_merge($params, $ids, $ids);
+            return " AND (
+                EXISTS (SELECT 1 FROM tasca_pla_torn tpt_filter WHERE tpt_filter.tasca_pla_id = tp.id AND tpt_filter.torn_id IN ({$placeholders}))
+                OR (NOT EXISTS (SELECT 1 FROM tasca_pla_torn tpt_any WHERE tpt_any.tasca_pla_id = tp.id)
+                    AND tp.torn_id IN ({$placeholders}))
+            )";
         }
 
         return '';
@@ -98,7 +186,7 @@ class TascaPla extends Model
         $sql = '
             SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
-                   t.nom AS torn_nom, p.nom AS periodicitat_nom,
+                   ' . static::tornNamesSql() . ' AS torn_nom, p.nom AS periodicitat_nom,
                    p.dies_interval
             FROM tasques_pla tp
             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
@@ -112,10 +200,7 @@ class TascaPla extends Model
               AND tp.data_propera_realitzacio <= ?';
         $params = [$instalacioId, $diumenge];
 
-        if ($tornId) {
-            $sql .= ' AND tp.torn_id = ?';
-            $params[] = $tornId;
-        }
+        $sql .= static::tornFilterClause($tornId, $params);
 
         $sql .= " ORDER BY tp.data_propera_realitzacio ASC, es.nom ASC, COALESCE(NULLIF(tp.codi, ''), tc.codi) ASC";
 
@@ -127,7 +212,7 @@ class TascaPla extends Model
         $sql = '
             SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
-                   t.nom AS torn_nom, p.nom AS periodicitat_nom,
+                   ' . static::tornNamesSql() . ' AS torn_nom, p.nom AS periodicitat_nom,
                    p.dies_interval
             FROM tasques_pla tp
             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
@@ -165,7 +250,7 @@ class TascaPla extends Model
         $sql = '
             SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
-                   t.nom AS torn_nom, p.nom AS periodicitat_nom,
+                   ' . static::tornNamesSql() . ' AS torn_nom, p.nom AS periodicitat_nom,
                    p.dies_interval
             FROM tasques_pla tp
             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
@@ -198,18 +283,48 @@ class TascaPla extends Model
         return static::query($sql, $params);
     }
 
-    public static function tasquesPendents(int $instalacioId): int
+    public static function tasquesPendents(int $instalacioId, int|array|null $torn = null): int
     {
+        $params = [$instalacioId];
+        $tornClause = static::tornFilterClause($torn, $params);
         $result = static::query(
             'SELECT COUNT(*) AS total
              FROM tasques_pla tp
              LEFT JOIN espais es ON es.id = tp.espai_id
              WHERE tp.instalacio_id = ? AND tp.en_curs = 1
                AND (tp.espai_id IS NULL OR es.actiu = 1)
-               AND tp.data_propera_realitzacio <= CURDATE()',
-            [$instalacioId]
+               AND tp.data_propera_realitzacio <= CURDATE()' . $tornClause,
+            $params
         );
         return (int)($result[0]['total'] ?? 0);
+    }
+
+    public static function properesByInstalacio(
+        int $instalacioId,
+        int|array|null $torn = null,
+        int $limit = 15
+    ): array
+    {
+        $params = [$instalacioId];
+        $tornClause = static::tornFilterClause($torn, $params);
+        $limit = max(1, min(100, $limit));
+
+        return static::query('
+            SELECT tp.id, tp.data_propera_realitzacio,
+                   COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi,
+                   tc.nom AS tasca_nom, es.nom AS espai_nom,
+                   ' . static::tornNamesSql() . ' AS torn_nom
+            FROM tasques_pla tp
+            JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
+            LEFT JOIN espais es ON es.id = tp.espai_id
+            LEFT JOIN torns t ON t.id = tp.torn_id
+            WHERE tp.instalacio_id = ? AND tp.en_curs = 1
+              AND (tp.espai_id IS NULL OR es.actiu = 1)
+              AND tp.data_propera_realitzacio IS NOT NULL' . $tornClause . '
+            ORDER BY tp.data_propera_realitzacio ASC, tc.nom ASC
+            LIMIT ' . $limit,
+            $params
+        );
     }
 
     public static function tasquesVençudes(int $instalacioId, int|array|null $torn = null): int

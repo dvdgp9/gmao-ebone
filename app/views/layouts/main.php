@@ -25,8 +25,7 @@
             $__db = \App\Models\Database::getInstance();
             $__instalacioId = (int)$_SESSION['instalacio_id'];
             $__isTecnic = empty($_SESSION['is_superadmin'])
-                && ($_SESSION['current_role'] ?? '') === 'tecnic'
-                && \App\Models\Torn::supportsUsuariTorn();
+                && ($_SESSION['current_role'] ?? '') === 'tecnic';
 
             if ($__isTecnic) {
                 $__tornIds = \App\Models\Torn::tornIdsByUsuariInstalacio(

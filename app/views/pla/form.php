@@ -7,6 +7,8 @@ $backUrl = $origen === 'cataleg' && !$isEdit ? url('tasques-cataleg') : url('pla
 $backLabel = $origen === 'cataleg' && !$isEdit ? 'Tornar al repositori' : 'Tornar al pla';
 $selectedCatalog = $selectedCatalog ?? null;
 $preselectedCatalogId = (int)($preselectedCatalogId ?? ($tasca['tasca_cataleg_id'] ?? 0));
+$selectedTornIds = array_values(array_map('intval', $selectedTornIds ?? []));
+$availableTornIds = array_values(array_map(static fn(array $t): string => (string)$t['id'], $torns));
 
 $catalogOptions = [];
 foreach ($cataleg as $item) {
@@ -48,6 +50,8 @@ $formState = [
     'catalogs' => $catalogOptions,
     'blankTask' => $blankTask,
     'task' => $initialTask,
+    'tornIds' => array_map('strval', $selectedTornIds),
+    'availableTornIds' => $availableTornIds,
 ];
 ob_start();
 ?>
@@ -151,7 +155,7 @@ ob_start();
         <input type="checkbox" name="afegir_al_pla" value="1" x-model="addToPlan" <?= ($afegirAlPla ?? $origen !== 'cataleg') ? 'checked' : '' ?> class="w-4 h-4 mt-0.5 text-brand border-gray-300 rounded focus:ring-brand">
         <span>
             <span class="block text-sm font-semibold text-gray-800">Afegir al pla de manteniment</span>
-            <span class="block text-xs text-gray-500 mt-0.5">Activa la programació, l'espai, l'equip i el torn. Si no la marques, la tasca queda disponible al repositori.</span>
+            <span class="block text-xs text-gray-500 mt-0.5">Activa la programació, l'espai, l'equip i els torns. Si no la marques, la tasca queda disponible al repositori.</span>
         </span>
     </label>
     <?php endif; ?>
@@ -159,7 +163,7 @@ ob_start();
     <div x-show="addToPlan" x-collapse class="space-y-6">
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sm:p-6">
             <h3 class="text-lg font-semibold text-gray-800 mb-4">Assignació al pla</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Equip</label>
                     <select name="equip_id" :disabled="!addToPlan" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
@@ -174,12 +178,37 @@ ob_start();
                         <?php foreach ($espais as $esp): ?><option value="<?= (int)$esp['id'] ?>" <?= ($tasca['espai_id'] ?? '') == $esp['id'] ? 'selected' : '' ?>><?= e($esp['nom']) ?><?= empty($esp['actiu']) ? ' (inactiu)' : '' ?></option><?php endforeach; ?>
                     </select>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Torn</label>
-                    <select name="torn_id" :disabled="!addToPlan" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
-                        <option value="">— Selecciona —</option>
-                        <?php foreach ($torns as $t): ?><option value="<?= (int)$t['id'] ?>" <?= ($tasca['torn_id'] ?? '') == $t['id'] ? 'selected' : '' ?>><?= e($t['nom']) ?></option><?php endforeach; ?>
-                    </select>
+                <div class="md:col-span-2">
+                    <div class="flex flex-wrap items-end justify-between gap-2 mb-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Torns</label>
+                            <p class="text-xs text-gray-400 mt-0.5">Una única execució compartida entre tots els torns seleccionats.</p>
+                        </div>
+                        <?php if (!empty($torns)): ?>
+                        <label class="inline-flex items-center gap-2 rounded-lg border border-brand/25 bg-brand-light/50 px-3 py-2 text-sm font-medium text-brand-dark cursor-pointer active:scale-[0.98] transition">
+                            <input type="checkbox"
+                                   :checked="availableTornIds.length > 0 && availableTornIds.every(id => tornIds.includes(id))"
+                                   @change="tornIds = $event.target.checked ? [...availableTornIds] : []"
+                                   :disabled="!addToPlan"
+                                   class="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand">
+                            Tots els torns
+                        </label>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (empty($torns)): ?>
+                        <div class="rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-400">No hi ha torns configurats. La tasca quedarà sense torn assignat.</div>
+                    <?php else: ?>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+                        <?php foreach ($torns as $t): ?>
+                        <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 cursor-pointer hover:border-brand/40 active:scale-[0.98] transition">
+                            <input type="checkbox" name="torn_ids[]" value="<?= (int)$t['id'] ?>" x-model="tornIds" :disabled="!addToPlan"
+                                   <?= in_array((int)$t['id'], $selectedTornIds, true) ? 'checked' : '' ?>
+                                   class="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand">
+                            <span><?= e($t['nom']) ?></span>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

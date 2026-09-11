@@ -12,7 +12,7 @@ class IncidenciaTasca extends Model
     {
         return static::query('
             SELECT it.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
-                   es.nom AS espai_nom, t.nom AS torn_nom,
+                   es.nom AS espai_nom, ' . TascaPla::tornNamesSql() . ' AS torn_nom,
                    u.nom AS usuari_nom
             FROM incidencies_tasques it
             JOIN tasques_pla tp ON tp.id = it.tasca_pla_id

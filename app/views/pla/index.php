@@ -1,7 +1,13 @@
 <?php
 $title = 'Pla de Manteniment';
 
-$potProgramar = in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment']);
+$potProgramar = in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment'], true);
+$potEditar = $potProgramar;
+$potDesactivar = in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'], true);
+$isTecnic = $isTecnic ?? false;
+$tornsAssignats = $tornsAssignats ?? [];
+$senseTornsAssignats = $senseTornsAssignats ?? false;
+$columnesPla = 7 + ($potEditar ? 1 : 0);
 $idsTotes = array_values(array_map(static fn(array $t): int => (int)$t['id'], $tasques));
 $idsSenseData = array_values(array_map(
     static fn(array $t): int => (int)$t['id'],
@@ -27,7 +33,14 @@ ob_start();
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
     <div>
         <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Pla de Manteniment</h2>
-        <p class="text-gray-500 text-sm mt-1">Tasques assignades a la instal·lació</p>
+        <p class="text-gray-500 text-sm mt-1">
+            <?= $isTecnic ? 'Tasques assignades als teus torns' : 'Tasques assignades a la instal·lació' ?>
+        </p>
+        <?php if ($isTecnic && !empty($tornsAssignats)): ?>
+            <p class="text-xs text-gray-400 mt-1">
+                <?= e(implode(' · ', array_column($tornsAssignats, 'nom'))) ?>
+            </p>
+        <?php endif; ?>
     </div>
     <?php if ($potProgramar): ?>
     <div class="flex items-center gap-2">
@@ -46,6 +59,13 @@ ob_start();
     </div>
     <?php endif; ?>
 </div>
+
+<?php if ($senseTornsAssignats): ?>
+<div class="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+    <p class="font-medium">No tens cap torn assignat</p>
+    <p class="mt-1 text-sm text-amber-800">Contacta amb l'administrador perquè t'assigni el torn corresponent i puguis veure les teves tasques.</p>
+</div>
+<?php endif; ?>
 
 <?php if ($potProgramar && !empty($tasques)): ?>
 <div x-show="mode" style="display:none" class="mb-3 bg-brand-light/60 border border-brand/20 rounded-xl px-4 py-3">
@@ -67,6 +87,7 @@ ob_start();
 </div>
 <?php endif; ?>
 
+<?php if (!$senseTornsAssignats): ?>
 <div class="mb-3 max-w-full overflow-x-hidden">
     <form method="GET" action="<?= url('pla') ?>" class="flex flex-col sm:flex-row gap-2">
         <input
@@ -82,12 +103,14 @@ ob_start();
         <?php endif; ?>
     </form>
 </div>
+<?php endif; ?>
 
+<?php if (!$senseTornsAssignats): ?>
 <?php $limitMobile = 15; ?>
 <!-- Mobile: cards compactes amb expand + mostrar més -->
 <div class="md:hidden w-full max-w-full overflow-x-hidden" x-data="{ showAll: false, expanded: {} }">
     <?php if (empty($tasques)): ?>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-400">No hi ha tasques al pla de manteniment.</div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-400"><?= $isTecnic ? 'No tens tasques assignades.' : 'No hi ha tasques al pla de manteniment.' ?></div>
     <?php else: ?>
         <div class="space-y-2 w-full max-w-full">
         <?php foreach ($tasques as $idx => $t): ?>
@@ -147,15 +170,17 @@ ob_start();
                     <span class="text-gray-400">Propera</span>
                     <span class="text-right <?= $vencuda ? 'text-red-600 font-medium' : 'text-gray-700' ?>"><?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?></span>
                 </div>
+                <?php if ($potEditar): ?>
                 <div class="flex items-center justify-end gap-3 pt-2">
                     <a href="<?= url('pla/edit/' . $t['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
-                    <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
+                    <?php if ($potDesactivar): ?>
                     <form method="POST" action="<?= url('pla/delete/' . $t['id']) ?>" onsubmit="return confirm('Segur que vols desactivar aquesta tasca del pla? La podràs recuperar des del repositori.')">
                         <?= csrf_field() ?>
                         <button type="submit" class="text-sm text-red-600 hover:text-red-700 transition">Desactivar</button>
                     </form>
                     <?php endif; ?>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
         <?php endforeach; ?>
@@ -184,12 +209,14 @@ ob_start();
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Periodicitat</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Darrera</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Propera</th>
-                    <th class="text-right px-4 py-3 font-medium text-gray-600">Accions</th>
+                    <?php if ($potEditar): ?>
+                        <th class="text-right px-4 py-3 font-medium text-gray-600">Accions</th>
+                    <?php endif; ?>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 <?php if (empty($tasques)): ?>
-                    <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">No hi ha tasques al pla de manteniment.</td></tr>
+                    <tr><td colspan="<?= $columnesPla ?>" class="px-4 py-8 text-center text-gray-400"><?= $isTecnic ? 'No tens tasques assignades.' : 'No hi ha tasques al pla de manteniment.' ?></td></tr>
                 <?php else: ?>
                     <?php foreach ($tasques as $t): ?>
                     <?php
@@ -235,12 +262,13 @@ ob_start();
                                 <span class="text-gray-400">-</span>
                             <?php endif; ?>
                         </td>
+                        <?php if ($potEditar): ?>
                         <td class="px-4 py-3 text-right">
                             <div class="flex items-center justify-end gap-2">
                                 <a href="<?= url('pla/edit/' . $t['id']) ?>" class="text-gray-400 hover:text-brand transition" title="Editar">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                 </a>
-                                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio'])): ?>
+                                <?php if ($potDesactivar): ?>
                                 <form method="POST" action="<?= url('pla/delete/' . $t['id']) ?>" onsubmit="return confirm('Segur que vols desactivar aquesta tasca del pla? La podràs recuperar des del repositori.')">
                                     <?= csrf_field() ?>
                                     <button type="submit" class="text-gray-400 hover:text-red-600 transition" title="Desactivar">
@@ -250,6 +278,7 @@ ob_start();
                                 <?php endif; ?>
                             </div>
                         </td>
+                        <?php endif; ?>
                     </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -257,12 +286,13 @@ ob_start();
         </table>
     </div>
     <div class="px-4 py-3 border-t border-gray-200 text-sm text-gray-500">
-        <?= count($tasques) ?> tasques al pla
+        <?= count($tasques) ?> <?= $isTecnic ? 'tasques assignades' : 'tasques al pla' ?>
         <?php if (!empty($search)): ?>
             <span>per a "<?= e($search) ?>"</span>
         <?php endif; ?>
     </div>
 </div>
+<?php endif; ?>
 
 <?php if ($potProgramar && !empty($tasques)): ?>
 <!-- Barra fixa: només apareix amb tasques seleccionades -->

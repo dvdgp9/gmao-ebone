@@ -13,7 +13,7 @@ class RegistreTasca extends Model
         return static::query('
             SELECT rt.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    es.nom AS espai_nom, u.nom AS usuari_nom,
-                   t.nom AS torn_nom
+                   ' . TascaPla::tornNamesSql() . ' AS torn_nom
             FROM registre_tasques rt
             JOIN tasques_pla tp ON tp.id = rt.tasca_pla_id
             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
@@ -34,7 +34,7 @@ class RegistreTasca extends Model
         return static::query('
             SELECT rt.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    es.nom AS espai_nom, u.nom AS usuari_nom,
-                   t.nom AS torn_nom
+                   ' . TascaPla::tornNamesSql() . ' AS torn_nom
             FROM registre_tasques rt
             JOIN tasques_pla tp ON tp.id = rt.tasca_pla_id
             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
@@ -124,7 +124,8 @@ class RegistreTasca extends Model
                 SELECT DISTINCT t.id, t.nom
                 FROM registre_tasques rt
                 JOIN tasques_pla tp ON tp.id = rt.tasca_pla_id
-                JOIN torns t ON t.id = tp.torn_id
+                LEFT JOIN tasca_pla_torn tpt ON tpt.tasca_pla_id = tp.id
+                JOIN torns t ON t.id = COALESCE(tpt.torn_id, tp.torn_id)
                 WHERE rt.instalacio_id = ?
                 ORDER BY t.nom ASC
             ', [$instalacioId]),
@@ -157,14 +158,22 @@ class RegistreTasca extends Model
         }
 
         if (!empty($filters['torn_id'])) {
-            $conditions[] = 'tp.torn_id = ?';
-            $params[] = (int)$filters['torn_id'];
+            $conditions[] = '(
+                EXISTS (SELECT 1 FROM tasca_pla_torn tpt_filter WHERE tpt_filter.tasca_pla_id = tp.id AND tpt_filter.torn_id = ?)
+                OR (NOT EXISTS (SELECT 1 FROM tasca_pla_torn tpt_any WHERE tpt_any.tasca_pla_id = tp.id) AND tp.torn_id = ?)
+            )';
+            $tornId = (int)$filters['torn_id'];
+            array_push($params, $tornId, $tornId);
         } elseif (!empty($filters['torn_ids']) && is_array($filters['torn_ids'])) {
             $ids = array_values(array_filter(array_map('intval', $filters['torn_ids'])));
             if (!empty($ids)) {
                 $placeholders = implode(',', array_fill(0, count($ids), '?'));
-                $conditions[] = "(tp.torn_id IN ({$placeholders}) OR tp.torn_id IS NULL)";
-                $params = array_merge($params, $ids);
+                $conditions[] = "(
+                    EXISTS (SELECT 1 FROM tasca_pla_torn tpt_filter WHERE tpt_filter.tasca_pla_id = tp.id AND tpt_filter.torn_id IN ({$placeholders}))
+                    OR (NOT EXISTS (SELECT 1 FROM tasca_pla_torn tpt_any WHERE tpt_any.tasca_pla_id = tp.id)
+                        AND (tp.torn_id IN ({$placeholders}) OR tp.torn_id IS NULL))
+                )";
+                $params = array_merge($params, $ids, $ids);
             }
         }
 
@@ -175,11 +184,16 @@ class RegistreTasca extends Model
                 OR tc.nom LIKE ?
                 OR es.nom LIKE ?
                 OR t.nom LIKE ?
+                OR EXISTS (
+                    SELECT 1 FROM tasca_pla_torn tpt_search
+                    JOIN torns t_search ON t_search.id = tpt_search.torn_id
+                    WHERE tpt_search.tasca_pla_id = tp.id AND t_search.nom LIKE ?
+                )
                 OR u.nom LIKE ?
                 OR rt.comentaris LIKE ?
             )';
             $like = '%' . $filters['q'] . '%';
-            array_push($params, $like, $like, $like, $like, $like, $like, $like);
+            array_push($params, $like, $like, $like, $like, $like, $like, $like, $like);
         }
 
         return [implode(' AND ', $conditions), $params];
