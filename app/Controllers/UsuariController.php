@@ -104,7 +104,7 @@ class UsuariController extends Controller
             'cognoms' => trim($this->post('cognoms', '')) ?: null,
             'email' => $email,
             'password_hash' => $ambEnllac ? UsuariToken::hashInutilitzable() : password_hash($password, PASSWORD_BCRYPT),
-            'actiu' => $this->post('actiu', 1) ? 1 : 0,
+            'actiu' => $this->post('actiu', '1') === '1' ? 1 : 0,
         ]);
 
         if ($_SESSION['is_superadmin'] ?? false) {
@@ -251,8 +251,14 @@ class UsuariController extends Controller
                 'nom' => trim($this->post('nom', '')),
                 'cognoms' => trim($this->post('cognoms', '')) ?: null,
                 'email' => trim($this->post('email', '')),
-                'actiu' => $this->post('actiu', 1) ? 1 : 0,
+                // Si el camp no arriba (petició sense formulari), es conserva l'estat actual.
+                'actiu' => $this->post('actiu') === null ? (int)$usuari['actiu'] : ($this->post('actiu') === '1' ? 1 : 0),
             ];
+
+            if ((int)$id === $this->currentUserId() && $data['actiu'] === 0 && (int)$usuari['actiu'] === 1) {
+                $this->setFlash('error', 'No pots desactivar el teu propi compte.');
+                $this->redirect('usuaris/edit/' . (int)$id);
+            }
 
             if ($data['email'] === '') {
                 $this->setFlash('error', 'L\'email és obligatori.');

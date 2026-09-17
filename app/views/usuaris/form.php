@@ -61,6 +61,8 @@ ob_start();
         </div>
         <div class="mt-4">
             <label class="flex items-center gap-2">
+                <!-- Un checkbox desmarcat no s'envia: aquest camp fa que arribi actiu=0. -->
+                <input type="hidden" name="actiu" value="0" <?= $bloqueig ?>>
                 <input type="checkbox" name="actiu" value="1" <?= ($usuari['actiu'] ?? 1) ? 'checked' : '' ?> <?= $bloqueig ?>
                        class="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand disabled:opacity-50">
                 <span class="text-sm text-gray-700">Usuari actiu</span>
