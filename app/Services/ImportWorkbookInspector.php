@@ -64,19 +64,9 @@ class ImportWorkbookInspector
         for ($row = 1; $row <= min(10, $sheet->getHighestRow()); $row++) {
             $headers = self::headersByName($sheet, $row);
 
-            $simple = self::resolveColumns($headers, [
-                'nom_equip' => ['equip', 'nom equip'],
-                'model' => ['model'],
-                'ubicacio' => ['ubicacio', 'ubicacion'],
-                'codi_espai' => ['codi espai', 'codigo espacio'],
-                'planta' => ['planta'],
-            ]);
-            if (!in_array(null, $simple, true)) {
-                return ['format' => 'simple', 'header_row' => $row, 'columns' => $simple];
-            }
-
             // El lector clàssic conserva les columnes fixes del llibre històric i,
             // per tant, la seva capçalera només és segura a la primera fila.
+            // Va primer: també té EQUIP, MODEL, UBICACIÓ i PLANTA i passaria pel format simple.
             if ($row === 1) {
                 $classic = self::resolveColumns($headers, [
                     'sistema' => ['codi', 'codi sistema', 'sistema'],
@@ -88,6 +78,18 @@ class ImportWorkbookInspector
                 if (!in_array(null, $classic, true)) {
                     return ['format' => 'classic', 'header_row' => $row, 'columns' => $classic];
                 }
+            }
+
+            $simple = self::resolveColumns($headers, [
+                'nom_equip' => ['equip', 'nom equip'],
+                'model' => ['model'],
+                'ubicacio' => ['ubicacio', 'ubicacion'],
+                'planta' => ['planta'],
+            ]);
+            if (!in_array(null, $simple, true)) {
+                // CODI ESPAI és opcional: la importació busca l'espai pel nom de la UBICACIÓ si no hi és.
+                $simple['codi_espai'] = self::firstColumn($headers, ['codi espai', 'codigo espacio']);
+                return ['format' => 'simple', 'header_row' => $row, 'columns' => $simple];
             }
         }
 
@@ -107,12 +109,13 @@ class ImportWorkbookInspector
             if ($name === '') {
                 continue;
             }
+            $codiEspaiColumn = $layout['columns']['codi_espai'];
             $rows[] = [
                 'row' => $row,
                 'nom_equip' => $name,
                 'model' => self::cellString($sheet->getCellByColumnAndRow($layout['columns']['model'], $row)),
                 'ubicacio' => self::cellString($sheet->getCellByColumnAndRow($layout['columns']['ubicacio'], $row)),
-                'codi_espai' => self::cellString($sheet->getCellByColumnAndRow($layout['columns']['codi_espai'], $row)),
+                'codi_espai' => $codiEspaiColumn !== null ? self::cellString($sheet->getCellByColumnAndRow($codiEspaiColumn, $row)) : '',
                 'planta' => self::cellString($sheet->getCellByColumnAndRow($layout['columns']['planta'], $row)),
             ];
         }
@@ -147,6 +150,8 @@ class ImportWorkbookInspector
         $inventoryLayout = self::detectInventoryLayout($inventory);
         if ($inventoryLayout['format'] === 'unknown') {
             $errors[] = 'No es reconeixen les capçaleres de la fulla INVENTARI.';
+        } elseif ($inventoryLayout['format'] === 'simple' && $inventoryLayout['columns']['codi_espai'] === null) {
+            $warnings[] = 'S\'ha detectat el format alternatiu d\'INVENTARI sense CODI ESPAI; es maparan EQUIP, MODEL, UBICACIÓ i PLANTA, i cada equip s\'enllaçarà amb l\'espai que tingui el mateix nom que la UBICACIÓ.';
         } elseif ($inventoryLayout['format'] === 'simple') {
             $warnings[] = 'S\'ha detectat el format alternatiu d\'INVENTARI; es maparan EQUIP, MODEL, UBICACIÓ, CODI ESPAI i PLANTA.';
         }

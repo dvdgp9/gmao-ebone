@@ -42,7 +42,9 @@ $assertContains("COALESCE(NULLIF(tp.codi, \\'\\'), tc.codi) AS tasca_codi", $pla
 $assertContains('tp.codi LIKE ?', $planModel, 'El buscador debe encontrar el código propio del plan.');
 
 $workbookPath = '/Users/dvdgp/Downloads/Copia de Plantilla GMAO.xlsx';
-if (is_file($workbookPath)) {
+if (!is_file($workbookPath)) {
+    echo "PlanTaskCodeTest: no s'ha trobat " . basename($workbookPath) . "; part amb l'Excel real omesa.\n";
+} else {
     $workbook = IOFactory::load($workbookPath);
     $sheet = $workbook->getSheetByName('TASQUES PLA_M');
     $codes = [];

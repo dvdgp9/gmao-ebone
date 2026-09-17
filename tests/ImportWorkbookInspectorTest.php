@@ -21,7 +21,9 @@ $assertContains = static function (mixed $needle, array $haystack, string $messa
 };
 
 $legacyPath = '/Users/dvdgp/Downloads/Copia de Plantilla GMAO.xlsx';
-if (is_file($legacyPath)) {
+if (!is_file($legacyPath)) {
+    echo "ImportWorkbookInspectorTest: no s'ha trobat " . basename($legacyPath) . "; part amb l'Excel real omesa.\n";
+} else {
     $legacy = IOFactory::load($legacyPath);
     $knownSystems = ['OCA', 'AE', 'EEXT', 'ACS', 'HP', 'BT', 'CL', 'NE', 'LE', 'AL', 'WLL', 'MQ', 'AFCH', 'CI', 'GN', 'EL', 'SE', 'PAV', 'EE'];
     $inspection = ImportWorkbookInspector::inspect($legacy, $knownSystems);
