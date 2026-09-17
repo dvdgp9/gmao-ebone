@@ -11,19 +11,30 @@ use App\Models\Database;
 
 class UsuariController extends Controller
 {
+    private const MISSATGE_COMPTE_COMPARTIT = 'Aquest usuari també treballa en altres instal·lacions: només un superadmin en pot canviar les dades del compte, l\'estat o l\'accés.';
+
     public function index(): void
     {
         $this->requireRole(['superadmin', 'admin_instalacio']);
 
+        $comptesBloquejats = [];
         if ($_SESSION['is_superadmin'] ?? false) {
             $usuaris = Usuari::allWithRoles();
         } else {
             $usuaris = Usuari::allWithRoles($this->currentInstalacioId());
+            $instalacionsPerUsuari = Usuari::instalacioIdsPerUsuaris(array_column($usuaris, 'id'));
+            $instalacionsAdmin = Usuari::instalacioIdsAmbRol($this->currentUserId(), 'admin_instalacio');
+            foreach ($usuaris as $u) {
+                if (!Usuari::compteGestionable(false, $this->currentUserId(), $u, $instalacionsPerUsuari[(int)$u['id']] ?? [], $instalacionsAdmin)) {
+                    $comptesBloquejats[(int)$u['id']] = true;
+                }
+            }
         }
 
         $this->view('usuaris.index', [
             'title' => 'Usuaris',
             'usuaris' => $usuaris,
+            'comptesBloquejats' => $comptesBloquejats,
             'estatsActivacio' => UsuariToken::estatsActivacio(array_column($usuaris, 'id')),
             'potGenerarEnllac' => UsuariToken::supported(),
             'flash' => $this->getFlash(),
@@ -135,13 +146,9 @@ class UsuariController extends Controller
             $this->setFlash('error', 'No tens permís per gestionar aquest usuari.');
             $this->redirect('usuaris');
         }
-        // Un enllaç dona accés al compte sencer: un admin d'instal·lació no el pot generar
-        // per a comptes que també són d'altres instal·lacions.
-        if (
-            empty($_SESSION['is_superadmin'])
-            && (!empty($usuari['is_superadmin']) || Usuari::hasOtherInstalacions((int)$id, (int)$this->currentInstalacioId()))
-        ) {
-            $this->setFlash('error', 'Aquest usuari també pertany a altres instal·lacions. Només un superadmin li pot generar un enllaç d\'accés.');
+        // Un enllaç dona accés al compte sencer.
+        if (!$this->potGestionarCompte($usuari)) {
+            $this->setFlash('error', self::MISSATGE_COMPTE_COMPARTIT);
             $this->redirect('usuaris');
         }
         if (!$usuari['actiu']) {
@@ -190,6 +197,11 @@ class UsuariController extends Controller
         }
 
         $assignacions = Usuari::getAssignacions((int)$id);
+        if (empty($_SESSION['is_superadmin'])) {
+            // Un admin d'instal·lació només veu l'assignació de la seva instal·lació.
+            $instalacioActiva = (int)$this->currentInstalacioId();
+            $assignacions = array_values(array_filter($assignacions, static fn($a) => (int)$a['instalacio_id'] === $instalacioActiva));
+        }
         $instalacions = $this->getInstalacionsDisponibles();
 
         $tornsAssignats = [];
@@ -203,6 +215,7 @@ class UsuariController extends Controller
         $this->view('usuaris.form', [
             'title' => 'Editar Usuari',
             'usuari' => $usuari,
+            'compteEditable' => $this->potGestionarCompte($usuari),
             'assignacions' => $assignacions,
             'instalacions' => $instalacions,
             'rols' => $this->getRols(),
@@ -232,27 +245,32 @@ class UsuariController extends Controller
             $this->redirect('usuaris');
         }
 
-        $data = [
-            'nom' => trim($this->post('nom', '')),
-            'cognoms' => trim($this->post('cognoms', '')) ?: null,
-            'email' => trim($this->post('email', '')),
-            'actiu' => $this->post('actiu', 1) ? 1 : 0,
-        ];
-        if (
-            empty($_SESSION['is_superadmin'])
-            && (int)$data['actiu'] !== (int)$usuari['actiu']
-            && Usuari::hasOtherInstalacions((int)$id, (int)$this->currentInstalacioId())
-        ) {
-            $this->setFlash('error', 'Aquest usuari també pertany a altres instal·lacions. Només un superadmin pot canviar-ne l’estat global.');
-            $this->redirect('usuaris/edit/' . (int)$id);
-        }
+        // Dades del compte: només si és gestionable. Si no, d'aquest usuari només es canvien rol i torns.
+        if ($this->potGestionarCompte($usuari)) {
+            $data = [
+                'nom' => trim($this->post('nom', '')),
+                'cognoms' => trim($this->post('cognoms', '')) ?: null,
+                'email' => trim($this->post('email', '')),
+                'actiu' => $this->post('actiu', 1) ? 1 : 0,
+            ];
 
-        $password = $this->post('password', '');
-        if (!empty($password)) {
-            $data['password_hash'] = password_hash($password, PASSWORD_BCRYPT);
-        }
+            if ($data['email'] === '') {
+                $this->setFlash('error', 'L\'email és obligatori.');
+                $this->redirect('usuaris/edit/' . (int)$id);
+            }
+            $ambAquestEmail = Usuari::findByEmail($data['email']);
+            if ($ambAquestEmail && (int)$ambAquestEmail['id'] !== (int)$id) {
+                $this->setFlash('error', 'Ja existeix un altre usuari amb aquest email.');
+                $this->redirect('usuaris/edit/' . (int)$id);
+            }
 
-        Usuari::update((int)$id, $data);
+            $password = $this->post('password', '');
+            if (!empty($password)) {
+                $data['password_hash'] = password_hash($password, PASSWORD_BCRYPT);
+            }
+
+            Usuari::update((int)$id, $data);
+        }
 
         if ($_SESSION['is_superadmin'] ?? false) {
             $this->syncAssignacionsSuperadmin((int)$id);
@@ -297,8 +315,8 @@ class UsuariController extends Controller
             $this->setFlash('error', 'No pots desactivar el teu propi compte.');
             $this->redirect('usuaris');
         }
-        if (empty($_SESSION['is_superadmin']) && Usuari::hasOtherInstalacions((int)$id, (int)$this->currentInstalacioId())) {
-            $this->setFlash('error', 'Aquest usuari també pertany a altres instal·lacions. Només un superadmin pot activar-lo o desactivar-lo globalment.');
+        if (!$this->potGestionarCompte($usuari)) {
+            $this->setFlash('error', self::MISSATGE_COMPTE_COMPARTIT);
             $this->redirect('usuaris');
         }
 
@@ -387,6 +405,9 @@ class UsuariController extends Controller
         if ($_SESSION['is_superadmin'] ?? false) {
             return true;
         }
+        if (Usuari::isSuperadmin($usuariId)) {
+            return false;
+        }
 
         $instalacioId = $this->currentInstalacioId();
         if (!$instalacioId) {
@@ -394,6 +415,26 @@ class UsuariController extends Controller
         }
 
         return Usuari::belongsToInstalacio($usuariId, (int)$instalacioId);
+    }
+
+    /**
+     * Nom, email, contrasenya, estat i enllaços d'accés. Vegeu Usuari::compteGestionable().
+     */
+    private function potGestionarCompte(array $usuari): bool
+    {
+        if ($_SESSION['is_superadmin'] ?? false) {
+            return true;
+        }
+
+        $usuariId = (int)$usuari['id'];
+
+        return Usuari::compteGestionable(
+            false,
+            $this->currentUserId(),
+            $usuari,
+            Usuari::instalacioIdsPerUsuaris([$usuariId])[$usuariId] ?? [],
+            Usuari::instalacioIdsAmbRol($this->currentUserId(), 'admin_instalacio')
+        );
     }
 
     private function canAssignInstalacio(int $instalacioId): bool

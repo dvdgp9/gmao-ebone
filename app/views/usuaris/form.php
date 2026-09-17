@@ -5,6 +5,10 @@ $action = $usuari ? url('usuaris/update/' . $usuari['id']) : url('usuaris/store'
 $assignacioActual = (count($assignacions ?? []) === 1) ? $assignacions[0] : null;
 $instalacioSeleccionada = $assignacioActual ? (int)$assignacioActual['instalacio_id'] : 0;
 $rolSeleccionat = $assignacioActual ? (int)$assignacioActual['rol_id'] : 0;
+// Usuari compartit amb instal·lacions d'altres admins: dades del compte només de lectura.
+$compteEditable = $compteEditable ?? true;
+$bloqueig = $compteEditable ? '' : 'disabled';
+$classeCamp = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed';
 ob_start();
 ?>
 
@@ -21,29 +25,35 @@ ob_start();
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">Dades de l'usuari</h3>
+        <?php if (!$compteEditable): ?>
+            <div class="mb-4 rounded-lg border border-brand-200 bg-brand-light p-3 text-sm text-brand-800">
+                Aquest usuari també treballa en altres instal·lacions. Les dades del compte només les pot canviar un superadmin;
+                tu pots canviar-ne el rol i els torns en aquesta instal·lació.
+            </div>
+        <?php endif; ?>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Nom <span class="text-red-500">*</span></label>
-                <input type="text" name="nom" value="<?= e($usuari['nom'] ?? '') ?>" required
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+                <input type="text" name="nom" value="<?= e($usuari['nom'] ?? '') ?>" required <?= $bloqueig ?>
+                       class="<?= $classeCamp ?>">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Cognoms</label>
-                <input type="text" name="cognoms" value="<?= e($usuari['cognoms'] ?? '') ?>"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+                <input type="text" name="cognoms" value="<?= e($usuari['cognoms'] ?? '') ?>" <?= $bloqueig ?>
+                       class="<?= $classeCamp ?>">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
-                <input type="email" name="email" value="<?= e($usuari['email'] ?? '') ?>" required
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+                <input type="email" name="email" value="<?= e($usuari['email'] ?? '') ?>" required <?= $bloqueig ?>
+                       class="<?= $classeCamp ?>">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                     Contrasenya
                 </label>
-                <input type="password" name="password" autocomplete="new-password"
-                       placeholder="<?= $usuari ? 'Deixar en blanc per no canviar' : 'Deixa-ho en blanc i es generarà un enllaç' ?>"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+                <input type="password" name="password" autocomplete="new-password" <?= $bloqueig ?>
+                       placeholder="<?= $usuari ? ($compteEditable ? 'Deixar en blanc per no canviar' : 'Només un superadmin la pot canviar') : 'Deixa-ho en blanc i es generarà un enllaç' ?>"
+                       class="<?= $classeCamp ?>">
                 <?php if (!$usuari): ?>
                     <p class="text-xs text-gray-400 mt-1">Sense contrasenya, en desar es mostrarà un enllaç d'un sol ús perquè la persona triï la seva.</p>
                 <?php endif; ?>
@@ -51,8 +61,8 @@ ob_start();
         </div>
         <div class="mt-4">
             <label class="flex items-center gap-2">
-                <input type="checkbox" name="actiu" value="1" <?= ($usuari['actiu'] ?? 1) ? 'checked' : '' ?>
-                       class="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand">
+                <input type="checkbox" name="actiu" value="1" <?= ($usuari['actiu'] ?? 1) ? 'checked' : '' ?> <?= $bloqueig ?>
+                       class="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand disabled:opacity-50">
                 <span class="text-sm text-gray-700">Usuari actiu</span>
             </label>
         </div>

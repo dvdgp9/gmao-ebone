@@ -90,7 +90,8 @@ ob_start();
         $assignacions = $u['assignacions'] ?? [];
         $rolsDistints = array_values(array_unique(array_filter(array_column($assignacions, 'rol_nom'))));
         $estatActivacio = $estatsActivacio[(int)$u['id']] ?? null;
-        $potEnllac = $potGenerarEnllac && $u['actiu'] && (empty($u['is_superadmin']) || !empty($_SESSION['is_superadmin']));
+        $compteBloquejat = !empty($comptesBloquejats[(int)$u['id']]);
+        $potEnllac = $potGenerarEnllac && $u['actiu'] && !$compteBloquejat && (empty($u['is_superadmin']) || !empty($_SESSION['is_superadmin']));
         ?>
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 <?= !$u['actiu'] ? 'opacity-70' : '' ?>">
             <div class="flex items-start justify-between gap-3">
@@ -113,6 +114,9 @@ ob_start();
                     <span class="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full whitespace-nowrap">Pendent d'activar</span>
                 <?php elseif ($estatActivacio === 'caducat'): ?>
                     <span class="text-xs text-red-700 bg-red-50 px-2 py-0.5 rounded-full whitespace-nowrap">Enllaç caducat</span>
+                <?php endif; ?>
+                <?php if ($compteBloquejat): ?>
+                    <span class="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap" title="També treballa en altres instal·lacions: només en pots canviar el rol i els torns">Compartit</span>
                 <?php endif; ?>
                 </div>
             </div>
@@ -156,7 +160,7 @@ ob_start();
                 </form>
                 <?php endif; ?>
                 <a href="<?= url('usuaris/edit/' . $u['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
-                <?php if (($u['id'] ?? 0) != ($_SESSION['user_id'] ?? 0)): ?>
+                <?php if (($u['id'] ?? 0) != ($_SESSION['user_id'] ?? 0) && !$compteBloquejat): ?>
                 <form method="POST" action="<?= url('usuaris/toggle/' . $u['id']) ?>" onsubmit="return confirm('<?= $u['actiu'] ? 'Desactivar' : 'Activar' ?> aquest usuari?')">
                     <?= csrf_field() ?>
                     <button type="submit" class="text-sm <?= $u['actiu'] ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700' ?> transition"><?= $u['actiu'] ? 'Desactivar' : 'Activar' ?></button>
@@ -208,7 +212,8 @@ ob_start();
                         $assignacions = $u['assignacions'] ?? [];
                         $rolsDistints = array_values(array_unique(array_filter(array_column($assignacions, 'rol_nom'))));
                         $estatActivacio = $estatsActivacio[(int)$u['id']] ?? null;
-                        $potEnllac = $potGenerarEnllac && $u['actiu'] && (empty($u['is_superadmin']) || !empty($_SESSION['is_superadmin']));
+                        $compteBloquejat = !empty($comptesBloquejats[(int)$u['id']]);
+                        $potEnllac = $potGenerarEnllac && $u['actiu'] && !$compteBloquejat && (empty($u['is_superadmin']) || !empty($_SESSION['is_superadmin']));
                         ?>
                         <td class="px-4 py-3">
                             <?php if (!empty($u['is_superadmin'])): ?>
@@ -254,6 +259,9 @@ ob_start();
                             <?php elseif ($estatActivacio === 'caducat'): ?>
                                 <div class="mt-1"><span class="text-xs text-red-700 bg-red-50 px-2 py-0.5 rounded-full whitespace-nowrap">Enllaç caducat</span></div>
                             <?php endif; ?>
+                            <?php if ($compteBloquejat): ?>
+                                <div class="mt-1"><span class="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap" title="També treballa en altres instal·lacions: només en pots canviar el rol i els torns">Compartit</span></div>
+                            <?php endif; ?>
                         </td>
                         <td class="px-4 py-3 text-gray-400 text-xs">
                             <?= date('d/m/Y', strtotime($u['created_at'] ?? 'now')) ?>
@@ -271,7 +279,7 @@ ob_start();
                                 <a href="<?= url('usuaris/edit/' . $u['id']) ?>" class="text-gray-400 hover:text-brand transition" title="Editar">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                 </a>
-                                <?php if (($u['id'] ?? 0) != ($_SESSION['user_id'] ?? 0)): ?>
+                                <?php if (($u['id'] ?? 0) != ($_SESSION['user_id'] ?? 0) && !$compteBloquejat): ?>
                                 <form method="POST" action="<?= url('usuaris/toggle/' . $u['id']) ?>" class="inline" onsubmit="return confirm('<?= $u['actiu'] ? 'Desactivar' : 'Activar' ?> aquest usuari?')">
                                     <?= csrf_field() ?>
                                     <button type="submit" class="text-gray-400 hover:text-<?= $u['actiu'] ? 'red-500' : 'green-500' ?> transition" title="<?= $u['actiu'] ? 'Desactivar' : 'Activar' ?>">

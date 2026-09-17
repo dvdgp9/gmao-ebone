@@ -37,7 +37,7 @@ $assertContains('rollBack', $import, 'Un error ha de desfer la importació.');
 $assertContains("nom <> 'superadmin'", $import, 'El rol superadmin no es pot assignar des de la importació.');
 
 // Enllaç des de la llista
-$assertContains('Usuari::hasOtherInstalacions', $usuaris, 'Un admin no pot generar enllaços per a comptes d\'altres instal·lacions.');
+$assertContains('potGestionarCompte', $usuaris, 'Un admin no pot generar enllaços per a comptes d\'altres instal·lacions.');
 $assertContains('canManageUser((int)$id)', $usuaris, 'Generar un enllaç requereix poder gestionar l\'usuari.');
 
 // Pàgina pública

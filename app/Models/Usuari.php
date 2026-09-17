@@ -61,6 +61,7 @@ class Usuari extends Model
                 JOIN usuari_instalacio ui ON ui.usuari_id = u.id AND ui.instalacio_id = ?
                 JOIN rols r ON r.id = ui.rol_id
                 JOIN instalacions i ON i.id = ui.instalacio_id
+                WHERE u.is_superadmin = 0
                 ORDER BY u.nom
             ', [$instalacioId]);
 
@@ -126,13 +127,70 @@ class Usuari extends Model
         return (int)$stmt->fetchColumn() > 0;
     }
 
-    public static function hasOtherInstalacions(int $usuariId, int $instalacioId): bool
-    {
-        $stmt = static::db()->prepare(
-            'SELECT COUNT(*) FROM usuari_instalacio WHERE usuari_id = ? AND instalacio_id <> ?'
-        );
-        $stmt->execute([$usuariId, $instalacioId]);
+    /**
+     * Pot qui edita canviar les dades del compte (nom, email, contrasenya, estat, enllaços d'accés)?
+     * Un admin d'instal·lació només pot si totes les instal·lacions de l'usuari són seves;
+     * si no, d'aquell usuari només en pot canviar el rol i els torns a la seva instal·lació.
+     */
+    public static function compteGestionable(
+        bool $editorSuperadmin,
+        int $editorId,
+        array $usuari,
+        array $instalacionsUsuari,
+        array $instalacionsAdminEditor
+    ): bool {
+        if ($editorSuperadmin) {
+            return true;
+        }
+        if (!empty($usuari['is_superadmin'])) {
+            return false;
+        }
+        if ((int)$usuari['id'] === $editorId) {
+            return true;
+        }
 
-        return (int)$stmt->fetchColumn() > 0;
+        $instalacionsUsuari = array_map('intval', $instalacionsUsuari);
+
+        return $instalacionsUsuari !== []
+            && array_diff($instalacionsUsuari, array_map('intval', $instalacionsAdminEditor)) === [];
+    }
+
+    /**
+     * @return array<int, list<int>> usuariId => ids de les seves instal·lacions
+     */
+    public static function instalacioIdsPerUsuaris(array $usuariIds): array
+    {
+        $usuariIds = array_values(array_unique(array_filter(array_map('intval', $usuariIds))));
+        if ($usuariIds === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($usuariIds), '?'));
+        $rows = static::query(
+            "SELECT usuari_id, instalacio_id FROM usuari_instalacio WHERE usuari_id IN ({$placeholders})",
+            $usuariIds
+        );
+
+        $perUsuari = array_fill_keys($usuariIds, []);
+        foreach ($rows as $row) {
+            $perUsuari[(int)$row['usuari_id']][] = (int)$row['instalacio_id'];
+        }
+
+        return $perUsuari;
+    }
+
+    /**
+     * @return list<int> instal·lacions on l'usuari té aquest rol
+     */
+    public static function instalacioIdsAmbRol(int $usuariId, string $rolNom): array
+    {
+        $rows = static::query('
+            SELECT ui.instalacio_id
+            FROM usuari_instalacio ui
+            JOIN rols r ON r.id = ui.rol_id
+            WHERE ui.usuari_id = ? AND r.nom = ?
+        ', [$usuariId, $rolNom]);
+
+        return array_map(static fn($row) => (int)$row['instalacio_id'], $rows);
     }
 }
