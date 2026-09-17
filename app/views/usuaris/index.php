@@ -8,11 +8,36 @@ ob_start();
         <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Usuaris</h2>
         <p class="text-gray-500 text-sm mt-1">Gestió d'usuaris i permisos</p>
     </div>
-    <a href="<?= url('usuaris/create') ?>" class="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Nou Usuari
-    </a>
+    <div class="flex flex-wrap items-center gap-2">
+        <a href="<?= url('usuaris/importar') ?>" class="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+            Importar usuaris
+        </a>
+        <a href="<?= url('usuaris/create') ?>" class="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Nou Usuari
+        </a>
+    </div>
 </div>
+
+<?php if (!empty($flash['enllac'])): ?>
+<?php $enllac = $flash['enllac']; ?>
+<div x-data="{ copiat: false }" class="mb-6 rounded-xl border border-brand-200 bg-brand-light p-4">
+    <p class="text-sm font-medium text-gray-800">
+        Enllaç d'accés per a <?= e($enllac['nom']) ?>
+        <span class="font-normal text-gray-500">(<?= e($enllac['email']) ?>)</span>
+    </p>
+    <div class="mt-2 flex flex-col sm:flex-row gap-2">
+        <input type="text" readonly value="<?= e($enllac['url']) ?>" @focus="$event.target.select()"
+               class="flex-1 min-w-0 font-mono text-xs border border-gray-200 bg-white rounded-lg px-3 py-2 text-gray-700">
+        <button type="button" @click="copiarText(<?= e(json_encode($enllac['url'])) ?>).then(() => { copiat = true; setTimeout(() => copiat = false, 2000); })"
+                class="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition">
+            <span x-text="copiat ? 'Copiat!' : 'Copiar enllaç'"></span>
+        </button>
+    </div>
+    <p class="mt-2 text-xs text-gray-500">Serveix una sola vegada i caduca el <?= e($enllac['caduca']) ?>. Copia'l ara: no es podrà tornar a consultar.</p>
+</div>
+<?php endif; ?>
 
 <!-- Stats cards -->
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -64,6 +89,8 @@ ob_start();
         ];
         $assignacions = $u['assignacions'] ?? [];
         $rolsDistints = array_values(array_unique(array_filter(array_column($assignacions, 'rol_nom'))));
+        $estatActivacio = $estatsActivacio[(int)$u['id']] ?? null;
+        $potEnllac = $potGenerarEnllac && $u['actiu'] && (empty($u['is_superadmin']) || !empty($_SESSION['is_superadmin']));
         ?>
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 <?= !$u['actiu'] ? 'opacity-70' : '' ?>">
             <div class="flex items-start justify-between gap-3">
@@ -76,11 +103,18 @@ ob_start();
                         <p class="text-xs text-gray-400 truncate"><?= e($u['email']) ?></p>
                     </div>
                 </div>
+                <div class="flex flex-col items-end gap-1">
                 <?php if ($u['actiu']): ?>
                     <span class="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full whitespace-nowrap"><span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Actiu</span>
                 <?php else: ?>
                     <span class="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap"><span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span> Inactiu</span>
                 <?php endif; ?>
+                <?php if ($estatActivacio === 'pendent'): ?>
+                    <span class="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full whitespace-nowrap">Pendent d'activar</span>
+                <?php elseif ($estatActivacio === 'caducat'): ?>
+                    <span class="text-xs text-red-700 bg-red-50 px-2 py-0.5 rounded-full whitespace-nowrap">Enllaç caducat</span>
+                <?php endif; ?>
+                </div>
             </div>
             <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
                 <div>
@@ -115,6 +149,12 @@ ob_start();
                 </div>
             </div>
             <div class="flex items-center justify-end gap-3 mt-4 pt-3 border-t border-gray-100">
+                <?php if ($potEnllac): ?>
+                <form method="POST" action="<?= url('usuaris/enllac/' . $u['id']) ?>" onsubmit="return confirm('Generar un enllaç d\'accés nou? Els enllaços anteriors d\'aquest usuari deixaran de funcionar.')">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="text-sm text-gray-600 hover:text-brand transition">Enllaç d'accés</button>
+                </form>
+                <?php endif; ?>
                 <a href="<?= url('usuaris/edit/' . $u['id']) ?>" class="text-sm text-brand hover:text-brand-dark transition">Editar</a>
                 <?php if (($u['id'] ?? 0) != ($_SESSION['user_id'] ?? 0)): ?>
                 <form method="POST" action="<?= url('usuaris/toggle/' . $u['id']) ?>" onsubmit="return confirm('<?= $u['actiu'] ? 'Desactivar' : 'Activar' ?> aquest usuari?')">
@@ -167,6 +207,8 @@ ob_start();
                         ];
                         $assignacions = $u['assignacions'] ?? [];
                         $rolsDistints = array_values(array_unique(array_filter(array_column($assignacions, 'rol_nom'))));
+                        $estatActivacio = $estatsActivacio[(int)$u['id']] ?? null;
+                        $potEnllac = $potGenerarEnllac && $u['actiu'] && (empty($u['is_superadmin']) || !empty($_SESSION['is_superadmin']));
                         ?>
                         <td class="px-4 py-3">
                             <?php if (!empty($u['is_superadmin'])): ?>
@@ -207,12 +249,25 @@ ob_start();
                                     <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span> Inactiu
                                 </span>
                             <?php endif; ?>
+                            <?php if ($estatActivacio === 'pendent'): ?>
+                                <div class="mt-1"><span class="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full whitespace-nowrap">Pendent d'activar</span></div>
+                            <?php elseif ($estatActivacio === 'caducat'): ?>
+                                <div class="mt-1"><span class="text-xs text-red-700 bg-red-50 px-2 py-0.5 rounded-full whitespace-nowrap">Enllaç caducat</span></div>
+                            <?php endif; ?>
                         </td>
                         <td class="px-4 py-3 text-gray-400 text-xs">
                             <?= date('d/m/Y', strtotime($u['created_at'] ?? 'now')) ?>
                         </td>
                         <td class="px-4 py-3 text-right">
                             <div class="flex items-center justify-end gap-2">
+                                <?php if ($potEnllac): ?>
+                                <form method="POST" action="<?= url('usuaris/enllac/' . $u['id']) ?>" class="inline" onsubmit="return confirm('Generar un enllaç d\'accés nou? Els enllaços anteriors d\'aquest usuari deixaran de funcionar.')">
+                                    <?= csrf_field() ?>
+                                    <button type="submit" class="text-gray-400 hover:text-brand transition" title="Generar enllaç d'accés">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                    </button>
+                                </form>
+                                <?php endif; ?>
                                 <a href="<?= url('usuaris/edit/' . $u['id']) ?>" class="text-gray-400 hover:text-brand transition" title="Editar">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                 </a>

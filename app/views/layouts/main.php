@@ -284,6 +284,22 @@
             });
         }
 
+        // Copia text al porta-retalls; sense HTTPS fa servir el mètode antic.
+        window.copiarText = async (text) => {
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (e) {
+                const area = document.createElement('textarea');
+                area.value = text;
+                area.setAttribute('readonly', '');
+                area.className = 'usuaris-copia-oculta';
+                document.body.appendChild(area);
+                area.select();
+                document.execCommand('copy');
+                area.remove();
+            }
+        };
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('<?= url('sw.js') ?>').catch(() => {});

@@ -97,7 +97,7 @@ class AuthController extends Controller
         return $user ?: null;
     }
 
-    private static function buildSession(array $user): void
+    public static function buildSession(array $user): void
     {
         $db = Database::getInstance();
         $isSuperadmin = !empty($user['is_superadmin']);

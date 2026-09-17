@@ -6,6 +6,7 @@ use App\Core\Controller;
 use App\Models\Usuari;
 use App\Models\Instalacio;
 use App\Models\Torn;
+use App\Models\UsuariToken;
 use App\Models\Database;
 
 class UsuariController extends Controller
@@ -23,6 +24,8 @@ class UsuariController extends Controller
         $this->view('usuaris.index', [
             'title' => 'Usuaris',
             'usuaris' => $usuaris,
+            'estatsActivacio' => UsuariToken::estatsActivacio(array_column($usuaris, 'id')),
+            'potGenerarEnllac' => UsuariToken::supported(),
             'flash' => $this->getFlash(),
         ]);
     }
@@ -57,9 +60,15 @@ class UsuariController extends Controller
 
         $email = trim($this->post('email', ''));
         $password = $this->post('password', '');
+        // Sense contrasenya es genera un enllaç perquè la persona la triï.
+        $ambEnllac = $password === '';
 
-        if (empty($email) || empty($password)) {
-            $this->setFlash('error', 'Email i contrasenya són obligatoris.');
+        if (empty($email)) {
+            $this->setFlash('error', 'L\'email és obligatori.');
+            $this->redirect('usuaris/create');
+        }
+        if ($ambEnllac && !UsuariToken::supported()) {
+            $this->setFlash('error', 'Cal indicar una contrasenya: els enllaços d\'accés encara no estan activats al servidor.');
             $this->redirect('usuaris/create');
         }
 
@@ -83,7 +92,7 @@ class UsuariController extends Controller
             'nom' => trim($this->post('nom', '')),
             'cognoms' => trim($this->post('cognoms', '')) ?: null,
             'email' => $email,
-            'password_hash' => password_hash($password, PASSWORD_BCRYPT),
+            'password_hash' => $ambEnllac ? UsuariToken::hashInutilitzable() : password_hash($password, PASSWORD_BCRYPT),
             'actiu' => $this->post('actiu', 1) ? 1 : 0,
         ]);
 
@@ -94,8 +103,77 @@ class UsuariController extends Controller
             Torn::syncTornsForUsuari($id, $instalacioId, $this->postedTorns());
         }
 
-        $this->setFlash('success', 'Usuari creat correctament.');
+        if ($ambEnllac) {
+            $this->flashEnllac($id, UsuariToken::TIPUS_ACTIVACIO, 'Usuari creat. Envia-li aquest enllaç perquè triï la seva contrasenya.');
+        } else {
+            $this->setFlash('success', 'Usuari creat correctament.');
+        }
         $this->redirect('usuaris');
+    }
+
+    /**
+     * Genera un enllaç d'accés nou (activació o canvi de contrasenya) i invalida els anteriors.
+     */
+    public function enllac(string $id): void
+    {
+        $this->requireRole(['superadmin', 'admin_instalacio']);
+        if (!verify_csrf()) {
+            $this->setFlash('error', 'Token de seguretat invàlid.');
+            $this->redirect('usuaris');
+        }
+        if (!UsuariToken::supported()) {
+            $this->setFlash('error', 'Els enllaços d\'accés encara no estan activats al servidor (falta la migració).');
+            $this->redirect('usuaris');
+        }
+
+        $usuari = Usuari::find((int)$id);
+        if (!$usuari) {
+            $this->setFlash('error', 'Usuari no trobat.');
+            $this->redirect('usuaris');
+        }
+        if (!$this->canManageUser((int)$id)) {
+            $this->setFlash('error', 'No tens permís per gestionar aquest usuari.');
+            $this->redirect('usuaris');
+        }
+        // Un enllaç dona accés al compte sencer: un admin d'instal·lació no el pot generar
+        // per a comptes que també són d'altres instal·lacions.
+        if (
+            empty($_SESSION['is_superadmin'])
+            && (!empty($usuari['is_superadmin']) || Usuari::hasOtherInstalacions((int)$id, (int)$this->currentInstalacioId()))
+        ) {
+            $this->setFlash('error', 'Aquest usuari també pertany a altres instal·lacions. Només un superadmin li pot generar un enllaç d\'accés.');
+            $this->redirect('usuaris');
+        }
+        if (!$usuari['actiu']) {
+            $this->setFlash('error', 'L\'usuari està desactivat. Activa\'l abans de generar-li un enllaç.');
+            $this->redirect('usuaris');
+        }
+
+        $tipus = UsuariToken::tipusPerNouEnllac((int)$id);
+        $this->flashEnllac(
+            (int)$id,
+            $tipus,
+            $tipus === UsuariToken::TIPUS_ACTIVACIO
+                ? 'Enllaç d\'activació nou. L\'anterior ja no funciona.'
+                : 'Enllaç per canviar la contrasenya. La contrasenya actual continua funcionant fins que el faci servir.'
+        );
+        $this->redirect('usuaris');
+    }
+
+    private function flashEnllac(int $usuariId, string $tipus, string $missatge): void
+    {
+        $usuari = Usuari::find($usuariId);
+        $token = UsuariToken::crear($usuariId, $tipus, $this->currentUserId());
+        $nom = trim(($usuari['nom'] ?? '') . ' ' . ($usuari['cognoms'] ?? ''));
+
+        $this->setFlash('success', $missatge, [
+            'enllac' => [
+                'url' => url('acces/' . $token['token']),
+                'nom' => $nom,
+                'email' => $usuari['email'] ?? '',
+                'caduca' => date('d/m/Y H:i', strtotime($token['expires_at'])),
+            ],
+        ]);
     }
 
     public function edit(string $id): void

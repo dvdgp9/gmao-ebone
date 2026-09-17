@@ -9,6 +9,8 @@ use App\Controllers\TascaCatalegController;
 use App\Controllers\TascaPlaController;
 use App\Controllers\RegistreController;
 use App\Controllers\UsuariController;
+use App\Controllers\UsuariImportController;
+use App\Controllers\AccesController;
 use App\Controllers\ImportController;
 use App\Controllers\TornController;
 use App\Controllers\SistemaController;
@@ -20,6 +22,10 @@ use App\Controllers\IncidenciaController;
 $router->get('login', AuthController::class, 'loginForm');
 $router->post('login', AuthController::class, 'login');
 $router->get('logout', AuthController::class, 'logout');
+
+// Enllaços d'accés (públic: la persona encara no té contrasenya)
+$router->get('acces/{token}', AccesController::class, 'form');
+$router->post('acces/{token}', AccesController::class, 'desar');
 
 // Dashboard
 $router->get('', DashboardController::class, 'index');
@@ -105,6 +111,13 @@ $router->post('usuaris/store', UsuariController::class, 'store');
 $router->get('usuaris/edit/{id}', UsuariController::class, 'edit');
 $router->post('usuaris/update/{id}', UsuariController::class, 'update');
 $router->post('usuaris/toggle/{id}', UsuariController::class, 'toggle');
+$router->post('usuaris/enllac/{id}', UsuariController::class, 'enllac');
+$router->get('usuaris/importar', UsuariImportController::class, 'index');
+$router->post('usuaris/importar/analitzar', UsuariImportController::class, 'analitzar');
+$router->post('usuaris/importar/validar', UsuariImportController::class, 'validar');
+$router->post('usuaris/importar/confirmar', UsuariImportController::class, 'confirmar');
+$router->get('usuaris/importar/resultat', UsuariImportController::class, 'resultat');
+$router->get('usuaris/importar/resultat/excel', UsuariImportController::class, 'excel');
 
 // Importar Excel
 $router->get('import', ImportController::class, 'index');

@@ -60,3 +60,65 @@
     background: rgb(254 226 226);
     color: rgb(153 27 27);
 }
+
+.import-action-pill--pending {
+    background: rgb(243 244 246);
+    color: rgb(107 114 128);
+}
+
+/* Importació d'usuaris */
+.usuaris-import-drop {
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.usuaris-import-drop--actiu {
+    border-color: #23AAC5;
+    box-shadow: 0 0 0 3px rgb(35 170 197 / 0.2);
+}
+
+.usuaris-import-fila--seleccionada {
+    background: #E8F7FA;
+}
+
+.usuaris-chip {
+    background: #fff;
+    border: 1px solid rgb(209 213 219);
+    border-radius: 9999px;
+    color: rgb(55 65 81);
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    padding: 0.25rem 0.75rem;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.usuaris-chip:hover {
+    border-color: #23AAC5;
+    color: #1B8FA6;
+}
+
+.usuaris-chip--petit {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    padding: 0.1875rem 0.5rem;
+}
+
+.usuaris-chip--parcial {
+    background: #E8F7FA;
+    border-color: #8DDBE7;
+    border-style: dashed;
+    color: #115A68;
+}
+
+.usuaris-chip--actiu,
+.usuaris-chip--actiu:hover {
+    background: #23AAC5;
+    border-color: #23AAC5;
+    color: #fff;
+}
+
+.usuaris-copia-oculta {
+    left: -9999px;
+    position: fixed;
+    top: 0;
+}

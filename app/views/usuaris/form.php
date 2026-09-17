@@ -39,11 +39,14 @@ ob_start();
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Contrasenya <?= $usuari ? '' : '<span class="text-red-500">*</span>' ?>
+                    Contrasenya
                 </label>
-                <input type="password" name="password" <?= $usuari ? '' : 'required' ?>
-                       placeholder="<?= $usuari ? 'Deixar en blanc per no canviar' : '' ?>"
+                <input type="password" name="password" autocomplete="new-password"
+                       placeholder="<?= $usuari ? 'Deixar en blanc per no canviar' : 'Deixa-ho en blanc i es generarà un enllaç' ?>"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+                <?php if (!$usuari): ?>
+                    <p class="text-xs text-gray-400 mt-1">Sense contrasenya, en desar es mostrarà un enllaç d'un sol ús perquè la persona triï la seva.</p>
+                <?php endif; ?>
             </div>
         </div>
         <div class="mt-4">
