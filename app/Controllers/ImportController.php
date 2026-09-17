@@ -16,7 +16,6 @@ use App\Models\Sistema;
 use App\Services\ImportWorkbookInspector;
 use App\Services\TaskMatcher;
 use App\Services\PlantillaBuilder;
-use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ImportController extends Controller
@@ -82,7 +81,7 @@ class ImportController extends Controller
         $tmpPath = $file['tmp_name'];
 
         try {
-            $spreadsheet = IOFactory::load($tmpPath);
+            $spreadsheet = ImportWorkbookInspector::loadWorkbook($tmpPath);
             $quickPreview = [];
             $systemCodes = array_column(Sistema::allOrdered(), 'codi');
             $importSummary = ImportWorkbookInspector::inspect($spreadsheet, $systemCodes);
@@ -152,7 +151,7 @@ class ImportController extends Controller
         }
 
         try {
-            $spreadsheet = IOFactory::load($filePath);
+            $spreadsheet = ImportWorkbookInspector::loadWorkbook($filePath);
 
             $result = match ($tipus) {
                 'tasques_cataleg' => $this->importTasquesCataleg($spreadsheet->getActiveSheet()),

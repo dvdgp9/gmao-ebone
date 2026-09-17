@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
@@ -24,6 +25,19 @@ class ImportWorkbookInspector
         'tasques_pla',
         'registre',
     ];
+
+    /**
+     * Obre un Excel per importar-lo sense les cel·les buides amb format: un REGISTRE TASQUES amb
+     * 400.000 cel·les formatades i 90.000 amb valor passa de 262 MB a 78 MB. Es mantenen els estils
+     * (amb setReadDataOnly es perd el full actiu i la detecció canvia).
+     */
+    public static function loadWorkbook(string $path): Spreadsheet
+    {
+        $reader = IOFactory::createReaderForFile($path);
+        $reader->setReadEmptyCells(false);
+
+        return $reader->load($path);
+    }
 
     public static function inspect(Spreadsheet $spreadsheet, array $existingSystemCodes = []): array
     {

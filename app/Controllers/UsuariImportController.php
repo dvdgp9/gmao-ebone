@@ -365,6 +365,7 @@ class UsuariImportController extends Controller
         try {
             $reader = IOFactory::createReaderForFile($fitxer['tmp_name']);
             $reader->setReadDataOnly(true);
+            $reader->setReadEmptyCells(false);
             $spreadsheet = $reader->load($fitxer['tmp_name']);
         } catch (Throwable $e) {
             error_log('[usuaris/importar] ' . $e->getMessage());
