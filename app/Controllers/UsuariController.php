@@ -8,6 +8,7 @@ use App\Models\Instalacio;
 use App\Models\Torn;
 use App\Models\UsuariToken;
 use App\Models\Database;
+use App\Services\UsuariLlista;
 
 class UsuariController extends Controller
 {
@@ -17,11 +18,14 @@ class UsuariController extends Controller
     {
         $this->requireRole(['superadmin', 'admin_instalacio']);
 
+        $isSuperadmin = (bool)($_SESSION['is_superadmin'] ?? false);
+        $instalacioActiva = $this->currentInstalacioId();
+
         $comptesBloquejats = [];
-        if ($_SESSION['is_superadmin'] ?? false) {
+        if ($isSuperadmin) {
             $usuaris = Usuari::allWithRoles();
         } else {
-            $usuaris = Usuari::allWithRoles($this->currentInstalacioId());
+            $usuaris = Usuari::allWithRoles($instalacioActiva);
             $instalacionsPerUsuari = Usuari::instalacioIdsPerUsuaris(array_column($usuaris, 'id'));
             $instalacionsAdmin = Usuari::instalacioIdsAmbRol($this->currentUserId(), 'admin_instalacio');
             foreach ($usuaris as $u) {
@@ -31,12 +35,47 @@ class UsuariController extends Controller
             }
         }
 
+        $files = UsuariLlista::files(
+            $usuaris,
+            Torn::nomsPerUsuari($isSuperadmin ? null : $instalacioActiva),
+            UsuariToken::estatsActivacio(array_column($usuaris, 'id')),
+            $comptesBloquejats,
+            $this->currentUserId()
+        );
+
+        $instalacions = $isSuperadmin
+            ? array_map(static fn($i) => ['id' => (int)$i['id'], 'nom' => $i['nom']], Instalacio::actives())
+            : [];
+        $rols = array_map(
+            static fn($r) => ['id' => (int)$r['id'], 'nom' => $r['nom'], 'etiqueta' => Usuari::etiquetaRol($r['nom'])],
+            $this->getRols()
+        );
+        $torns = [];
+        foreach ($this->getTornsPerInstalacio($instalacions) as $instId => $tornsInst) {
+            $torns[$instId] = array_map(static fn($t) => ['id' => (int)$t['id'], 'nom' => $t['nom']], $tornsInst);
+        }
+        $tecnic = array_values(array_filter($rols, static fn($r) => $r['nom'] === 'tecnic'))[0] ?? null;
+
         $this->view('usuaris.index', [
             'title' => 'Usuaris',
-            'usuaris' => $usuaris,
-            'comptesBloquejats' => $comptesBloquejats,
-            'estatsActivacio' => UsuariToken::estatsActivacio(array_column($usuaris, 'id')),
-            'potGenerarEnllac' => UsuariToken::supported(),
+            'isSuperadmin' => $isSuperadmin,
+            'instalacions' => $instalacions,
+            'rols' => $rols,
+            'config' => [
+                'usuaris' => $files,
+                'superadmin' => $isSuperadmin,
+                'instalacioSidebar' => $isSuperadmin && $instalacioActiva ? (int)$instalacioActiva : null,
+                'instalacions' => $instalacions,
+                'torns' => (object)$torns,
+                'rolPerDefecte' => $tecnic['id'] ?? null,
+                'potGenerarEnllac' => UsuariToken::supported(),
+                'csrf' => csrf_token(),
+                'urls' => [
+                    'edit' => url('usuaris/edit/'),
+                    'toggle' => url('usuaris/toggle/'),
+                    'enllac' => url('usuaris/enllac/'),
+                ],
+            ],
             'flash' => $this->getFlash(),
         ]);
     }

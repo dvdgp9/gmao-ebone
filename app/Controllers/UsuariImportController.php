@@ -21,15 +21,8 @@ use Throwable;
  */
 class UsuariImportController extends Controller
 {
-    private const SESSIO_RESULTAT = 'usuaris_import_resultat';
+    public const SESSIO_RESULTAT = 'usuaris_import_resultat';
     private const MAX_FITXER_BYTES = 5 * 1024 * 1024;
-
-    public const ROL_ETIQUETES = [
-        'admin_instalacio' => 'Admin. instal·lació',
-        'cap_manteniment' => 'Cap de manteniment',
-        'tecnic' => 'Tècnic',
-        'lectura' => 'Lectura',
-    ];
 
     public function index(): void
     {
@@ -46,7 +39,7 @@ class UsuariImportController extends Controller
                 ],
                 'csrf' => csrf_token(),
                 'instalacions' => $ctx['instalacions'],
-                'rols' => array_map(static fn($r) => $r + ['etiqueta' => self::ROL_ETIQUETES[$r['nom']] ?? ucfirst(str_replace('_', ' ', $r['nom']))], $ctx['rols']),
+                'rols' => array_map(static fn($r) => $r + ['etiqueta' => Usuari::etiquetaRol($r['nom'])], $ctx['rols']),
                 'torns' => (object)$ctx['torns'],
                 'defaultInstalacioId' => $ctx['default_instalacio_id'],
                 'defaultRolId' => $ctx['default_rol_id'],
@@ -159,7 +152,7 @@ class UsuariImportController extends Controller
                     'nom' => $existent !== null ? trim(($existent['nom'] ?? '') . ' ' . ($existent['cognoms'] ?? '')) : trim($fila['nom'] . ' ' . $fila['cognoms']),
                     'email' => $email,
                     'instalacio' => $noms['instalacions'][$instalacioId] ?? '',
-                    'rol' => self::ROL_ETIQUETES[$noms['rols'][$rolId] ?? ''] ?? ($noms['rols'][$rolId] ?? ''),
+                    'rol' => Usuari::etiquetaRol($noms['rols'][$rolId] ?? ''),
                     'torns' => implode(', ', array_map(static fn($id) => $noms['torns'][$id] ?? '', $fila['torn_ids'])),
                     'accio' => $validacio['files'][$index]['accio'],
                     'enllac' => $enllac,
@@ -195,7 +188,7 @@ class UsuariImportController extends Controller
         }
 
         $this->view('usuaris.importar_resultat', [
-            'title' => 'Usuaris importats',
+            'title' => ($resultat['origen'] ?? '') === 'enllacos' ? 'Enllaços d\'accés generats' : 'Usuaris importats',
             'resultat' => $resultat,
         ]);
     }

@@ -8,6 +8,19 @@ class Usuari extends Model
 {
     protected static string $table = 'usuaris';
 
+    public const ROL_ETIQUETES = [
+        'superadmin' => 'Superadmin',
+        'admin_instalacio' => 'Admin. instal·lació',
+        'cap_manteniment' => 'Cap de manteniment',
+        'tecnic' => 'Tècnic',
+        'lectura' => 'Lectura',
+    ];
+
+    public static function etiquetaRol(string $rolNom): string
+    {
+        return self::ROL_ETIQUETES[$rolNom] ?? ucfirst(str_replace('_', ' ', $rolNom));
+    }
+
     public static function findByEmail(string $email): ?array
     {
         $stmt = static::db()->prepare('SELECT * FROM usuaris WHERE email = ? LIMIT 1');
@@ -67,6 +80,7 @@ class Usuari extends Model
 
             foreach ($rows as &$row) {
                 $row['assignacions'] = [[
+                    'instalacio_id' => $row['instalacio_id'],
                     'instalacio_nom' => $row['instalacio_nom'],
                     'rol_nom' => $row['rol_nom'],
                 ]];
@@ -96,6 +110,7 @@ class Usuari extends Model
             }
             if (!empty($row['instalacio_id'])) {
                 $usuaris[$id]['assignacions'][] = [
+                    'instalacio_id' => $row['instalacio_id'],
                     'instalacio_nom' => $row['instalacio_nom'],
                     'rol_nom' => $row['rol_nom'],
                 ];
@@ -103,6 +118,37 @@ class Usuari extends Model
         }
 
         return array_values($usuaris);
+    }
+
+    /**
+     * Usuaris per id amb les seves instal·lacions (accions en bloc).
+     *
+     * @return list<array{id: int, nom: string, cognoms: ?string, email: string, actiu: int, is_superadmin: int, instalacio_ids: list<int>}>
+     */
+    public static function perIdsAmbInstalacions(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $rows = static::query("
+            SELECT u.id, u.nom, u.cognoms, u.email, u.actiu, u.is_superadmin, GROUP_CONCAT(ui.instalacio_id) AS instalacio_ids
+            FROM usuaris u
+            LEFT JOIN usuari_instalacio ui ON ui.usuari_id = u.id
+            WHERE u.id IN ({$placeholders})
+            GROUP BY u.id, u.nom, u.cognoms, u.email, u.actiu, u.is_superadmin
+            ORDER BY u.nom, u.cognoms
+        ", $ids);
+
+        foreach ($rows as &$row) {
+            $row['id'] = (int)$row['id'];
+            $row['instalacio_ids'] = $row['instalacio_ids'] ? array_map('intval', explode(',', $row['instalacio_ids'])) : [];
+        }
+        unset($row);
+
+        return $rows;
     }
 
     public static function activeByInstalacio(int $instalacioId): array

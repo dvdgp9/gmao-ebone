@@ -92,6 +92,35 @@ class Torn extends Model
         return $perTorn;
     }
 
+    /**
+     * @return array<int, array<int, list<string>>> usuariId => instalacioId => noms dels torns
+     */
+    public static function nomsPerUsuari(?int $instalacioId = null): array
+    {
+        if (!static::supportsUsuariTorn()) {
+            return [];
+        }
+
+        $sql = '
+            SELECT ut.usuari_id, t.instalacio_id, t.nom
+            FROM `usuari_torn` ut
+            JOIN `torns` t ON t.id = ut.torn_id
+        ';
+        $params = [];
+        if ($instalacioId) {
+            $sql .= ' WHERE t.instalacio_id = ?';
+            $params[] = $instalacioId;
+        }
+        $sql .= ' ORDER BY t.nom';
+
+        $perUsuari = [];
+        foreach (static::query($sql, $params) as $row) {
+            $perUsuari[(int)$row['usuari_id']][(int)$row['instalacio_id']][] = $row['nom'];
+        }
+
+        return $perUsuari;
+    }
+
     public static function usuariIdsByTorn(int $tornId): array
     {
         if (!static::supportsUsuariTorn()) {

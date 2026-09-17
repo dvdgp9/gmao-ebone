@@ -1,5 +1,6 @@
 <?php
-$title = 'Usuaris importats';
+$esEnllacos = ($resultat['origen'] ?? '') === 'enllacos';
+$title = $esEnllacos ? 'Enllaços d\'accés generats' : 'Usuaris importats';
 $files = $resultat['files'];
 $ambEnllac = array_values(array_filter($files, static fn($f) => !empty($f['enllac'])));
 $existents = count($files) - count($ambEnllac);
@@ -18,9 +19,13 @@ ob_start();
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         Tornar a usuaris
     </a>
-    <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mt-2">Usuaris importats</h2>
+    <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mt-2"><?= e($title) ?></h2>
     <p class="text-gray-500 text-sm mt-1">
-        <?= count($ambEnllac) === 1 ? '1 usuari nou' : count($ambEnllac) . ' usuaris nous' ?> amb enllaç d'accés<?= $existents ? ' · ' . $existents . ($existents === 1 ? ' assignació' : ' assignacions') . ' a usuaris que ja tenien compte' : '' ?>.
+        <?php if ($esEnllacos): ?>
+            <?= count($ambEnllac) === 1 ? '1 enllaç nou' : count($ambEnllac) . ' enllaços nous' ?>. Els anteriors d'aquests usuaris ja no funcionen; les contrasenyes actuals no canvien.
+        <?php else: ?>
+            <?= count($ambEnllac) === 1 ? '1 usuari nou' : count($ambEnllac) . ' usuaris nous' ?> amb enllaç d'accés<?= $existents ? ' · ' . $existents . ($existents === 1 ? ' assignació' : ' assignacions') . ' a usuaris que ja tenien compte' : '' ?>.
+        <?php endif; ?>
     </p>
 </div>
 
@@ -44,7 +49,9 @@ ob_start();
         <button type="button" @click="copiar(tsv, 'taula')" class="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition">
             <span x-text="copiat === 'taula' ? 'Copiada!' : 'Copiar la taula'"></span>
         </button>
-        <a href="<?= url('usuaris/importar') ?>" class="px-4 py-2 rounded-lg text-sm font-medium text-brand hover:text-brand-dark transition">Importar-ne més</a>
+        <?php if (!$esEnllacos): ?>
+            <a href="<?= url('usuaris/importar') ?>" class="px-4 py-2 rounded-lg text-sm font-medium text-brand hover:text-brand-dark transition">Importar-ne més</a>
+        <?php endif; ?>
     </div>
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
