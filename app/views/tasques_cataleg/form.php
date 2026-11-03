@@ -88,6 +88,18 @@ ob_start();
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
             </div>
         </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tipus de tasca</label>
+                <select name="tipus" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+                    <option value="">Automàtic (normativa o preventiu)</option>
+                    <?php foreach (\App\Models\TascaCataleg::TIPUS as $valor => $nomTipus): ?>
+                        <option value="<?= e($valor) ?>" <?= ($tasca['tipus'] ?? '') === $valor ? 'selected' : '' ?>><?= e($nomTipus) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="text-xs text-gray-400 mt-1">Bloc de la Vista Diària on surt. Automàtic: Normatives si té normativa i és diària; si no, Preventiu.</p>
+            </div>
+        </div>
     </div>
 
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">

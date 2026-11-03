@@ -135,6 +135,7 @@ class TascaPlaController extends Controller
         $dates = (array)$this->post('data_primera', []);
         $espais = (array)$this->post('espai_id', []);
         $torns = (array)$this->post('torn_id', []);
+        $tipusFiles = (array)$this->post('tipus', []);
 
         // Catàleg existent per reutilitzar tasques amb el mateix nom
         $catalegMap = [];
@@ -174,6 +175,7 @@ class TascaPlaController extends Controller
             $dataValida = \DateTime::createFromFormat('Y-m-d', $dataPrimera);
             $dataPropera = ($dataValida && $dataValida->format('Y-m-d') === $dataPrimera) ? $dataPrimera : date('Y-m-d');
 
+            $tipus = TascaCataleg::tipusValid($tipusFiles[$i] ?? '');
             $catalegId = $catalegMap[mb_strtolower($nom)] ?? null;
             if (!$catalegId) {
                 $catalegId = TascaCataleg::create([
@@ -185,10 +187,13 @@ class TascaPlaController extends Controller
                     'descripcio' => null,
                     'periodicitat_normativa_id' => $periodicitatId,
                     'normativa_id' => null,
+                    'tipus' => $tipus,
                     'empresa_responsable' => null,
                     'activa' => 1,
                 ]);
                 $catalegMap[mb_strtolower($nom)] = $catalegId;
+            } elseif ($tipus) {
+                TascaCataleg::update($catalegId, ['tipus' => $tipus]);
             }
 
             TascaPla::create([
@@ -567,15 +572,55 @@ class TascaPlaController extends Controller
             $search
         );
 
+        // Blocs de la jornada: obertura → normatives → preventiu → tancament.
+        $pendentsPerBloc = array_fill_keys(array_keys(TascaCataleg::TIPUS), 0);
+        foreach ($tasques as $t) {
+            $pendentsPerBloc[$t['tipus']]++;
+        }
+        $fetesPerBloc = $avisTecnic
+            ? array_fill_keys(array_keys(TascaCataleg::TIPUS), 0)
+            : TascaPla::fetesPerTipus($instalacioId, $dataSeleccionada->format('Y-m-d'), $tornFilter);
+        $blocActual = $this->resolveBloc($pendentsPerBloc);
+
         $this->view('dia.index', [
             'title' => 'Vista Diària',
-            'tasques' => $tasques,
+            'tasques' => array_values(array_filter($tasques, static fn(array $t): bool => $t['tipus'] === $blocActual)),
+            'blocActual' => $blocActual,
+            'pendentsPerBloc' => $pendentsPerBloc,
+            'fetesPerBloc' => $fetesPerBloc,
             'torns' => $torns,
             'tornActual' => $tornId,
             'dataSeleccionada' => $dataSeleccionada,
             'search' => $search,
             'flash' => $this->getFlash() ?: ($avisTecnic ? ['type' => 'error', 'message' => $avisTecnic] : null),
         ]);
+    }
+
+    /**
+     * Bloc que es mostra a la Vista Diària. Una pestanya triada (?bloc=) es
+     * respecta sempre. Després de registrar una tasca (?continuar=) es queda
+     * al bloc mentre li quedin pendents i, en acabar-lo, passa al següent.
+     * Sense indicació s'obre el primer bloc amb tasques pendents.
+     */
+    private function resolveBloc(array $pendentsPerBloc): string
+    {
+        $triat = TascaCataleg::tipusValid($this->get('bloc', ''));
+        if ($triat) {
+            return $triat;
+        }
+
+        $continuar = TascaCataleg::tipusValid($this->get('continuar', ''));
+        if ($continuar && $pendentsPerBloc[$continuar] > 0) {
+            return $continuar;
+        }
+
+        foreach ($pendentsPerBloc as $bloc => $pendents) {
+            if ($pendents > 0) {
+                return $bloc;
+            }
+        }
+
+        return $continuar ?? array_key_first(TascaCataleg::TIPUS);
     }
 
     /**
@@ -651,6 +696,7 @@ class TascaPlaController extends Controller
             'descripcio' => trim($this->post('descripcio', '')) ?: null,
             'periodicitat_normativa_id' => $this->post('periodicitat_normativa_id') ?: null,
             'normativa_id' => $this->post('normativa_id') ?: null,
+            'tipus' => TascaCataleg::tipusValid($this->post('tipus', '')),
             'empresa_responsable' => trim($this->post('empresa_responsable', '')) ?: null,
         ];
     }

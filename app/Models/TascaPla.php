@@ -213,7 +213,7 @@ class TascaPla extends Model
             SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
                    ' . static::tornNamesSql() . ' AS torn_nom, p.nom AS periodicitat_nom,
-                   p.dies_interval
+                   p.dies_interval, ' . TascaCataleg::tipusSql() . ' AS tipus
             FROM tasques_pla tp
             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
             LEFT JOIN equips eq ON eq.id = tp.equip_id
@@ -243,6 +243,32 @@ class TascaPla extends Model
         $sql .= " ORDER BY tp.data_propera_realitzacio ASC, es.nom ASC, COALESCE(NULLIF(tp.codi, ''), tc.codi) ASC";
 
         return static::query($sql, $params);
+    }
+
+    /**
+     * Tasques marcades com a fetes el dia indicat, per tipus (bloc de la jornada).
+     * Es compta pel moment del registre: la data d'execució pot ser la programada.
+     */
+    public static function fetesPerTipus(int $instalacioId, string $data, int|array|null $torn = null): array
+    {
+        $params = [$instalacioId, $data];
+        $tornClause = static::tornFilterClause($torn, $params);
+        $rows = static::query('
+            SELECT ' . TascaCataleg::tipusSql() . ' AS tipus, COUNT(DISTINCT rt.tasca_pla_id) AS total
+            FROM registre_tasques rt
+            JOIN tasques_pla tp ON tp.id = rt.tasca_pla_id
+            JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
+            WHERE rt.instalacio_id = ? AND rt.realitzada = 1
+              AND DATE(rt.created_at) = ?' . $tornClause . '
+            GROUP BY 1',
+            $params
+        );
+
+        $fetes = array_fill_keys(array_keys(TascaCataleg::TIPUS), 0);
+        foreach ($rows as $row) {
+            $fetes[$row['tipus']] = (int)$row['total'];
+        }
+        return $fetes;
     }
 
     public static function getSetmanaSearch(int $instalacioId, string $dilluns, string $diumenge, int|array|null $torn = null, string $search = ''): array

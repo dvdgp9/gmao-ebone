@@ -481,11 +481,15 @@ class ImportController extends Controller
                         'descripcio' => null,
                         'periodicitat_normativa_id' => $input['periodicitat_id'],
                         'normativa_id' => $input['normativa_id'],
+                        'tipus' => $input['tipus_tasca'],
                         'empresa_responsable' => null,
                         'activa' => 1,
                     ]);
                 } else {
                     TaskMatcher::rememberAlias($tascaCatalegId, $input['nom']);
+                    if ($input['tipus_tasca']) {
+                        TascaCataleg::update($tascaCatalegId, ['tipus' => $input['tipus_tasca']]);
+                    }
                 }
 
                 if ($this->quickPlanExists($instalacioId, $tascaCatalegId, $input['espai_id'], $input['torn_id'], $input['equip_id'])) {
@@ -597,6 +601,8 @@ class ImportController extends Controller
         $espaiRaw = $this->readQuickCell($sheet, $headers, $row, ['espai', 'espacio', 'ubicacio', 'ubicacion']);
         $tornRaw = $this->readQuickCell($sheet, $headers, $row, ['torn', 'turno']);
         $equipRaw = $this->readQuickCell($sheet, $headers, $row, ['equip', 'equipo', 'nom equip', 'codigo equipo']);
+        // "TIPUS" sol és el tipus d'equip; el bloc de la jornada té capçalera pròpia.
+        $tipusTascaRaw = $this->readQuickCell($sheet, $headers, $row, ['tipus tasca', 'tipus de tasca', 'tipo tarea', 'tipo de tarea', 'bloc', 'bloque']);
 
         $values = [$nom, $codiRaw, $periodicitatRaw, $normativaRaw, $sistemaRaw, $tipusRaw, $espaiRaw, $tornRaw, $equipRaw];
         $isEmpty = !array_filter($values, static fn(string $value): bool => trim($value) !== '');
@@ -624,6 +630,7 @@ class ImportController extends Controller
             'espai_id' => $this->resolveInstalacioValue('espais', 'nom', $espaiRaw),
             'torn_id' => $this->resolveInstalacioValue('torns', 'nom', $tornRaw),
             'equip_id' => $this->resolveInstalacioValue('equips', 'nom_mn', $equipRaw) ?? $this->resolveInstalacioValue('equips', 'nom_equip', $equipRaw),
+            'tipus_tasca' => TascaCataleg::tipusDesDeText($tipusTascaRaw),
         ];
     }
 
@@ -1019,11 +1026,15 @@ class ImportController extends Controller
                     'descripcio' => null,
                     'periodicitat_normativa_id' => $input['periodicitat_id'],
                     'normativa_id' => $input['normativa_id'],
+                    'tipus' => $input['tipus_tasca'],
                     'empresa_responsable' => null,
                     'activa' => 1,
                 ]);
             } else {
                 TaskMatcher::rememberAlias($tascaCatalegId, $input['nom']);
+                if ($input['tipus_tasca']) {
+                    TascaCataleg::update($tascaCatalegId, ['tipus' => $input['tipus_tasca']]);
+                }
             }
 
             if ($this->quickPlanExists($instalacioId, $tascaCatalegId, $input['espai_id'], $input['torn_id'], $input['equip_id'])) {

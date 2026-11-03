@@ -150,6 +150,7 @@ class TascaCatalegController extends Controller
             'descripcio' => trim($this->post('descripcio', '')) ?: null,
             'periodicitat_normativa_id' => $this->post('periodicitat_normativa_id') ?: null,
             'normativa_id' => $this->post('normativa_id') ?: null,
+            'tipus' => TascaCataleg::tipusValid($this->post('tipus', '')),
             'empresa_responsable' => trim($this->post('empresa_responsable', '')) ?: null,
         ];
     }

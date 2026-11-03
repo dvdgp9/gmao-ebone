@@ -152,6 +152,7 @@ CREATE TABLE `tasques_cataleg` (
     `descripcio` TEXT DEFAULT NULL,
     `periodicitat_normativa_id` INT UNSIGNED DEFAULT NULL,
     `normativa_id` INT UNSIGNED DEFAULT NULL,
+    `tipus` ENUM('obertura', 'normativa', 'preventiu', 'tancament') DEFAULT NULL COMMENT 'NULL = automàtic segons normativa',
     `empresa_responsable` VARCHAR(255) DEFAULT NULL,
     `activa` TINYINT(1) NOT NULL DEFAULT 1,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

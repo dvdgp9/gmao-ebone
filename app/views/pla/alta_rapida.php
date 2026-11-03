@@ -30,6 +30,7 @@ ob_start();
                     <th class="px-4 py-3 min-w-[110px]">Codi</th>
                     <th class="px-4 py-3 min-w-[260px]">Tasca <span class="text-red-500">*</span></th>
                     <th class="px-4 py-3 min-w-[150px]">Periodicitat <span class="text-red-500">*</span></th>
+                    <th class="px-4 py-3 min-w-[150px]">Tipus</th>
                     <th class="px-4 py-3 min-w-[150px]">Primera execució</th>
                     <?php if ($teEspais): ?><th class="px-4 py-3 min-w-[150px]">Espai</th><?php endif; ?>
                     <?php if ($teTorns): ?><th class="px-4 py-3 min-w-[150px]">Torn</th><?php endif; ?>
@@ -51,6 +52,14 @@ ob_start();
                                 <option value="">— Tria —</option>
                                 <?php foreach ($periodicitats as $p): ?>
                                     <option value="<?= (int)$p['id'] ?>"><?= e($p['nom']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                        <td class="px-4 py-2">
+                            <select name="tipus[]" class="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-brand outline-none">
+                                <option value="">Automàtic</option>
+                                <?php foreach (\App\Models\TascaCataleg::TIPUS as $valor => $nomTipus): ?>
+                                    <option value="<?= e($valor) ?>"><?= e($nomTipus) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </td>

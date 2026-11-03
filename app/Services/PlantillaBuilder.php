@@ -117,6 +117,8 @@ class PlantillaBuilder
             ['Bones fonts: contractes de manteniment, llibres de manteniment, normativa aplicable, i el coneixement del personal.', false],
             ['TASCA i PERIODICITAT són obligatoris. La resta de columnes (' . implode(', ', array_slice($tasquesCols, 2)) . ') són opcionals.', false],
             ['Si has omplert les altres fulles, escriu els noms exactament igual perquè es vinculin automàticament.', false],
+            ['TIPUS TASCA ordena la jornada de l\'operari a la Vista Diària: Obertura, Normativa, Preventiu o Tancament.', false],
+            ['Si la deixes buida es classifica sola: Normativa si té NORMATIVA i és diària; si no, Preventiu. Les d\'obertura i tancament s\'han d\'indicar.', false],
             ['', false],
             ['PERIODICITATS VÀLIDES (escriu-les exactament així):', true],
             [implode(' | ', $periodicitats), false],
@@ -172,6 +174,7 @@ class PlantillaBuilder
             $cols[] = 'EQUIP';
         }
         $cols[] = 'NORMATIVA';
+        $cols[] = 'TIPUS TASCA';
 
         return $cols;
     }
@@ -189,6 +192,7 @@ class PlantillaBuilder
                 'TORN' => 'Matí',
                 'EQUIP' => '',
                 'NORMATIVA' => '',
+                'TIPUS TASCA' => 'Normativa',
                 default => '',
             };
             $exemple2[] = match ($col) {
@@ -196,6 +200,7 @@ class PlantillaBuilder
                 'TORN' => '',
                 'EQUIP' => 'Caldera ACS principal',
                 'NORMATIVA' => '',
+                'TIPUS TASCA' => 'Preventiu',
                 default => '',
             };
         }

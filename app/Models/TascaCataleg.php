@@ -8,6 +8,56 @@ class TascaCataleg extends Model
 {
     protected static string $table = 'tasques_cataleg';
 
+    /** Blocs de la jornada de l'operari, en l'ordre en què es fan. */
+    public const TIPUS = [
+        'obertura' => 'Obertura',
+        'normativa' => 'Normatives',
+        'preventiu' => 'Preventiu',
+        'tancament' => 'Tancament',
+    ];
+
+    /**
+     * Tipus efectiu d'una tasca del pla. Sense tipus explícit (NULL) és
+     * automàtic: normativa si té normativa associada i és diària (p.ex. el
+     * clor de la piscina); la resta, encara que tingui normativa (revisions
+     * mensuals, anuals...), és preventiu.
+     */
+    public static function tipusSql(string $catalegAlias = 'tc', string $plaAlias = 'tp'): string
+    {
+        return "COALESCE({$catalegAlias}.tipus, CASE WHEN COALESCE({$plaAlias}.normativa_id, {$catalegAlias}.normativa_id) IS NOT NULL
+                    AND (SELECT p_tipus.dies_interval FROM periodicitats p_tipus
+                         WHERE p_tipus.id = COALESCE({$plaAlias}.periodicitat_id, {$catalegAlias}.periodicitat_normativa_id)) = 1
+                THEN 'normativa' ELSE 'preventiu' END)";
+    }
+
+    /** Valor vàlid per desar a la columna tipus; null = automàtic. */
+    public static function tipusValid(mixed $value): ?string
+    {
+        $value = (string)$value;
+        return isset(self::TIPUS[$value]) ? $value : null;
+    }
+
+    /** Interpreta el tipus escrit a l'Excel (català o castellà). Null si està buit o no s'entén. */
+    public static function tipusDesDeText(string $text): ?string
+    {
+        $text = mb_strtolower(trim($text));
+        if ($text === '') {
+            return null;
+        }
+        $patterns = [
+            'obertura' => '/obertura|apertura|posada en marxa|puesta en marcha|inici|inicio/u',
+            'tancament' => '/tancament|cierre|tancar|cerrar/u',
+            'normativa' => '/normati|legal/u',
+            'preventiu' => '/preventi/u',
+        ];
+        foreach ($patterns as $tipus => $pattern) {
+            if (preg_match($pattern, $text)) {
+                return $tipus;
+            }
+        }
+        return null;
+    }
+
     public static function allWithRelations(int $instalacioId, string $orderBy = 'codi ASC, nom ASC'): array
     {
         return static::query('
