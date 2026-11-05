@@ -2,9 +2,9 @@
 -- Migració: tipus de tasca per ordenar la jornada de l'operari
 -- Data: 2026-11-03
 -- La Vista Diària separa les tasques en blocs: obertura, normatives,
--- preventiu i tancament. NULL = automàtic (normativa si la tasca té
--- normativa associada i és diària; si no, preventiu), així les dades existents i
--- les importacions sense aquesta columna es classifiquen soles.
+-- preventiu i tancament. El tipus es posa sempre a mà: NULL = sense tipus
+-- (la tasca surt a «Sense bloc»). Els blocs només surten a les instal·lacions
+-- on alguna tasca del pla té tipus; la resta veu la llista de sempre.
 -- Idempotent: es pot executar més d'una vegada sense duplicar la columna.
 -- ===========================================================
 
@@ -18,7 +18,7 @@ SET @column_exists := (
 
 SET @sql := IF(
     @column_exists = 0,
-    'ALTER TABLE `tasques_cataleg` ADD COLUMN `tipus` ENUM(''obertura'', ''normativa'', ''preventiu'', ''tancament'') DEFAULT NULL COMMENT ''NULL = automàtic segons normativa'' AFTER `normativa_id`',
+    'ALTER TABLE `tasques_cataleg` ADD COLUMN `tipus` ENUM(''obertura'', ''normativa'', ''preventiu'', ''tancament'') DEFAULT NULL COMMENT ''NULL = sense tipus (surt a «Sense bloc»)'' AFTER `normativa_id`',
     'SELECT 1'
 );
 

@@ -57,7 +57,7 @@ ob_start();
                         </td>
                         <td class="px-4 py-2">
                             <select name="tipus[]" class="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-brand outline-none">
-                                <option value="">Automàtic</option>
+                                <option value="">Sense tipus</option>
                                 <?php foreach (\App\Models\TascaCataleg::TIPUS as $valor => $nomTipus): ?>
                                     <option value="<?= e($valor) ?>"><?= e($nomTipus) ?></option>
                                 <?php endforeach; ?>

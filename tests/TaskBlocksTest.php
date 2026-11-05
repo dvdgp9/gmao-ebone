@@ -37,15 +37,13 @@ if (is_file($migrationPath)) {
     $assertContains('information_schema.COLUMNS', file_get_contents($migrationPath), 'La migració ha de ser idempotent.');
 }
 
-// Sense tipus explícit es classifica sola: normativa només si en té i és diària.
-$sql = TascaCataleg::tipusSql();
-$assertContains('COALESCE(tc.tipus,', $sql, 'El tipus explícit mana.');
-$assertContains('COALESCE(tp.normativa_id, tc.normativa_id) IS NOT NULL', $sql, 'Sense tipus: cal tenir normativa per ser normativa.');
-$assertContains('p_tipus.dies_interval', $sql, 'Sense tipus: només les diàries són normatives.');
-$assertContains("ELSE 'preventiu' END", $sql, 'La resta és preventiu.');
+// El tipus es posa sempre a mà: sense tipus, la tasca va a «Sense bloc» (mai es classifica sola).
+$assertSame("COALESCE(tc.tipus, 'sense_bloc')", TascaCataleg::tipusSql(), 'Sense tipus, la tasca no es classifica sola.');
+$assertSame(['obertura', 'normativa', 'preventiu', 'tancament', 'sense_bloc'], array_keys(TascaCataleg::blocs()), '«Sense bloc» va al final, després de tancament.');
 
 $assertSame('tancament', TascaCataleg::tipusValid('tancament'), 'Un tipus vàlid es desa.');
-$assertSame(null, TascaCataleg::tipusValid(''), 'Buit és automàtic.');
+$assertSame(null, TascaCataleg::tipusValid(''), 'Buit és sense tipus.');
+$assertSame(null, TascaCataleg::tipusValid('sense_bloc'), '«Sense bloc» no és un tipus que es pugui desar.');
 $assertSame(null, TascaCataleg::tipusValid('obertura\' OR 1=1'), 'Un valor desconegut no es desa.');
 
 $assertSame('obertura', TascaCataleg::tipusDesDeText('Apertura'), 'L\'Excel accepta "Apertura".');
@@ -53,15 +51,24 @@ $assertSame('obertura', TascaCataleg::tipusDesDeText('Posada en marxa'), 'L\'Exc
 $assertSame('tancament', TascaCataleg::tipusDesDeText('CIERRE'), 'L\'Excel accepta "Cierre".');
 $assertSame('normativa', TascaCataleg::tipusDesDeText('Normatiu'), 'L\'Excel accepta "Normatiu".');
 $assertSame('preventiu', TascaCataleg::tipusDesDeText('Preventivo'), 'L\'Excel accepta "Preventivo".');
-$assertSame(null, TascaCataleg::tipusDesDeText(''), 'Una cel·la buida queda automàtica.');
+$assertSame(null, TascaCataleg::tipusDesDeText(''), 'Una cel·la buida queda sense tipus.');
 
-// La Vista Diària separa les tasques per blocs i avança al següent en acabar-ne un.
+// Els blocs surten sols quan alguna tasca del pla de la instal·lació té tipus; si cap en té, la llista de sempre.
+$assertContains('function usaBlocsJornada(int $instalacioId)', $planModel, 'Els blocs depenen de la instal·lació, no d\'un botó.');
+$assertContains('tc.tipus IS NOT NULL', $planModel, 'Només compten les tasques amb tipus posat a mà.');
+$assertContains('TascaPla::usaBlocsJornada($instalacioId)', $planController, 'La Vista Diària mira el pla de la instal·lació.');
+$assertSame(false, str_contains($dayView, 'dia/blocs'), 'No hi ha interruptor a la Vista Diària.');
+$assertContains('<?php if ($usaBlocs): ?>', $dayView, 'Sense tipus no surten les pestanyes.');
+$assertContains("'No hi ha tasques pendents per a aquest dia.'", $dayView, 'Sense blocs es manté el missatge de sempre.');
+
+// Amb els blocs activats, la Vista Diària separa les tasques i avança al següent en acabar-ne un.
 $assertContains("TascaCataleg::tipusSql() . ' AS tipus", $planModel, 'La consulta del dia ha de retornar el tipus.');
 $assertContains('function fetesPerTipus', $planModel, 'Cal comptar les tasques fetes per bloc.');
 $assertContains('function resolveBloc', $planController, 'El controlador ha de triar el bloc visible.');
 $assertContains("\$this->get('continuar'", $planController, 'Després de registrar es continua al bloc o al següent.');
 $assertContains('role="tablist"', $dayView, 'La vista ha de mostrar els blocs com a pestanyes.');
-$assertContains('&continuar=<?= e($blocActual) ?>', $dayView, 'Els registres han de tornar al bloc on s\'estava.');
+$assertContains("\$continuarBloc = \$usaBlocs ? '&continuar=' . e(\$blocActual) : '';", $dayView, 'Els registres han de tornar al bloc on s\'estava, només amb blocs.');
+$assertSame(4, substr_count($dayView, '<?= $continuarBloc ?>'), 'Tots els formularis de registre han de tornar al bloc.');
 $assertContains('Següent bloc', $dayView, 'Un bloc acabat ha d\'indicar el següent.');
 
 // L'administrador pot indicar el tipus a tots els punts d'alta.

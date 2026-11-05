@@ -154,10 +154,10 @@ ob_start();
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tipus de tasca</label>
                 <select name="tipus" x-model="task.tipus" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none">
-                    <option value="">Automàtic (normativa o preventiu)</option>
+                    <option value="">Sense tipus</option>
                     <?php foreach (\App\Models\TascaCataleg::TIPUS as $valor => $nomTipus): ?><option value="<?= e($valor) ?>"><?= e($nomTipus) ?></option><?php endforeach; ?>
                 </select>
-                <p class="text-xs text-gray-400 mt-1">Bloc de la Vista Diària on surt. Automàtic: Normatives si té normativa i és diària; si no, Preventiu.</p>
+                <p class="text-xs text-gray-400 mt-1">Bloc on surt a la Vista Diària. Si alguna tasca de la instal·lació té tipus, la Vista Diària es mostra per blocs; les tasques sense tipus surten a «Sense bloc».</p>
             </div>
         </div>
     </div>

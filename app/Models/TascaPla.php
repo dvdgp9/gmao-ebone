@@ -246,6 +246,23 @@ class TascaPla extends Model
     }
 
     /**
+     * Si alguna tasca del pla de la instal·lació té tipus posat. Llavors la
+     * Vista Diària es mostra per blocs de jornada; si no, la llista de sempre.
+     */
+    public static function usaBlocsJornada(int $instalacioId): bool
+    {
+        $result = static::query(
+            'SELECT 1
+             FROM tasques_pla tp
+             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
+             WHERE tp.instalacio_id = ? AND tp.en_curs = 1 AND tc.tipus IS NOT NULL
+             LIMIT 1',
+            [$instalacioId]
+        );
+        return !empty($result);
+    }
+
+    /**
      * Tasques marcades com a fetes el dia indicat, per tipus (bloc de la jornada).
      * Es compta pel moment del registre: la data d'execució pot ser la programada.
      */
@@ -264,7 +281,7 @@ class TascaPla extends Model
             $params
         );
 
-        $fetes = array_fill_keys(array_keys(TascaCataleg::TIPUS), 0);
+        $fetes = array_fill_keys(array_keys(TascaCataleg::blocs()), 0);
         foreach ($rows as $row) {
             $fetes[$row['tipus']] = (int)$row['total'];
         }

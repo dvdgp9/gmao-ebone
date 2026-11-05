@@ -8,7 +8,14 @@ $queryBase = ($tornActual ? '&torn=' . $tornActual : '') . ($search ? '&q=' . ur
 $nVencudes = count(array_filter($tasques, fn($t) => ($t['data_propera_realitzacio'] ?? null) < $dataIso));
 $nDia = count($tasques) - $nVencudes;
 $limitMobile = 15;
-$nomsBloc = \App\Models\TascaCataleg::TIPUS;
+$usaBlocs = $usaBlocs ?? false;
+$nomsBloc = \App\Models\TascaCataleg::blocs();
+// «Sense bloc» només surt si hi ha tasques sense tipus avui (o si s'hi és).
+if ($usaBlocs && $blocActual !== \App\Models\TascaCataleg::SENSE_BLOC
+    && ($pendentsPerBloc[\App\Models\TascaCataleg::SENSE_BLOC] ?? 0) === 0
+    && ($fetesPerBloc[\App\Models\TascaCataleg::SENSE_BLOC] ?? 0) === 0) {
+    unset($nomsBloc[\App\Models\TascaCataleg::SENSE_BLOC]);
+}
 $blocSeguent = null;
 foreach ($pendentsPerBloc as $bloc => $pendents) {
     if ($bloc !== $blocActual && $pendents > 0) {
@@ -16,9 +23,14 @@ foreach ($pendentsPerBloc as $bloc => $pendents) {
         break;
     }
 }
-$missatgeBuit = ($fetesPerBloc[$blocActual] ?? 0) > 0
-    ? 'Bloc completat: ' . (int)$fetesPerBloc[$blocActual] . ' tasques fetes.'
-    : 'No hi ha tasques pendents en aquest bloc.';
+if (!$usaBlocs) {
+    $missatgeBuit = 'No hi ha tasques pendents per a aquest dia.';
+} else {
+    $missatgeBuit = ($fetesPerBloc[$blocActual] ?? 0) > 0
+        ? 'Bloc completat: ' . (int)$fetesPerBloc[$blocActual] . ' tasques fetes.'
+        : 'No hi ha tasques pendents en aquest bloc.';
+}
+$continuarBloc = $usaBlocs ? '&continuar=' . e($blocActual) : '';
 ob_start();
 ?>
 
@@ -86,13 +98,14 @@ ob_start();
     </div>
 </div>
 
+<?php if ($usaBlocs): ?>
 <!-- Blocs de la jornada, en l'ordre en què es fan -->
 <div class="flex flex-wrap items-center gap-2 mb-3 max-w-full" role="tablist" aria-label="Blocs de la jornada">
     <?php $numBloc = 0; foreach ($nomsBloc as $bloc => $nomBloc): $numBloc++; $actiu = $bloc === $blocActual; ?>
     <a href="<?= url('dia?data=' . $dataIso . '&bloc=' . $bloc . ($tornActual ? '&torn=' . $tornActual : '') . ($search ? '&q=' . urlencode($search) : '')) ?>"
        role="tab" aria-selected="<?= $actiu ? 'true' : 'false' ?>"
        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-2xl <?= $actiu ? 'bg-brand text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
-        <?= $numBloc ?>. <?= e($nomBloc) ?>
+        <?= $bloc === \App\Models\TascaCataleg::SENSE_BLOC ? '' : $numBloc . '. ' ?><?= e($nomBloc) ?>
         <?php if ($pendentsPerBloc[$bloc] > 0): ?>
             <span class="text-xs font-medium rounded-full px-1.5 <?= $actiu ? 'bg-white/20' : 'bg-gray-100 text-gray-600' ?>"><?= (int)$pendentsPerBloc[$bloc] ?></span>
         <?php elseif (($fetesPerBloc[$bloc] ?? 0) > 0): ?>
@@ -107,6 +120,7 @@ ob_start();
     <a href="<?= url('dia?data=' . $dataIso . '&bloc=' . $blocSeguent . ($tornActual ? '&torn=' . $tornActual : '') . ($search ? '&q=' . urlencode($search) : '')) ?>"
        class="text-sm text-brand hover:text-brand-dark transition">Següent bloc: <?= e($nomsBloc[$blocSeguent]) ?> (<?= (int)$pendentsPerBloc[$blocSeguent] ?>) &rarr;</a>
 </div>
+<?php endif; ?>
 <?php endif; ?>
 
 <!-- Resum ràpid -->
@@ -161,7 +175,7 @@ ob_start();
                     <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">
                     <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
                     <input type="hidden" name="realitzada" value="1">
-                    <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?>&continuar=<?= e($blocActual) ?>">
+                    <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?><?= $continuarBloc ?>">
                     <button type="submit"
                             class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition"
                             title="Marcar com a realitzada"
@@ -200,7 +214,7 @@ ob_start();
                         <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
                         <input type="hidden" name="realitzada" :value="incidencia === 'feta_amb_incidencia' ? '1' : '0'">
                         <input type="hidden" name="tipus_incidencia" :value="incidencia">
-                        <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?>&continuar=<?= e($blocActual) ?>">
+                        <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?><?= $continuarBloc ?>">
                         <textarea name="comentaris" required rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none" placeholder="Descriu la incidència..."></textarea>
                         <button type="submit" class="w-full bg-gray-900 text-white hover:bg-gray-800 px-3 py-2 rounded-lg text-sm font-medium transition">
                             Registrar incidència
@@ -283,7 +297,7 @@ ob_start();
                                         <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">
                                         <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
                                         <input type="hidden" name="realitzada" value="1">
-                                        <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?>&continuar=<?= e($blocActual) ?>">
+                                        <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?><?= $continuarBloc ?>">
                                         <button type="submit" class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-green-700 transition hover:bg-green-50">
                                             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
@@ -313,7 +327,7 @@ ob_start();
                                         <input type="hidden" name="data_execucio" value="<?= date('Y-m-d') ?>">
                                         <input type="hidden" name="realitzada" :value="incidencia === 'feta_amb_incidencia' ? '1' : '0'">
                                         <input type="hidden" name="tipus_incidencia" :value="incidencia">
-                                        <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?>&continuar=<?= e($blocActual) ?>">
+                                        <input type="hidden" name="redirect" value="dia?data=<?= e($dataIso) ?><?= $tornActual ? '&torn=' . $tornActual : '' ?><?= $search ? '&q=' . urlencode($search) : '' ?><?= $continuarBloc ?>">
                                         <label class="block text-xs font-medium text-gray-500">Comentari</label>
                                         <textarea name="comentaris" required rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none" placeholder="Descriu la incidència..."></textarea>
                                         <button type="submit" class="w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-gray-800 active:scale-[0.98]">

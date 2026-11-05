@@ -16,21 +16,22 @@ class TascaCataleg extends Model
         'tancament' => 'Tancament',
     ];
 
-    /**
-     * Tipus efectiu d'una tasca del pla. Sense tipus explícit (NULL) és
-     * automàtic: normativa si té normativa associada i és diària (p.ex. el
-     * clor de la piscina); la resta, encara que tingui normativa (revisions
-     * mensuals, anuals...), és preventiu.
-     */
-    public static function tipusSql(string $catalegAlias = 'tc', string $plaAlias = 'tp'): string
+    /** Bloc de les tasques sense tipus: el tipus es posa sempre a mà, mai sol. */
+    public const SENSE_BLOC = 'sense_bloc';
+
+    /** Pestanyes de la Vista Diària per blocs: els quatre blocs i, al final, les tasques sense tipus. */
+    public static function blocs(): array
     {
-        return "COALESCE({$catalegAlias}.tipus, CASE WHEN COALESCE({$plaAlias}.normativa_id, {$catalegAlias}.normativa_id) IS NOT NULL
-                    AND (SELECT p_tipus.dies_interval FROM periodicitats p_tipus
-                         WHERE p_tipus.id = COALESCE({$plaAlias}.periodicitat_id, {$catalegAlias}.periodicitat_normativa_id)) = 1
-                THEN 'normativa' ELSE 'preventiu' END)";
+        return self::TIPUS + [self::SENSE_BLOC => 'Sense bloc'];
     }
 
-    /** Valor vàlid per desar a la columna tipus; null = automàtic. */
+    /** Bloc d'una tasca del pla: el tipus que s'ha posat a mà o, si no en té, «sense bloc». */
+    public static function tipusSql(string $catalegAlias = 'tc'): string
+    {
+        return "COALESCE({$catalegAlias}.tipus, '" . self::SENSE_BLOC . "')";
+    }
+
+    /** Valor vàlid per desar a la columna tipus; null = sense tipus. */
     public static function tipusValid(mixed $value): ?string
     {
         $value = (string)$value;

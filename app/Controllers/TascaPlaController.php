@@ -572,19 +572,29 @@ class TascaPlaController extends Controller
             $search
         );
 
-        // Blocs de la jornada: obertura → normatives → preventiu → tancament.
-        $pendentsPerBloc = array_fill_keys(array_keys(TascaCataleg::TIPUS), 0);
-        foreach ($tasques as $t) {
-            $pendentsPerBloc[$t['tipus']]++;
+        // Blocs de la jornada (obertura → normatives → preventiu → tancament → sense bloc):
+        // només si l'administrador ha posat tipus a alguna tasca del pla de la instal·lació.
+        // Si cap en té, la llista de sempre.
+        $usaBlocs = TascaPla::usaBlocsJornada($instalacioId);
+        $blocActual = null;
+        $pendentsPerBloc = [];
+        $fetesPerBloc = [];
+        if ($usaBlocs) {
+            $pendentsPerBloc = array_fill_keys(array_keys(TascaCataleg::blocs()), 0);
+            foreach ($tasques as $t) {
+                $pendentsPerBloc[$t['tipus']]++;
+            }
+            $fetesPerBloc = $avisTecnic
+                ? array_fill_keys(array_keys(TascaCataleg::blocs()), 0)
+                : TascaPla::fetesPerTipus($instalacioId, $dataSeleccionada->format('Y-m-d'), $tornFilter);
+            $blocActual = $this->resolveBloc($pendentsPerBloc);
+            $tasques = array_values(array_filter($tasques, static fn(array $t): bool => $t['tipus'] === $blocActual));
         }
-        $fetesPerBloc = $avisTecnic
-            ? array_fill_keys(array_keys(TascaCataleg::TIPUS), 0)
-            : TascaPla::fetesPerTipus($instalacioId, $dataSeleccionada->format('Y-m-d'), $tornFilter);
-        $blocActual = $this->resolveBloc($pendentsPerBloc);
 
         $this->view('dia.index', [
             'title' => 'Vista Diària',
-            'tasques' => array_values(array_filter($tasques, static fn(array $t): bool => $t['tipus'] === $blocActual)),
+            'tasques' => $tasques,
+            'usaBlocs' => $usaBlocs,
             'blocActual' => $blocActual,
             'pendentsPerBloc' => $pendentsPerBloc,
             'fetesPerBloc' => $fetesPerBloc,
@@ -604,12 +614,14 @@ class TascaPlaController extends Controller
      */
     private function resolveBloc(array $pendentsPerBloc): string
     {
-        $triat = TascaCataleg::tipusValid($this->get('bloc', ''));
-        if ($triat) {
+        $blocs = TascaCataleg::blocs();
+        $triat = (string)$this->get('bloc', '');
+        if (isset($blocs[$triat])) {
             return $triat;
         }
 
-        $continuar = TascaCataleg::tipusValid($this->get('continuar', ''));
+        $continuar = (string)$this->get('continuar', '');
+        $continuar = isset($blocs[$continuar]) ? $continuar : null;
         if ($continuar && $pendentsPerBloc[$continuar] > 0) {
             return $continuar;
         }
@@ -620,7 +632,7 @@ class TascaPlaController extends Controller
             }
         }
 
-        return $continuar ?? array_key_first(TascaCataleg::TIPUS);
+        return $continuar ?? array_key_first($blocs);
     }
 
     /**
