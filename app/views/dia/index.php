@@ -16,6 +16,10 @@ if ($usaBlocs && $blocActual !== \App\Models\TascaCataleg::SENSE_BLOC
     && ($fetesPerBloc[\App\Models\TascaCataleg::SENSE_BLOC] ?? 0) === 0) {
     unset($nomsBloc[\App\Models\TascaCataleg::SENSE_BLOC]);
 }
+// «Totes»: primera pestanya i la que s'obre per defecte; llista tot el dia amb un títol per bloc.
+$esTotes = $usaBlocs && $blocActual === \App\Models\TascaCataleg::TOTES;
+$pendentsTotes = array_sum($pendentsPerBloc);
+$fetesTotes = array_sum($fetesPerBloc);
 $blocSeguent = null;
 foreach ($pendentsPerBloc as $bloc => $pendents) {
     if ($bloc !== $blocActual && $pendents > 0) {
@@ -25,6 +29,10 @@ foreach ($pendentsPerBloc as $bloc => $pendents) {
 }
 if (!$usaBlocs) {
     $missatgeBuit = 'No hi ha tasques pendents per a aquest dia.';
+} elseif ($esTotes) {
+    $missatgeBuit = $fetesTotes > 0
+        ? 'Jornada completada: ' . (int)$fetesTotes . ' tasques fetes.'
+        : 'No hi ha tasques pendents per a aquest dia.';
 } else {
     $missatgeBuit = ($fetesPerBloc[$blocActual] ?? 0) > 0
         ? 'Bloc completat: ' . (int)$fetesPerBloc[$blocActual] . ' tasques fetes.'
@@ -101,6 +109,16 @@ ob_start();
 <?php if ($usaBlocs): ?>
 <!-- Blocs de la jornada, en l'ordre en què es fan -->
 <div class="flex flex-wrap items-center gap-2 mb-3 max-w-full" role="tablist" aria-label="Blocs de la jornada">
+    <a href="<?= url('dia?data=' . $dataIso . '&bloc=' . \App\Models\TascaCataleg::TOTES . ($tornActual ? '&torn=' . $tornActual : '') . ($search ? '&q=' . urlencode($search) : '')) ?>"
+       role="tab" aria-selected="<?= $esTotes ? 'true' : 'false' ?>"
+       class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-2xl <?= $esTotes ? 'bg-brand text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50' ?> transition">
+        Totes
+        <?php if ($pendentsTotes > 0): ?>
+            <span class="text-xs font-medium rounded-full px-1.5 <?= $esTotes ? 'bg-white/20' : 'bg-gray-100 text-gray-600' ?>"><?= (int)$pendentsTotes ?></span>
+        <?php elseif ($fetesTotes > 0): ?>
+            <svg class="w-4 h-4 <?= $esTotes ? '' : 'text-green-600' ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Completat"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        <?php endif; ?>
+    </a>
     <?php $numBloc = 0; foreach ($nomsBloc as $bloc => $nomBloc): $numBloc++; $actiu = $bloc === $blocActual; ?>
     <a href="<?= url('dia?data=' . $dataIso . '&bloc=' . $bloc . ($tornActual ? '&torn=' . $tornActual : '') . ($search ? '&q=' . urlencode($search) : '')) ?>"
        role="tab" aria-selected="<?= $actiu ? 'true' : 'false' ?>"
@@ -142,12 +160,15 @@ ob_start();
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-400"><?= e($missatgeBuit) ?></div>
     <?php else: ?>
         <div class="space-y-2 w-full max-w-full">
-        <?php foreach ($tasques as $idx => $t): ?>
+        <?php $blocAnterior = null; foreach ($tasques as $idx => $t): ?>
         <?php
             $vencuda = ($t['data_propera_realitzacio'] ?? null) < $dataIso;
             $esDia = ($t['data_propera_realitzacio'] ?? null) === $dataIso;
         ?>
-        <div x-show="showAll || <?= $idx ?> < <?= $limitMobile ?>" 
+        <?php if ($esTotes && $t['tipus'] !== $blocAnterior): $blocAnterior = $t['tipus']; ?>
+        <h3 x-show="showAll || <?= $idx ?> < <?= $limitMobile ?>" class="pt-2 text-xs font-semibold uppercase tracking-wide text-gray-500"><?= e(\App\Models\TascaCataleg::blocs()[$t['tipus']] ?? '') ?></h3>
+        <?php endif; ?>
+        <div x-show="showAll || <?= $idx ?> < <?= $limitMobile ?>"
              class="w-full max-w-full overflow-hidden bg-white rounded-lg shadow-sm border px-3 py-2.5 <?= $vencuda ? 'border-red-200 bg-red-50/60' : ($esDia ? 'border-yellow-200 bg-yellow-50/70' : 'border-gray-200') ?>">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0 flex-1">
@@ -253,11 +274,16 @@ ob_start();
                 <?php if (empty($tasques)): ?>
                     <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400"><?= e($missatgeBuit) ?></td></tr>
                 <?php else: ?>
-                    <?php foreach ($tasques as $t): ?>
+                    <?php $blocAnterior = null; foreach ($tasques as $t): ?>
                     <?php
                         $vencuda = ($t['data_propera_realitzacio'] ?? null) < $dataIso;
                         $esDia = ($t['data_propera_realitzacio'] ?? null) === $dataIso;
                     ?>
+                    <?php if ($esTotes && $t['tipus'] !== $blocAnterior): $blocAnterior = $t['tipus']; ?>
+                    <tr class="bg-gray-50">
+                        <th colspan="7" scope="colgroup" class="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500"><?= e(\App\Models\TascaCataleg::blocs()[$t['tipus']] ?? '') ?></th>
+                    </tr>
+                    <?php endif; ?>
                     <tr class="hover:bg-gray-50 transition <?= $vencuda ? 'bg-red-50' : ($esDia ? 'bg-yellow-50' : '') ?>" x-data="{ menu: false, incidencia: null }">
                         <td class="px-4 py-3 font-mono text-xs text-brand"><?= e($t['tasca_codi'] ?? '-') ?></td>
                         <td class="px-4 py-3 text-gray-500 text-xs"><?= e($t['espai_nom'] ?? '-') ?></td>

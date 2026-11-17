@@ -19,6 +19,9 @@ class TascaCataleg extends Model
     /** Bloc de les tasques sense tipus: el tipus es posa sempre a mà, mai sol. */
     public const SENSE_BLOC = 'sense_bloc';
 
+    /** Pestanya de la Vista Diària amb totes les tasques del dia, agrupades per bloc. És la primera i la que s'obre per defecte. */
+    public const TOTES = 'totes';
+
     /** Pestanyes de la Vista Diària per blocs: els quatre blocs i, al final, les tasques sense tipus. */
     public static function blocs(): array
     {

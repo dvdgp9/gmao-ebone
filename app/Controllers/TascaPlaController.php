@@ -588,7 +588,14 @@ class TascaPlaController extends Controller
                 ? array_fill_keys(array_keys(TascaCataleg::blocs()), 0)
                 : TascaPla::fetesPerTipus($instalacioId, $dataSeleccionada->format('Y-m-d'), $tornFilter);
             $blocActual = $this->resolveBloc($pendentsPerBloc);
-            $tasques = array_values(array_filter($tasques, static fn(array $t): bool => $t['tipus'] === $blocActual));
+            if ($blocActual === TascaCataleg::TOTES) {
+                // «Totes»: totes les tasques del dia, agrupades en l'ordre de la jornada.
+                // Dins de cada bloc es manté l'ordre de sempre (usort és estable).
+                $ordreBloc = array_flip(array_keys(TascaCataleg::blocs()));
+                usort($tasques, static fn(array $a, array $b): int => $ordreBloc[$a['tipus']] <=> $ordreBloc[$b['tipus']]);
+            } else {
+                $tasques = array_values(array_filter($tasques, static fn(array $t): bool => $t['tipus'] === $blocActual));
+            }
         }
 
         $this->view('dia.index', [
@@ -607,22 +614,25 @@ class TascaPlaController extends Controller
     }
 
     /**
-     * Bloc que es mostra a la Vista Diària. Una pestanya triada (?bloc=) es
-     * respecta sempre. Després de registrar una tasca (?continuar=) es queda
-     * al bloc mentre li quedin pendents i, en acabar-lo, passa al següent.
-     * Sense indicació s'obre el primer bloc amb tasques pendents.
+     * Pestanya que es mostra a la Vista Diària. Sense indicació s'obre «Totes»,
+     * per tenir primer una visió general. Una pestanya triada (?bloc=) es
+     * respecta sempre. Després de registrar una tasca (?continuar=): a «Totes»
+     * s'hi queda; en un bloc s'hi queda mentre li quedin pendents i, en
+     * acabar-lo, passa al següent bloc amb pendents.
      */
     private function resolveBloc(array $pendentsPerBloc): string
     {
         $blocs = TascaCataleg::blocs();
         $triat = (string)$this->get('bloc', '');
-        if (isset($blocs[$triat])) {
+        if ($triat === TascaCataleg::TOTES || isset($blocs[$triat])) {
             return $triat;
         }
 
         $continuar = (string)$this->get('continuar', '');
-        $continuar = isset($blocs[$continuar]) ? $continuar : null;
-        if ($continuar && $pendentsPerBloc[$continuar] > 0) {
+        if (!isset($blocs[$continuar])) {
+            return TascaCataleg::TOTES;
+        }
+        if ($pendentsPerBloc[$continuar] > 0) {
             return $continuar;
         }
 
@@ -632,7 +642,7 @@ class TascaPlaController extends Controller
             }
         }
 
-        return $continuar ?? array_key_first($blocs);
+        return $continuar;
     }
 
     /**

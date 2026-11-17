@@ -71,6 +71,15 @@ $assertContains("\$continuarBloc = \$usaBlocs ? '&continuar=' . e(\$blocActual) 
 $assertSame(4, substr_count($dayView, '<?= $continuarBloc ?>'), 'Tots els formularis de registre han de tornar al bloc.');
 $assertContains('Següent bloc', $dayView, 'Un bloc acabat ha d\'indicar el següent.');
 
+// «Totes» és la primera pestanya i la que s'obre per defecte, amb tot el dia agrupat per bloc.
+$assertSame('totes', TascaCataleg::TOTES, 'La pestanya general es diu «totes».');
+$assertSame(false, array_key_exists(TascaCataleg::TOTES, TascaCataleg::blocs()), '«Totes» no és un bloc: no es pot desar com a tipus.');
+$assertSame(null, TascaCataleg::tipusValid(TascaCataleg::TOTES), '«Totes» no és un tipus vàlid.');
+$assertContains('return TascaCataleg::TOTES;', $planController, 'Sense indicació s\'obre «Totes».');
+$assertContains('usort($tasques', $planController, '«Totes» ordena les tasques per bloc.');
+$assertSame(true, strpos($dayView, 'Totes') < strpos($dayView, '$numBloc = 0;'), '«Totes» va abans dels blocs.');
+$assertContains('$esTotes && $t[\'tipus\'] !== $blocAnterior', $dayView, '«Totes» mostra un títol per bloc.');
+
 // L'administrador pot indicar el tipus a tots els punts d'alta.
 $assertContains('name="tipus"', $planForm, 'El formulari de tasca ha de tenir el tipus.');
 $assertContains('name="tipus"', $catalogForm, 'El formulari del repositori ha de tenir el tipus.');
