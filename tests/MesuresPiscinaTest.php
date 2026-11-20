@@ -1,0 +1,102 @@
+<?php
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+use App\Models\MesuraPiscina as M;
+use App\Services\PlantillaBuilder;
+
+$failures = [];
+$assertSame = static function (mixed $expected, mixed $actual, string $message) use (&$failures): void {
+    if ($expected !== $actual) {
+        $failures[] = $message . ' Expected: ' . json_encode($expected) . '; actual: ' . json_encode($actual);
+    }
+};
+$assertContains = static function (string $needle, string $haystack, string $message) use (&$failures): void {
+    if (!str_contains($haystack, $needle)) {
+        $failures[] = $message;
+    }
+};
+
+// Números del formulario: coma decimal, buits i text.
+$assertSame(1.5, M::numero('1,5'), 'Ha d\'acceptar la coma decimal.');
+$assertSame(7.45, M::numero(' 7.45 '), 'Ha d\'acceptar el punt decimal.');
+$assertSame(null, M::numero(''), 'Un camp buit no és un valor.');
+$assertSame(false, M::numero('abc'), 'Un text no és un número.');
+$assertSame(false, M::numero('7,4.5.'), 'Uns separadors sense sentit no són un número.');
+$assertSame(1190180.0, M::numero('1.190.180'), 'Ha d\'acceptar el punt de milers del comptador.');
+$assertSame(1190180.5, M::numero('1.190.180,50'), 'Milers amb punt i decimals amb coma.');
+$assertSame(1190180.0, M::numero('1,190,180.00'), 'Format anglès de l\'Excel.');
+$assertSame(27.8, M::numero('27,8º'), 'Ha d\'acceptar el símbol de grau.');
+$assertSame(62.0, M::numero('62 %'), 'Ha d\'acceptar el símbol de percentatge.');
+
+// Clor combinat calculat si no s'escriu.
+[$v] = M::valorsDesDePost(['clor_lliure' => '1,5', 'clor_total' => '2,1']);
+$assertSame(0.6, $v['clor_combinat'], 'El clor combinat és total − lliure.');
+[$v] = M::valorsDesDePost(['clor_lliure' => '1,5', 'clor_total' => '2,1', 'clor_combinat' => '0,4']);
+$assertSame(0.4, $v['clor_combinat'], 'Si s\'escriu el clor combinat, es respecta.');
+[$v, $errors] = M::valorsDesDePost([]);
+$assertSame(false, M::teAlgunValor($v), 'Sense cap valor no hi ha mesura.');
+$assertSame([], $errors, 'Un formulari buit no té errors de format.');
+
+// Valors impossibles: no es desen (abans trencaven la pàgina per desbordament de la columna).
+[$v, $errors] = M::valorsDesDePost(['ph' => '745', 'humitat' => '120', 'clor_lliure' => 'molt', 'temp_aigua' => '27,8']);
+$assertSame(['clor_lliure', 'ph', 'humitat'], array_keys($errors), 'pH 745, humitat 120 % i un text han de donar error.');
+$assertSame(27.8, $v['temp_aigua'], 'Els valors bons es continuen llegint.');
+$assertSame(null, $v['ph'], 'Un valor impossible no es desa.');
+
+// Normes del full Param_Aigua_Piscina.
+$e = M::avaluar(['clor_lliure' => 1.2, 'ph' => 7.5, 'clor_combinat' => 0.3, 'terbolesa' => 1.5, 'humitat' => 60, 'co2_interior' => 450, 'co2_exterior' => 400]);
+$assertSame(['clor_lliure' => 'ok', 'clor_combinat' => 'ok', 'ph' => 'ok', 'co2_interior' => 'ok', 'humitat' => 'ok', 'terbolesa' => 'ok'], $e, 'Valors normals.');
+$e = M::avaluar(['clor_lliure' => 2.4, 'ph' => 8.2, 'clor_combinat' => 0.7, 'terbolesa' => 6, 'humitat' => 70, 'co2_interior' => 950, 'co2_exterior' => 400]);
+$assertSame(['clor_lliure' => 'fora', 'clor_combinat' => 'fora', 'ph' => 'fora', 'co2_interior' => 'fora', 'humitat' => 'fora', 'terbolesa' => 'fora'], $e, 'Valors fora de norma.');
+$e = M::avaluar(['clor_lliure' => 0, 'ph' => 9.5, 'clor_combinat' => 3.5, 'terbolesa' => 25]);
+$assertSame(['clor_lliure' => 'tancar', 'clor_combinat' => 'tancar', 'ph' => 'tancar', 'terbolesa' => 'tancar'], $e, 'Valors que obliguen a tancar el vas.');
+$assertSame('tancar', M::avaluar(['clor_lliure' => 5.5])['clor_lliure'], 'Clor lliure > 5 obliga a tancar.');
+$assertSame([], M::avaluar(['co2_interior' => 900]), 'Sense CO2 exterior no es pot comparar.');
+
+// Moments fixos: clor i pH a cada moment; la resta, un cop al dia.
+$assertSame(['inici', 'migdia', 'final'], array_keys(M::MOMENTS), 'Tres moments fixos: inici, 14 h i final.');
+$assertSame(['clor_lliure', 'clor_total', 'clor_combinat', 'ph'], M::campsCadaMoment(), 'El clor i el pH es mesuren a cada moment.');
+$assertSame(true, in_array('aigua_nova', M::campsDiaris(), true), "L'aigua nova és un paràmetre d'un cop al dia.");
+$assertSame(true, in_array('terbolesa', M::campsDiaris(), true), "La terbolesa és d'un cop al dia.");
+
+// Sense els d'un cop al dia (ja desats en un altre moment) no es llegeixen ni es toquen.
+[$v] = M::valorsDesDePost(['ph' => '7,4', 'terbolesa' => '0,3', 'aigua_nova' => '12'], false);
+$assertSame(['clor_lliure', 'clor_total', 'clor_combinat', 'ph'], array_keys($v), 'Només el clor i el pH.');
+[$v] = M::valorsDesDePost(['aigua_nova' => '1.250.300']);
+$assertSame(1250300.0, $v['aigua_nova'], "Es llegeix el comptador d'aigua nova.");
+[$v] = M::valorsDesDePost(['terbolesa' => '0,3'], false);
+$assertSame(false, M::teAlgunValor($v), 'Si només hi ha diaris que no toquen, no hi ha mesura.');
+
+// Moment proposat segons l'hora; si ja està fet, el primer que falta.
+$assertSame('inici', M::momentProposat([], 8), 'Al matí, inici.');
+$assertSame('migdia', M::momentProposat([], 14), 'A les 14 h, el del migdia.');
+$assertSame('final', M::momentProposat([], 20), 'Al vespre, final.');
+$assertSame('migdia', M::momentProposat(['inici' => []], 9), "Inici ja fet al matí: el següent.");
+$assertSame('inici', M::momentProposat(['final' => []], 21), 'Final ja fet: el primer que falta.');
+
+// On són els paràmetres d'un cop al dia.
+$dia = ['inici' => ['ph' => 7.4, 'terbolesa' => null], 'final' => ['ph' => 7.3, 'terbolesa' => 0.2]];
+$assertSame('final', M::momentAmbDiaris($dia), 'La terbolesa es va desar al final.');
+$assertSame(null, M::momentAmbDiaris($dia, 'final'), 'Corregint el final, els diaris es tornen a demanar.');
+$assertSame(null, M::momentAmbDiaris(['inici' => ['ph' => 7.4]]), 'Sense diaris encara.');
+
+// Codi: tasques amb l'espai tancat, formulari a la Vista Diària i importació.
+$root = dirname(__DIR__);
+$tascaPla = file_get_contents($root . '/app/Models/TascaPla.php');
+$dashboard = file_get_contents($root . '/app/Controllers/DashboardController.php');
+$assertContains('tp.fer_amb_espai_tancat = 1', $tascaPla, 'Les tasques marcades han de sortir amb l\'espai tancat.');
+$assertSame(0, substr_count($tascaPla . $dashboard, '(tp.espai_id IS NULL OR es.actiu = 1)'), 'Cap consulta ha d\'amagar les tasques marcades per fer amb l\'espai tancat.');
+$diaView = file_get_contents($root . '/app/views/dia/index.php');
+$assertContains("isset(\$mesures[\$t['id']])", $diaView, 'La Vista Diària ha de mostrar el botó de paràmetres a les tasques de mesura.');
+$assertContains("'mesura piscina'", file_get_contents($root . '/app/Controllers/ImportController.php'), 'La importació ha de llegir la columna MESURA PISCINA.');
+$assertSame(true, in_array('MESURA PISCINA', PlantillaBuilder::tasquesColumns(['espais']), true), 'La plantilla ha de tenir la columna MESURA PISCINA.');
+$routes = file_get_contents($root . '/app/Config/routes.php');
+$assertContains("'parametres/store'", $routes, 'Ha d\'existir la ruta per desar els paràmetres.');
+
+if ($failures !== []) {
+    fwrite(STDERR, "MesuresPiscinaTest failed:\n- " . implode("\n- ", $failures) . "\n");
+    exit(1);
+}
+
+echo "MesuresPiscinaTest passed\n";

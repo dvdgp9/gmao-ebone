@@ -482,6 +482,7 @@ class ImportController extends Controller
                         'periodicitat_normativa_id' => $input['periodicitat_id'],
                         'normativa_id' => $input['normativa_id'],
                         'tipus' => $input['tipus_tasca'],
+                        'mesura_piscina' => $input['mesura_piscina'],
                         'empresa_responsable' => null,
                         'activa' => 1,
                     ]);
@@ -489,6 +490,9 @@ class ImportController extends Controller
                     TaskMatcher::rememberAlias($tascaCatalegId, $input['nom']);
                     if ($input['tipus_tasca']) {
                         TascaCataleg::update($tascaCatalegId, ['tipus' => $input['tipus_tasca']]);
+                    }
+                    if ($input['mesura_piscina']) {
+                        TascaCataleg::update($tascaCatalegId, ['mesura_piscina' => 1]);
                     }
                 }
 
@@ -603,6 +607,8 @@ class ImportController extends Controller
         $equipRaw = $this->readQuickCell($sheet, $headers, $row, ['equip', 'equipo', 'nom equip', 'codigo equipo']);
         // "TIPUS" sol és el tipus d'equip; el bloc de la jornada té capçalera pròpia.
         $tipusTascaRaw = $this->readQuickCell($sheet, $headers, $row, ['tipus tasca', 'tipus de tasca', 'tipo tarea', 'tipo de tarea', 'bloc', 'bloque']);
+        // Tasca de mesura de paràmetres de l'aigua: només si s'indica (sí / x / 1). Mai es dedueix del nom.
+        $mesuraRaw = $this->readQuickCell($sheet, $headers, $row, ['mesura piscina', 'medicion piscina', 'medición piscina', 'parametres piscina', 'parametros piscina']);
 
         $values = [$nom, $codiRaw, $periodicitatRaw, $normativaRaw, $sistemaRaw, $tipusRaw, $espaiRaw, $tornRaw, $equipRaw];
         $isEmpty = !array_filter($values, static fn(string $value): bool => trim($value) !== '');
@@ -631,6 +637,7 @@ class ImportController extends Controller
             'torn_id' => $this->resolveInstalacioValue('torns', 'nom', $tornRaw),
             'equip_id' => $this->resolveInstalacioValue('equips', 'nom_mn', $equipRaw) ?? $this->resolveInstalacioValue('equips', 'nom_equip', $equipRaw),
             'tipus_tasca' => TascaCataleg::tipusDesDeText($tipusTascaRaw),
+            'mesura_piscina' => in_array(mb_strtolower(trim($mesuraRaw)), ['sí', 'si', 's', 'yes', 'x', '1', 'mesura', 'medición', 'medicion'], true) ? 1 : 0,
         ];
     }
 
@@ -1027,6 +1034,7 @@ class ImportController extends Controller
                     'periodicitat_normativa_id' => $input['periodicitat_id'],
                     'normativa_id' => $input['normativa_id'],
                     'tipus' => $input['tipus_tasca'],
+                    'mesura_piscina' => $input['mesura_piscina'],
                     'empresa_responsable' => null,
                     'activa' => 1,
                 ]);
@@ -1034,6 +1042,9 @@ class ImportController extends Controller
                 TaskMatcher::rememberAlias($tascaCatalegId, $input['nom']);
                 if ($input['tipus_tasca']) {
                     TascaCataleg::update($tascaCatalegId, ['tipus' => $input['tipus_tasca']]);
+                }
+                if ($input['mesura_piscina']) {
+                    TascaCataleg::update($tascaCatalegId, ['mesura_piscina' => 1]);
                 }
             }
 

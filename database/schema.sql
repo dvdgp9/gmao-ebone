@@ -153,6 +153,7 @@ CREATE TABLE `tasques_cataleg` (
     `periodicitat_normativa_id` INT UNSIGNED DEFAULT NULL,
     `normativa_id` INT UNSIGNED DEFAULT NULL,
     `tipus` ENUM('obertura', 'normativa', 'preventiu', 'tancament') DEFAULT NULL COMMENT 'NULL = sense tipus (surt a «Sense bloc»)',
+    `mesura_piscina` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = mesura de paràmetres de l''aigua (formulari en lloc del Fet)',
     `empresa_responsable` VARCHAR(255) DEFAULT NULL,
     `activa` TINYINT(1) NOT NULL DEFAULT 1,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -269,6 +270,7 @@ CREATE TABLE `tasques_pla` (
     `data_propera_realitzacio` DATE DEFAULT NULL,
     `data_darrera_no_realitzacio` DATE DEFAULT NULL,
     `en_curs` TINYINT(1) NOT NULL DEFAULT 1,
+    `fer_amb_espai_tancat` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = surt encara que l''espai estigui inactiu',
     `comentaris` TEXT DEFAULT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -327,6 +329,41 @@ CREATE TABLE `registre_tasques` (
     CONSTRAINT `fk_rt_instalacio` FOREIGN KEY (`instalacio_id`) REFERENCES `instalacions` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_rt_tasca_pla` FOREIGN KEY (`tasca_pla_id`) REFERENCES `tasques_pla` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_rt_usuari` FOREIGN KEY (`usuari_id`) REFERENCES `usuaris` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------
+-- PARÀMETRES DE L'AIGUA DE PISCINA (una fila per tasca, dia i torn)
+-- -----------------------------------------------------------
+DROP TABLE IF EXISTS `mesures_piscina`;
+CREATE TABLE `mesures_piscina` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `instalacio_id` INT UNSIGNED NOT NULL,
+    `tasca_pla_id` INT UNSIGNED NOT NULL,
+    `data` DATE NOT NULL,
+    `moment` ENUM('inici','migdia','final') NOT NULL COMMENT 'Inici jornada, manteniment 14 h o final de jornada',
+    `usuari_id` INT UNSIGNED DEFAULT NULL,
+    `clor_lliure` DECIMAL(6,2) DEFAULT NULL,
+    `clor_total` DECIMAL(6,2) DEFAULT NULL,
+    `clor_combinat` DECIMAL(6,2) DEFAULT NULL,
+    `ph` DECIMAL(4,2) DEFAULT NULL,
+    `co2_interior` DECIMAL(8,2) DEFAULT NULL,
+    `co2_exterior` DECIMAL(8,2) DEFAULT NULL,
+    `temp_aigua` DECIMAL(5,2) DEFAULT NULL,
+    `temp_ambient` DECIMAL(5,2) DEFAULT NULL,
+    `humitat` DECIMAL(5,2) DEFAULT NULL,
+    `terbolesa` DECIMAL(6,2) DEFAULT NULL,
+    `recirculacio` DECIMAL(14,2) DEFAULT NULL,
+    `aigua_nova` DECIMAL(14,2) DEFAULT NULL,
+    `observacions` TEXT DEFAULT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_mp_tasca_data_moment` (`tasca_pla_id`, `data`, `moment`),
+    KEY `idx_mp_instalacio_data` (`instalacio_id`, `data`),
+    KEY `idx_mp_usuari` (`usuari_id`),
+    CONSTRAINT `fk_mp_instalacio` FOREIGN KEY (`instalacio_id`) REFERENCES `instalacions` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_mp_tasca_pla` FOREIGN KEY (`tasca_pla_id`) REFERENCES `tasques_pla` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_mp_usuari` FOREIGN KEY (`usuari_id`) REFERENCES `usuaris` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------

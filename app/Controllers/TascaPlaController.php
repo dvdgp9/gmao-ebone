@@ -8,6 +8,7 @@ use App\Models\TascaCataleg;
 use App\Models\Equip;
 use App\Models\Espai;
 use App\Models\Torn;
+use App\Models\MesuraPiscina;
 use App\Models\Periodicitat;
 use App\Models\Normativa;
 use App\Models\Instalacio;
@@ -582,7 +583,11 @@ class TascaPlaController extends Controller
         if ($usaBlocs) {
             $pendentsPerBloc = array_fill_keys(array_keys(TascaCataleg::blocs()), 0);
             foreach ($tasques as $t) {
-                $pendentsPerBloc[$t['tipus']]++;
+                // Les mesures de piscina ja fetes avui continuen a la llista (per a la
+                // resta de moments del dia), però no compten com a pendents.
+                if (($t['data_propera_realitzacio'] ?? '') <= $dataSeleccionada->format('Y-m-d')) {
+                    $pendentsPerBloc[$t['tipus']]++;
+                }
             }
             $fetesPerBloc = $avisTecnic
                 ? array_fill_keys(array_keys(TascaCataleg::blocs()), 0)
@@ -601,6 +606,7 @@ class TascaPlaController extends Controller
         $this->view('dia.index', [
             'title' => 'Vista Diària',
             'tasques' => $tasques,
+            'mesures' => $this->mesuresPiscina($instalacioId, $tasques),
             'usaBlocs' => $usaBlocs,
             'blocActual' => $blocActual,
             'pendentsPerBloc' => $pendentsPerBloc,
@@ -611,6 +617,50 @@ class TascaPlaController extends Controller
             'search' => $search,
             'flash' => $this->getFlash() ?: ($avisTecnic ? ['type' => 'error', 'message' => $avisTecnic] : null),
         ]);
+    }
+
+    /**
+     * Dades del formulari de paràmetres de l'aigua per a les tasques de mesura
+     * de la llista: què ja s'ha mesurat avui a cada moment (inici, 14 h,
+     * final), el moment que es proposa segons l'hora i on són els paràmetres
+     * d'un cop al dia.
+     */
+    private function mesuresPiscina(int $instalacioId, array $tasques): array
+    {
+        $avui = date('Y-m-d');
+        $ids = [];
+        $fetaAvui = [];
+        foreach ($tasques as $t) {
+            if (!empty($t['mesura_piscina'])) {
+                $ids[] = (int)$t['id'];
+                // Ja registrada: la data propera ha passat a un altre dia.
+                $fetaAvui[(int)$t['id']] = ($t['data_propera_realitzacio'] ?? '') > $avui;
+            }
+        }
+        if ($ids === []) {
+            return [];
+        }
+
+        $mesuresAvui = MesuraPiscina::delDia($instalacioId, $ids, $avui);
+        $camps = array_merge(array_keys(MesuraPiscina::PARAMETRES), ['observacions']);
+        $hora = (int)date('G');
+
+        $resultat = [];
+        foreach ($ids as $id) {
+            $fetes = [];
+            foreach ($mesuresAvui[$id] ?? [] as $moment => $fila) {
+                $fetes[$moment] = array_intersect_key($fila, array_flip($camps));
+            }
+            $resultat[$id] = [
+                'fetes' => $fetes,
+                'total' => count(MesuraPiscina::MOMENTS),
+                'fet' => count($fetes),
+                'proposat' => MesuraPiscina::momentProposat($fetes, $hora),
+                'diaris' => MesuraPiscina::momentAmbDiaris($fetes),
+                'feta' => $fetaAvui[$id],
+            ];
+        }
+        return $resultat;
     }
 
     /**
@@ -694,6 +744,7 @@ class TascaPlaController extends Controller
             'data_darrera_realitzacio' => $this->post('data_darrera_realitzacio') ?: null,
             'data_propera_realitzacio' => $this->post('data_propera_realitzacio') ?: null,
             'en_curs' => $this->post('en_curs', 1) ? 1 : 0,
+            'fer_amb_espai_tancat' => $this->post('fer_amb_espai_tancat') ? 1 : 0,
             'comentaris' => trim($this->post('comentaris', '')) ?: null,
         ];
     }
@@ -719,6 +770,7 @@ class TascaPlaController extends Controller
             'periodicitat_normativa_id' => $this->post('periodicitat_normativa_id') ?: null,
             'normativa_id' => $this->post('normativa_id') ?: null,
             'tipus' => TascaCataleg::tipusValid($this->post('tipus', '')),
+            'mesura_piscina' => $this->post('mesura_piscina') ? 1 : 0,
             'empresa_responsable' => trim($this->post('empresa_responsable', '')) ?: null,
         ];
     }

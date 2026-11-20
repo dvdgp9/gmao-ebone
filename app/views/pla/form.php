@@ -21,6 +21,7 @@ foreach ($cataleg as $item) {
         'periodicitat_normativa_id' => (string)($item['periodicitat_normativa_id'] ?? ''),
         'normativa_id' => (string)($item['normativa_id'] ?? ''),
         'tipus' => (string)($item['tipus'] ?? ''),
+        'mesura_piscina' => !empty($item['mesura_piscina']) ? '1' : '',
         'empresa_responsable' => $item['empresa_responsable'] ?? '',
     ];
 }
@@ -34,13 +35,14 @@ if ($selectedCatalog && !isset($catalogOptions[(string)$selectedCatalog['id']]))
         'periodicitat_normativa_id' => (string)($selectedCatalog['periodicitat_normativa_id'] ?? ''),
         'normativa_id' => (string)($selectedCatalog['normativa_id'] ?? ''),
         'tipus' => (string)($selectedCatalog['tipus'] ?? ''),
+        'mesura_piscina' => !empty($selectedCatalog['mesura_piscina']) ? '1' : '',
         'empresa_responsable' => $selectedCatalog['empresa_responsable'] ?? '',
     ];
 }
 $blankTask = [
     'codi' => '', 'sistema_id' => '', 'tipus_equip_id' => '', 'nom' => '',
     'descripcio' => '', 'periodicitat_normativa_id' => '', 'normativa_id' => '',
-    'tipus' => '', 'empresa_responsable' => '',
+    'tipus' => '', 'mesura_piscina' => '', 'empresa_responsable' => '',
 ];
 $initialTask = $selectedCatalog ? $catalogOptions[(string)$selectedCatalog['id']] : $blankTask;
 if ($isEdit && !empty($tasca['codi'])) {
@@ -159,6 +161,15 @@ ob_start();
                 </select>
                 <p class="text-xs text-gray-400 mt-1">Bloc on surt a la Vista Diària. Si alguna tasca de la instal·lació té tipus, la Vista Diària es mostra per blocs; les tasques sense tipus surten a «Sense bloc».</p>
             </div>
+            <div class="md:col-span-2">
+                <label class="flex items-start gap-3 rounded-lg border border-gray-200 px-3 py-3 cursor-pointer hover:border-brand/40 transition">
+                    <input type="checkbox" name="mesura_piscina" value="1" :checked="task.mesura_piscina === '1'" @change="task.mesura_piscina = $event.target.checked ? '1' : ''" class="w-4 h-4 mt-0.5 text-brand border-gray-300 rounded focus:ring-brand">
+                    <span>
+                        <span class="block text-sm font-medium text-gray-700">Mesura de paràmetres de l'aigua</span>
+                        <span class="block text-xs text-gray-400 mt-0.5">A la Vista Diària surt el botó «Paràmetres» amb el formulari (clor, pH, CO₂, temperatures...) en lloc del «Fet». Es mesura a l'inici de la jornada, a les 14 h i al final; la tasca queda feta amb la primera mesura del dia. Posa una tasca per vas i assigna-li l'espai del vas.</span>
+                    </span>
+                </label>
+            </div>
         </div>
     </div>
 
@@ -189,6 +200,10 @@ ob_start();
                         <option value="">— Selecciona —</option>
                         <?php foreach ($espais as $esp): ?><option value="<?= (int)$esp['id'] ?>" <?= ($tasca['espai_id'] ?? '') == $esp['id'] ? 'selected' : '' ?>><?= e($esp['nom']) ?><?= empty($esp['actiu']) ? ' (inactiu)' : '' ?></option><?php endforeach; ?>
                     </select>
+                    <label class="flex items-start gap-2 mt-2 cursor-pointer">
+                        <input type="checkbox" name="fer_amb_espai_tancat" value="1" :disabled="!addToPlan" <?= !empty($tasca['fer_amb_espai_tancat']) ? 'checked' : '' ?> class="w-4 h-4 mt-0.5 text-brand border-gray-300 rounded focus:ring-brand">
+                        <span class="text-xs text-gray-600">Tasca fixa <span class="block text-gray-400">Es continua fent encara que l'espai estigui desactivat (p. ex. cuidar la piscina exterior a l'hivern).</span></span>
+                    </label>
                 </div>
                 <div class="md:col-span-2">
                     <div class="flex flex-wrap items-end justify-between gap-2 mb-2">

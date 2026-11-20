@@ -99,6 +99,15 @@ ob_start();
                 </select>
                 <p class="text-xs text-gray-400 mt-1">Bloc on surt a la Vista Diària. Si alguna tasca de la instal·lació té tipus, la Vista Diària es mostra per blocs; les tasques sense tipus surten a «Sense bloc».</p>
             </div>
+            <div class="md:col-span-2">
+                <label class="flex items-start gap-3 rounded-lg border border-gray-200 px-3 py-3 cursor-pointer hover:border-brand/40 transition">
+                    <input type="checkbox" name="mesura_piscina" value="1" <?= !empty($tasca['mesura_piscina']) ? 'checked' : '' ?> class="w-4 h-4 mt-0.5 text-brand border-gray-300 rounded focus:ring-brand">
+                    <span>
+                        <span class="block text-sm font-medium text-gray-700">Mesura de paràmetres de l'aigua</span>
+                        <span class="block text-xs text-gray-400 mt-0.5">A la Vista Diària surt el botó «Paràmetres» amb el formulari (clor, pH, CO₂, temperatures...) en lloc del «Fet». Es mesura a l'inici de la jornada, a les 14 h i al final; la tasca queda feta amb la primera mesura del dia. Posa una tasca per vas i assigna-li l'espai del vas.</span>
+                    </span>
+                </label>
+            </div>
         </div>
     </div>
 

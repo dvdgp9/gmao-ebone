@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Models\IncidenciaTasca;
 use App\Models\RegistreTasca;
+use App\Models\TascaCataleg;
 use App\Models\TascaPla;
 
 class RegistreController extends Controller
@@ -107,6 +108,14 @@ class RegistreController extends Controller
         if (!$tasca || $tasca['instalacio_id'] != $instalacioId) {
             $this->setFlash('error', 'Tasca no trobada.');
             $this->redirect('setmana');
+        }
+
+        // Les tasques de mesura de l'aigua queden fetes en desar la primera mesura del dia.
+        // Aquí només s'hi pot registrar que no s'han pogut fer.
+        $cataleg = TascaCataleg::find((int)$tasca['tasca_cataleg_id']);
+        if (!empty($cataleg['mesura_piscina']) && $realitzada) {
+            $this->setFlash('error', 'Aquesta tasca es registra amb els paràmetres de l\'aigua: obre-la des de la Vista Diària amb el botó «Paràmetres».');
+            $this->redirect($redirect);
         }
 
         $tascaInfo = TascaPla::query(

@@ -133,6 +133,13 @@
                     Registre
                 </a>
 
+                <?php if (!empty($_SESSION['instalacio_id']) && \App\Models\MesuraPiscina::instalacioEnTe((int)$_SESSION['instalacio_id'])): ?>
+                <a href="<?= url('parametres') ?>" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 <?= is_active('parametres') ?>">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3c3.5 4.2 6 7.6 6 10.5a6 6 0 01-12 0C6 10.6 8.5 7.2 12 3z"/></svg>
+                    Paràmetres piscina
+                </a>
+                <?php endif; ?>
+
                 <?php if (!empty($_SESSION['is_superadmin']) || in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment'])): ?>
                 <a href="<?= url('incidencies') ?>" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 <?= is_active('incidencies') ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
@@ -252,7 +259,7 @@
                             </div>
                         </div>
                     <?php else: ?>
-                        <div class="mb-4 rounded-lg border p-3 text-sm <?= $flash['type'] === 'error' ? 'bg-red-50 text-red-700 border-red-200' : ($flash['type'] === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-brand-light text-brand-dark border-brand-light') ?>">
+                        <div class="mb-4 rounded-lg border p-3 text-sm <?= $flash['type'] === 'error' ? 'bg-red-50 text-red-700 border-red-200' : ($flash['type'] === 'success' ? 'bg-green-50 text-green-700 border-green-200' : ($flash['type'] === 'warning' ? 'bg-yellow-50 text-yellow-800 border-yellow-200' : 'bg-brand-light text-brand-dark border-brand-light')) ?>">
                             <?= e($flash['message']) ?>
                         </div>
                     <?php endif; ?>

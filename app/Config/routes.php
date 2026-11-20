@@ -8,6 +8,7 @@ use App\Controllers\EspaiController;
 use App\Controllers\TascaCatalegController;
 use App\Controllers\TascaPlaController;
 use App\Controllers\RegistreController;
+use App\Controllers\MesuraPiscinaController;
 use App\Controllers\UsuariController;
 use App\Controllers\UsuariImportController;
 use App\Controllers\UsuariMassiuController;
@@ -100,6 +101,10 @@ $router->get('dia', TascaPlaController::class, 'dia');
 $router->get('registre', RegistreController::class, 'index');
 $router->post('registre/store', RegistreController::class, 'store');
 $router->post('registre/undo', RegistreController::class, 'undo');
+
+// Paràmetres de l'aigua de piscina
+$router->get('parametres', MesuraPiscinaController::class, 'index');
+$router->post('parametres/store', MesuraPiscinaController::class, 'store');
 
 // Incidencies
 $router->get('incidencies', IncidenciaController::class, 'index');

@@ -114,7 +114,9 @@ ob_start();
                         <?php endif; ?>
                     </div>
                 </div>
-                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
+                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic']) && !empty($t['mesura_piscina'])): ?>
+                <a href="<?= url('dia') ?>" class="shrink-0 inline-flex items-center rounded-full border border-brand/30 bg-brand-light px-3 h-8 text-xs font-medium text-brand-dark hover:bg-brand/10 transition" title="Es registra amb els paràmetres de l'aigua a la Vista Diària">Paràmetres</a>
+                <?php elseif (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
                 <form method="POST" action="<?= url('registre/store') ?>" class="shrink-0">
                     <?= csrf_field() ?>
                     <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">
@@ -150,7 +152,7 @@ ob_start();
                     <span class="text-gray-400">Data propera</span>
                     <span class="text-right <?= $vencuda ? 'text-red-600 font-medium' : 'text-gray-700' ?>"><?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?></span>
                 </div>
-                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
+                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic']) && empty($t['mesura_piscina'])): ?>
                 <form method="POST" action="<?= url('registre/store') ?>" class="pt-2">
                     <?= csrf_field() ?>
                     <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">
@@ -217,7 +219,9 @@ ob_start();
                             <?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?>
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
+                            <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic']) && !empty($t['mesura_piscina'])): ?>
+                            <a href="<?= url('dia') ?>" class="bg-brand-light text-brand-dark hover:bg-brand/10 px-2.5 py-1 rounded text-xs font-medium transition" title="Es registra amb els paràmetres de l'aigua a la Vista Diària">Paràmetres</a>
+                            <?php elseif (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
                             <form method="POST" action="<?= url('registre/store') ?>" class="inline-flex items-center gap-1">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">

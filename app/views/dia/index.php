@@ -39,6 +39,8 @@ if (!$usaBlocs) {
         : 'No hi ha tasques pendents en aquest bloc.';
 }
 $continuarBloc = $usaBlocs ? '&continuar=' . e($blocActual) : '';
+$mesures = $mesures ?? [];
+$redirectDia = 'dia?data=' . $dataIso . ($tornActual ? '&torn=' . $tornActual : '') . ($search ? '&q=' . urlencode($search) : '') . ($usaBlocs ? '&continuar=' . $blocActual : '');
 ob_start();
 ?>
 
@@ -181,6 +183,8 @@ ob_start();
                             <span class="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-medium">Vençuda</span>
                         <?php elseif ($esDia): ?>
                             <span class="bg-yellow-100 text-yellow-700 text-[10px] px-1.5 py-0.5 rounded font-medium">Avui</span>
+                        <?php elseif (!empty($mesures[$t['id']]['feta'])): ?>
+                            <span class="bg-green-100 text-green-700 text-[10px] px-1.5 py-0.5 rounded font-medium">Feta avui</span>
                         <?php endif; ?>
                         <span class="bg-blue-50 text-blue-700 text-[10px] px-1.5 py-0.5 rounded">
                             <?= e($t['periodicitat_nom'] ?? '-') ?>
@@ -190,7 +194,14 @@ ob_start();
                         <?php endif; ?>
                     </div>
                 </div>
-                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
+                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic']) && isset($mesures[$t['id']])): $m = $mesures[$t['id']]; ?>
+                <button type="button" @click="$dispatch('obrir-mesura', { id: <?= (int)$t['id'] ?> })"
+                        class="shrink-0 inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand-light px-3 h-8 text-xs font-medium text-brand-dark hover:bg-brand/10 transition"
+                        aria-label="Registrar paràmetres de l'aigua">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3c3.5 4.2 6 7.6 6 10.5a6 6 0 01-12 0C6 10.6 8.5 7.2 12 3z"/></svg>
+                    Paràmetres <?= (int)$m['fet'] ?>/<?= (int)$m['total'] ?>
+                </button>
+                <?php elseif (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
                 <form method="POST" action="<?= url('registre/store') ?>" class="shrink-0">
                     <?= csrf_field() ?>
                     <input type="hidden" name="tasca_pla_id" value="<?= $t['id'] ?>">
@@ -220,11 +231,13 @@ ob_start();
                     <span class="text-gray-400">Data propera</span>
                     <span class="text-right <?= $vencuda ? 'text-red-600 font-medium' : 'text-gray-700' ?>"><?= $t['data_propera_realitzacio'] ? format_date($t['data_propera_realitzacio']) : '-' ?></span>
                 </div>
-                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
+                <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic']) && empty($mesures[$t['id']]['feta'])): // Mesura ja feta avui: només queden les altres mesures del dia. ?>
                 <div class="pt-2 space-y-2" x-data="{ incidencia: null }">
+                    <?php if (!isset($mesures[$t['id']])): // Una mesura es dona per feta amb els paràmetres, no aquí. ?>
                     <button type="button" @click="incidencia = incidencia === 'feta_amb_incidencia' ? null : 'feta_amb_incidencia'" class="w-full bg-yellow-50 text-yellow-700 hover:bg-yellow-100 px-3 py-2 rounded-lg text-sm font-medium transition">
                         Fet amb incidència
                     </button>
+                    <?php endif; ?>
                     <button type="button" @click="incidencia = incidencia === 'no_feta_per_incidencia' ? null : 'no_feta_per_incidencia'" class="w-full bg-red-50 text-red-700 hover:bg-red-100 px-3 py-2 rounded-lg text-sm font-medium transition">
                         No fet per incidència
                     </button>
@@ -305,10 +318,18 @@ ob_start();
                                 <div class="text-[11px] text-red-500">Vençuda</div>
                             <?php elseif ($esDia): ?>
                                 <div class="text-[11px] text-yellow-600">Del dia</div>
+                            <?php elseif (!empty($mesures[$t['id']]['feta'])): ?>
+                                <div class="text-[11px] text-green-600 font-medium">Feta avui</div>
                             <?php endif; ?>
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
+                            <?php if (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic']) && isset($mesures[$t['id']])): $m = $mesures[$t['id']]; ?>
+                            <button type="button" @click="$dispatch('obrir-mesura', { id: <?= (int)$t['id'] ?> })"
+                                    class="inline-flex items-center gap-1 rounded-lg border border-brand/30 bg-brand-light px-2.5 py-1.5 text-xs font-medium text-brand-dark shadow-sm transition hover:bg-brand/10 active:scale-[0.98] whitespace-nowrap">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3c3.5 4.2 6 7.6 6 10.5a6 6 0 01-12 0C6 10.6 8.5 7.2 12 3z"/></svg>
+                                Paràmetres <?= (int)$m['fet'] ?>/<?= (int)$m['total'] ?>
+                            </button>
+                            <?php elseif (in_array($_SESSION['current_role'] ?? '', ['superadmin', 'admin_instalacio', 'cap_manteniment', 'tecnic'])): ?>
                             <div class="relative inline-block text-left">
                                 <button type="button" @click="menu = !menu; incidencia = null" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-[0.98]">
                                     Acció
@@ -380,6 +401,10 @@ ob_start();
         <?php endif; ?>
     </div>
 </div>
+
+<?php if (!empty($mesures)): ?>
+<?php require __DIR__ . '/_mesura_modal.php'; ?>
+<?php endif; ?>
 
 <?php
 $content = ob_get_clean();

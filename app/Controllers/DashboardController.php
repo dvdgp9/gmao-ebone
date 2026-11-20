@@ -79,7 +79,7 @@ class DashboardController extends Controller
                 LEFT JOIN espais es ON es.id = tp.espai_id
                 LEFT JOIN torns t ON t.id = tp.torn_id
                 WHERE tp.instalacio_id = ? AND tp.en_curs = 1
-                  AND (tp.espai_id IS NULL OR es.actiu = 1)
+                  AND ' . TascaPla::espaiVisibleSql() . '
                   AND tp.data_propera_realitzacio IS NOT NULL
                 ORDER BY tp.data_propera_realitzacio ASC
                 LIMIT 15
@@ -93,7 +93,7 @@ class DashboardController extends Controller
                 LEFT JOIN tasca_pla_torn tpt ON tpt.tasca_pla_id = tp.id
                 LEFT JOIN torns t ON t.id = COALESCE(tpt.torn_id, tp.torn_id)
                 WHERE tp.instalacio_id = ? AND tp.en_curs = 1
-                  AND (tp.espai_id IS NULL OR es.actiu = 1)
+                  AND ' . TascaPla::espaiVisibleSql() . '
                 GROUP BY t.id, t.nom
                 ORDER BY t.nom
             ', [$instalacioId]);
@@ -105,7 +105,7 @@ class DashboardController extends Controller
                 LEFT JOIN espais es ON es.id = tp.espai_id
                 LEFT JOIN sistemes s ON s.id = tc.sistema_id
                 WHERE tp.instalacio_id = ? AND tp.en_curs = 1
-                  AND (tp.espai_id IS NULL OR es.actiu = 1)
+                  AND ' . TascaPla::espaiVisibleSql() . '
                 GROUP BY tc.sistema_id, s.codi, s.nom
                 ORDER BY total DESC
                 LIMIT 10
@@ -183,14 +183,14 @@ class DashboardController extends Controller
                     LEFT JOIN espais es ON es.id = tp.espai_id
                     WHERE tp.instalacio_id = i.id
                       AND tp.en_curs = 1
-                      AND (tp.espai_id IS NULL OR es.actiu = 1)
+                      AND ' . TascaPla::espaiVisibleSql() . '
                       AND tp.data_propera_realitzacio < CURDATE()) AS tasques_vencudes,
                    (SELECT COUNT(*)
                     FROM tasques_pla tp
                     LEFT JOIN espais es ON es.id = tp.espai_id
                     WHERE tp.instalacio_id = i.id
                       AND tp.en_curs = 1
-                      AND (tp.espai_id IS NULL OR es.actiu = 1)
+                      AND ' . TascaPla::espaiVisibleSql() . '
                       AND tp.data_propera_realitzacio <= CURDATE()) AS tasques_pendents,
                    (SELECT COUNT(*) FROM espais es WHERE es.instalacio_id = i.id AND es.actiu = 1) AS espais
             FROM instalacions i

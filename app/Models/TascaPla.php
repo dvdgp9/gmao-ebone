@@ -61,6 +61,16 @@ class TascaPla extends Model
         static::update($tascaPlaId, ['torn_id' => $tornIds[0] ?? null]);
     }
 
+    /**
+     * Condició SQL perquè una tasca surti a les vistes: sense espai, amb l'espai
+     * actiu o marcada per fer-se encara que l'espai estigui tancat (p. ex. la
+     * piscina exterior a l'hivern). Cal el LEFT JOIN espais es i l'àlies tp.
+     */
+    public static function espaiVisibleSql(): string
+    {
+        return '(tp.espai_id IS NULL OR es.actiu = 1 OR tp.fer_amb_espai_tancat = 1)';
+    }
+
     public static function tornNamesSql(string $taskAlias = 'tp'): string
     {
         return "COALESCE(NULLIF((
@@ -187,7 +197,7 @@ class TascaPla extends Model
             SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
                    ' . static::tornNamesSql() . ' AS torn_nom, p.nom AS periodicitat_nom,
-                   p.dies_interval
+                   p.dies_interval, tc.mesura_piscina
             FROM tasques_pla tp
             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
             LEFT JOIN equips eq ON eq.id = tp.equip_id
@@ -195,7 +205,7 @@ class TascaPla extends Model
             LEFT JOIN torns t ON t.id = tp.torn_id
             LEFT JOIN periodicitats p ON p.id = tp.periodicitat_id
             WHERE tp.instalacio_id = ? AND tp.en_curs = 1
-              AND (tp.espai_id IS NULL OR es.actiu = 1)
+              AND ' . TascaPla::espaiVisibleSql() . '
               AND tp.data_propera_realitzacio IS NOT NULL
               AND tp.data_propera_realitzacio <= ?';
         $params = [$instalacioId, $diumenge];
@@ -213,7 +223,8 @@ class TascaPla extends Model
             SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
                    ' . static::tornNamesSql() . ' AS torn_nom, p.nom AS periodicitat_nom,
-                   p.dies_interval, ' . TascaCataleg::tipusSql() . ' AS tipus
+                   p.dies_interval, ' . TascaCataleg::tipusSql() . ' AS tipus,
+                   tc.mesura_piscina
             FROM tasques_pla tp
             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
             LEFT JOIN equips eq ON eq.id = tp.equip_id
@@ -221,10 +232,19 @@ class TascaPla extends Model
             LEFT JOIN torns t ON t.id = tp.torn_id
             LEFT JOIN periodicitats p ON p.id = tp.periodicitat_id
             WHERE tp.instalacio_id = ? AND tp.en_curs = 1
-              AND (tp.espai_id IS NULL OR es.actiu = 1)
+              AND ' . TascaPla::espaiVisibleSql() . '
               AND tp.data_propera_realitzacio IS NOT NULL
-              AND tp.data_propera_realitzacio <= ?';
+              AND (tp.data_propera_realitzacio <= ?';
         $params = [$instalacioId, $data];
+        // Les mesures de piscina ja fetes avui continuen sortint la resta del dia,
+        // per poder desar les mesures de les 14 h i del final de jornada.
+        if ($data === date('Y-m-d')) {
+            $sql .= ' OR (tc.mesura_piscina = 1 AND EXISTS (
+                SELECT 1 FROM mesures_piscina mp WHERE mp.tasca_pla_id = tp.id AND mp.data = ?
+            ))';
+            $params[] = $data;
+        }
+        $sql .= ')';
 
         $sql .= static::tornFilterClause($torn, $params);
 
@@ -294,7 +314,7 @@ class TascaPla extends Model
             SELECT tp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,
                    eq.nom_mn AS equip_nom, es.nom AS espai_nom,
                    ' . static::tornNamesSql() . ' AS torn_nom, p.nom AS periodicitat_nom,
-                   p.dies_interval
+                   p.dies_interval, tc.mesura_piscina
             FROM tasques_pla tp
             JOIN tasques_cataleg tc ON tc.id = tp.tasca_cataleg_id
             LEFT JOIN equips eq ON eq.id = tp.equip_id
@@ -302,7 +322,7 @@ class TascaPla extends Model
             LEFT JOIN torns t ON t.id = tp.torn_id
             LEFT JOIN periodicitats p ON p.id = tp.periodicitat_id
             WHERE tp.instalacio_id = ? AND tp.en_curs = 1
-              AND (tp.espai_id IS NULL OR es.actiu = 1)
+              AND ' . TascaPla::espaiVisibleSql() . '
               AND tp.data_propera_realitzacio IS NOT NULL
               AND tp.data_propera_realitzacio <= ?';
         $params = [$instalacioId, $diumenge];
@@ -335,7 +355,7 @@ class TascaPla extends Model
              FROM tasques_pla tp
              LEFT JOIN espais es ON es.id = tp.espai_id
              WHERE tp.instalacio_id = ? AND tp.en_curs = 1
-               AND (tp.espai_id IS NULL OR es.actiu = 1)
+               AND ' . TascaPla::espaiVisibleSql() . '
                AND tp.data_propera_realitzacio <= CURDATE()' . $tornClause,
             $params
         );
@@ -362,7 +382,7 @@ class TascaPla extends Model
             LEFT JOIN espais es ON es.id = tp.espai_id
             LEFT JOIN torns t ON t.id = tp.torn_id
             WHERE tp.instalacio_id = ? AND tp.en_curs = 1
-              AND (tp.espai_id IS NULL OR es.actiu = 1)
+              AND ' . TascaPla::espaiVisibleSql() . '
               AND tp.data_propera_realitzacio IS NOT NULL' . $tornClause . '
             ORDER BY tp.data_propera_realitzacio ASC, tc.nom ASC
             LIMIT ' . $limit,
@@ -379,7 +399,7 @@ class TascaPla extends Model
              FROM tasques_pla tp
              LEFT JOIN espais es ON es.id = tp.espai_id
              WHERE tp.instalacio_id = ? AND tp.en_curs = 1
-               AND (tp.espai_id IS NULL OR es.actiu = 1)
+               AND ' . TascaPla::espaiVisibleSql() . '
                AND tp.data_propera_realitzacio < CURDATE()' . $tornClause,
             $params
         );
@@ -395,7 +415,7 @@ class TascaPla extends Model
              FROM tasques_pla tp
              LEFT JOIN espais es ON es.id = tp.espai_id
              WHERE tp.instalacio_id = ? AND tp.en_curs = 1
-               AND (tp.espai_id IS NULL OR es.actiu = 1)',
+               AND ' . TascaPla::espaiVisibleSql() . '',
             [$instalacioId]
         );
 

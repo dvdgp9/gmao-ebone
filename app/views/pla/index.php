@@ -137,7 +137,7 @@ ob_start();
                         <span class="bg-yellow-100 text-yellow-700 text-[10px] px-1.5 py-0.5 rounded font-medium">Avui</span>
                     <?php endif; ?>
                     <?php if (($t['espai_id'] ?? null) && isset($t['espai_actiu']) && (int)$t['espai_actiu'] === 0): ?>
-                        <span class="bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded font-medium">Espai inactiu</span>
+                        <span class="bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded font-medium">Espai inactiu<?= !empty($t['fer_amb_espai_tancat']) ? ' · tasca fixa' : '' ?></span>
                     <?php endif; ?>
                     <?php if ($t['torn_nom']): ?>
                         <span class="bg-purple-50 text-purple-700 text-[10px] px-1.5 py-0.5 rounded"><?= e($t['torn_nom']) ?></span>
@@ -241,7 +241,7 @@ ob_start();
                         <td class="px-4 py-3 text-gray-500">
                             <?= e($t['espai_nom'] ?? '-') ?>
                             <?php if (($t['espai_id'] ?? null) && isset($t['espai_actiu']) && (int)$t['espai_actiu'] === 0): ?>
-                                <div class="text-[11px] text-gray-400">Espai inactiu</div>
+                                <div class="text-[11px] text-gray-400">Espai inactiu<?= !empty($t['fer_amb_espai_tancat']) ? ' · tasca fixa' : '' ?></div>
                             <?php endif; ?>
                         </td>
                         <td class="px-4 py-3">

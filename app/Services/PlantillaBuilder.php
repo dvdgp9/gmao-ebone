@@ -119,6 +119,7 @@ class PlantillaBuilder
             ['Si has omplert les altres fulles, escriu els noms exactament igual perquè es vinculin automàticament.', false],
             ['TIPUS TASCA ordena la jornada a la Vista Diària per blocs (si alguna tasca de la instal·lació en té): Obertura, Normativa, Preventiu o Tancament.', false],
             ['És opcional i no s\'omple sol: si la deixes buida, la tasca surt a «Sense bloc».', false],
+            ['MESURA PISCINA: escriu «Sí» a les tasques de mesura de l\'aigua (clor, pH...). A la Vista Diària tindran un formulari de paràmetres en lloc del «Fet». Posa una fila per vas, amb el seu ESPAI. Buida = tasca normal.', false],
             ['', false],
             ['PERIODICITATS VÀLIDES (escriu-les exactament així):', true],
             [implode(' | ', $periodicitats), false],
@@ -175,6 +176,7 @@ class PlantillaBuilder
         }
         $cols[] = 'NORMATIVA';
         $cols[] = 'TIPUS TASCA';
+        $cols[] = 'MESURA PISCINA';
 
         return $cols;
     }
@@ -193,6 +195,7 @@ class PlantillaBuilder
                 'EQUIP' => '',
                 'NORMATIVA' => '',
                 'TIPUS TASCA' => 'Normativa',
+                'MESURA PISCINA' => 'Sí',
                 default => '',
             };
             $exemple2[] = match ($col) {
