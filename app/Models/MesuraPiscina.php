@@ -41,9 +41,35 @@ class MesuraPiscina extends Model
         'temp_ambient' => ['nom' => 'Temperatura ambient', 'unitat' => 'ºC', 'norma' => '', 'min' => -30, 'max' => 60, 'cada_moment' => false],
         'humitat' => ['nom' => 'Humitat relativa', 'unitat' => '%', 'norma' => '< 65', 'min' => 0, 'max' => 100, 'cada_moment' => false],
         'terbolesa' => ['nom' => 'Terbolesa', 'unitat' => 'UNF', 'norma' => '< 5', 'min' => 0, 'max' => 9999, 'cada_moment' => false],
-        'recirculacio' => ['nom' => 'Recirculació (comptador)', 'unitat' => '', 'norma' => '', 'min' => 0, 'max' => 999999999999, 'cada_moment' => false],
+        'recirculacio' => ['nom' => 'Recirculació (comptador 1)', 'unitat' => '', 'norma' => '', 'min' => 0, 'max' => 999999999999, 'cada_moment' => false],
+        'recirculacio_2' => ['nom' => 'Recirculació (comptador 2)', 'unitat' => '', 'norma' => '', 'min' => 0, 'max' => 999999999999, 'cada_moment' => false],
         'aigua_nova' => ['nom' => 'Aigua nova (comptador)', 'unitat' => '', 'norma' => '', 'min' => 0, 'max' => 999999999999, 'cada_moment' => false],
     ];
+
+    /** Camps que no tenen tots els vasos (p. ex. un segon comptador): a l'historial i a l'Excel només surten si tenen algun valor. */
+    public const OPCIONALS = ['recirculacio_2'];
+
+    /** Comptadors (recirculació, aigua nova): el punt és sempre de milers. */
+    public const COMPTADORS = ['recirculacio', 'recirculacio_2', 'aigua_nova'];
+
+    /** Camps que són comptadors o enters (sense decimals en pantalla i a l'Excel). */
+    public const SENSE_DECIMALS = ['co2_interior', 'co2_exterior', 'humitat', 'recirculacio', 'recirculacio_2', 'aigua_nova'];
+
+    /** Camps d'un cop al dia que cal mostrar per a unes files d'agrupar(): treu els opcionals buits. */
+    public static function campsDiarisVisibles(array $files): array
+    {
+        return array_values(array_filter(self::campsDiaris(), static function (string $camp) use ($files): bool {
+            if (!in_array($camp, self::OPCIONALS, true)) {
+                return true;
+            }
+            foreach ($files as $f) {
+                if (($f['diaris'][$camp] ?? null) !== null) {
+                    return true;
+                }
+            }
+            return false;
+        }));
+    }
 
     /** Camps que es mesuren a cada moment (clor i pH). */
     public static function campsCadaMoment(): array
@@ -61,8 +87,9 @@ class MesuraPiscina extends Model
      * Llegeix un número escrit a mà: coma o punt decimal, separador de milers
      * («1.190.180», «1.190.180,50») i unitats al final («27,8º», «62 %»).
      * Buit = null; si no és un número, false.
+     * Amb $comptador, un sol punt seguit de tres xifres («845.300») és de milers.
      */
-    public static function numero(mixed $value): float|false|null
+    public static function numero(mixed $value, bool $comptador = false): float|false|null
     {
         $text = preg_replace('/\s+/u', '', trim((string)$value));
         $text = preg_replace('/(ºc|°c|º|°|%|ppm|mg\/l|unf)$/iu', '', $text);
@@ -79,6 +106,9 @@ class MesuraPiscina extends Model
         } elseif ($comes > 1) {
             $text = str_replace(',', '', $text);
         } elseif ($punts > 1) {
+            $text = str_replace('.', '', $text);
+        } elseif ($comptador && preg_match('/^\d{1,3}\.\d{3}$/', $text)) {
+            // En un comptador, «845.300» és 845300 (punt de milers), no 845,3.
             $text = str_replace('.', '', $text);
         } else {
             $text = str_replace(',', '.', $text);
@@ -98,7 +128,7 @@ class MesuraPiscina extends Model
         $errors = [];
         $camps = $ambDiaris ? self::PARAMETRES : array_intersect_key(self::PARAMETRES, array_flip(self::campsCadaMoment()));
         foreach ($camps as $camp => $p) {
-            $n = self::numero($post[$camp] ?? null);
+            $n = self::numero($post[$camp] ?? null, in_array($camp, self::COMPTADORS, true));
             if ($n === false) {
                 $errors[$camp] = $p['nom'] . ': «' . trim((string)$post[$camp]) . '» no és un número';
                 $n = null;

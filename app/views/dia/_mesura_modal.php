@@ -151,13 +151,15 @@ $moments = \App\Models\MesuraPiscina::MOMENTS;
 function mesuraPiscina(dades) {
     const buits = () => Object.fromEntries([...Object.keys(dades.parametres), 'observacions'].map(c => [c, '']));
     // Mateix criteri que MesuraPiscina::numero() (PHP): null = buit, NaN = no és un número.
-    const llegir = (v) => {
+    const comptadors = <?= json_encode(\App\Models\MesuraPiscina::COMPTADORS) ?>;
+    const llegir = (v, comptador = false) => {
         let t = String(v ?? '').replace(/\s+/g, '').replace(/(ºc|°c|º|°|%|ppm|mg\/l|unf)$/i, '');
         if (t === '') return null;
         const comes = (t.match(/,/g) || []).length, punts = (t.match(/\./g) || []).length;
         if (comes && punts) t = t.lastIndexOf(',') > t.lastIndexOf('.') ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
         else if (comes > 1) t = t.replace(/,/g, '');
         else if (punts > 1) t = t.replace(/\./g, '');
+        else if (comptador && /^\d{1,3}\.\d{3}$/.test(t)) t = t.replace('.', '');
         else t = t.replace(',', '.');
         return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : NaN;
     };
@@ -223,7 +225,7 @@ function mesuraPiscina(dades) {
         campsVisibles() { return this.diarisAltre ? campsMoment : Object.keys(this.parametres); },
         // Valor que no es pot desar: no és un número o està fora del que és possible.
         invalid(camp) {
-            const n = llegir(this.valors[camp]);
+            const n = llegir(this.valors[camp], comptadors.includes(camp));
             if (n === null) return false;
             const p = this.parametres[camp];
             return Number.isNaN(n) || n < p.min || n > p.max;

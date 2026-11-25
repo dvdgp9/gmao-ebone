@@ -118,7 +118,7 @@ $assertSame(['Mant. 14 h: Aigua tèrbola'], $files[0]['observacions'], 'Les obse
 $xlsx = \App\Services\ParametresExcel::build($files, ['instalacio' => 'CEM Prova', 'desde' => '2026-11-23', 'fins' => '2026-11-24']);
 $assertSame(['Vas gran', 'Vas petit'], $xlsx->getSheetNames(), 'Un full per vas, en ordre alfabètic.');
 $full = $xlsx->getSheetByName('Vas gran');
-$cols = \App\Services\ParametresExcel::columnes();
+$cols = \App\Services\ParametresExcel::columnes(true, M::campsDiarisVisibles($files));
 $col = static function (string $camp, ?string $moment = null) use ($cols): string {
     foreach ($cols as $i => [$c, $m]) {
         if ($c === $camp && $m === $moment) {
@@ -144,6 +144,29 @@ $assertSame(['Sense mesures'], \App\Services\ParametresExcel::build([], ['desde'
 $llargs = M::agrupar([$mesura('2026-11-24', 3, 'Piscina coberta: vas d\'aprenentatge [nou]', 'inici', []), $mesura('2026-11-24', 4, 'Piscina coberta: vas d\'aprenentatge [nou] 2', 'inici', [])]);
 $noms = \App\Services\ParametresExcel::build($llargs, ['desde' => '2026-11-24', 'fins' => '2026-11-24'])->getSheetNames();
 $assertSame(2, count(array_unique($noms)), 'Noms de pestanya únics encara que es tallin.');
+
+// Segon comptador de recirculació: opcional, només surt si algun vas l'ha omplert.
+$assertSame(true, isset(M::PARAMETRES['recirculacio_2']) && !M::PARAMETRES['recirculacio_2']['cada_moment'], 'Hi ha d’haver un segon comptador de recirculació, un cop al dia.');
+[$v, $errors] = M::valorsDesDePost(['recirculacio' => '1.190.180', 'recirculacio_2' => '845300']);
+$assertSame(845300.0, $v['recirculacio_2'], 'El comptador 2 es desa.');
+[$v] = M::valorsDesDePost(['recirculacio' => '845.300', 'recirculacio_2' => '12.500', 'aigua_nova' => '50.236', 'temp_aigua' => '27.800', 'clor_lliure' => '1.500']);
+$assertSame(845300.0, $v['recirculacio'], 'En un comptador, «845.300» és 845300.');
+$assertSame(12500.0, $v['recirculacio_2'], 'També al comptador 2.');
+$assertSame(50236.0, $v['aigua_nova'], 'També al comptador d’aigua nova.');
+$assertSame(1.5, $v['clor_lliure'], 'Al clor, el punt continua sent decimal.');
+$assertSame(845.35, M::numero('845.35', true), 'Amb dues xifres després del punt, és decimal encara que sigui un comptador.');
+$assertSame(845.3, M::numero('845.300'), 'Fora dels comptadors no canvia res.');
+$assertSame([], $errors, 'Els dos comptadors són vàlids.');
+$assertSame(false, in_array('recirculacio_2', M::campsDiarisVisibles($files), true), 'Sense valors, la columna del comptador 2 no surt.');
+$amb2 = M::agrupar([$mesura('2026-11-24', 5, 'Vas doble', 'inici', ['recirculacio' => 100, 'recirculacio_2' => 200])]);
+$assertSame(true, in_array('recirculacio_2', M::campsDiarisVisibles($amb2), true), 'Amb valors, la columna del comptador 2 surt.');
+$fullAmb2 = \App\Services\ParametresExcel::build($amb2, ['desde' => '2026-11-24', 'fins' => '2026-11-24'])->getSheet(0);
+$capcalera = [];
+foreach ($fullAmb2->getRowIterator(5, 5) as $r) { foreach ($r->getCellIterator() as $c) { $capcalera[] = (string)$c->getValue(); } }
+$assertSame(true, in_array('Recirculació (comptador 2)', $capcalera, true), 'L’Excel del vas amb 2 comptadors té la columna.');
+$assertSame(false, in_array('Recirculació (comptador 2)', array_map(static fn($c) => (string)$c, iterator_to_array((function () use ($xlsx) { foreach ($xlsx->getSheet(0)->getRowIterator(5, 5) as $r) { foreach ($r->getCellIterator() as $c) { yield $c->getValue(); } } })(), false)), true), 'L’Excel d’un vas amb un comptador no té la columna 2.');
+$assertContains('recirculacio_2', file_get_contents($root . '/database/migrations/2026-11-25_recirculacio_comptador_2.sql'), 'Hi ha d’haver la migració del comptador 2.');
+$assertContains('recirculacio_2', file_get_contents($root . '/database/schema.sql'), 'El schema ha de tenir el comptador 2.');
 $assertSame(true, max(array_map('mb_strlen', $noms)) <= 31, 'Els noms de pestanya no passen de 31 caràcters.');
 
 if ($failures !== []) {

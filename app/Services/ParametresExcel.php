@@ -61,7 +61,7 @@ class ParametresExcel
     }
 
     /** Columnes del full, en ordre: [camp, moment|null, títol]. */
-    public static function columnes(bool $ambTecnic = true): array
+    public static function columnes(bool $ambTecnic = true, ?array $campsDiaris = null): array
     {
         $cols = [['data', null, 'Data']];
         foreach (MesuraPiscina::campsCadaMoment() as $camp) {
@@ -70,7 +70,7 @@ class ParametresExcel
                 $cols[] = [$camp, $moment, (string)++$n];
             }
         }
-        foreach (MesuraPiscina::campsDiaris() as $camp) {
+        foreach ($campsDiaris ?? MesuraPiscina::campsDiaris() as $camp) {
             $cols[] = [$camp, null, MesuraPiscina::PARAMETRES[$camp]['nom']];
         }
         if ($ambTecnic) {
@@ -84,7 +84,7 @@ class ParametresExcel
     private static function omplirFull(Worksheet $sheet, array $files, array $info, bool $ambTecnic): void
     {
         $p = MesuraPiscina::PARAMETRES;
-        $cols = self::columnes($ambTecnic);
+        $cols = self::columnes($ambTecnic, MesuraPiscina::campsDiarisVisibles($files));
         $ultima = Coordinate::stringFromColumnIndex(count($cols));
         $vas = $files[0]['vas'] . ($files[0]['tasca_codi'] ? ' · ' . $files[0]['tasca_codi'] : '');
 
@@ -191,7 +191,7 @@ class ParametresExcel
             $amplada = match ($camp) {
                 'observacions' => 40,
                 'tecnic' => 22,
-                'recirculacio', 'aigua_nova' => 14,
+                'recirculacio', 'recirculacio_2', 'aigua_nova' => 14,
                 default => $moment !== null ? 6.5 : 11,
             };
             $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($idx + 1))->setWidth($amplada);
@@ -217,7 +217,7 @@ class ParametresExcel
 
     private static function formatNumero(string $camp): string
     {
-        return in_array($camp, ['co2_interior', 'co2_exterior', 'humitat', 'recirculacio', 'aigua_nova'], true) ? '#,##0' : '0.0#';
+        return in_array($camp, MesuraPiscina::SENSE_DECIMALS, true) ? '#,##0' : '0.0#';
     }
 
     private static function pintar(Worksheet $sheet, string $cel, string $rgb): void

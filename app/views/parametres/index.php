@@ -14,13 +14,14 @@ $format = static function ($valor, string $camp): string {
     if ($valor === null || $valor === '') {
         return '–';
     }
-    $decimals = in_array($camp, ['co2_interior', 'co2_exterior', 'humitat', 'recirculacio', 'aigua_nova'], true) ? 0 : 2;
+    $decimals = in_array($camp, MesuraPiscina::SENSE_DECIMALS, true) ? 0 : 2;
     $text = number_format((float)$valor, $decimals, ',', '.');
     return $decimals ? rtrim(rtrim($text, '0'), ',') : $text;
 };
 
 // Com el full de paràmetres: una fila per dia i vas, amb les mesures de cada moment.
 $files = MesuraPiscina::agrupar($mesures);
+$campsDiaris = MesuraPiscina::campsDiarisVisibles($files);
 $perDia = [];
 foreach ($files as $f) {
     $perDia[$f['data']][] = $f;

@@ -353,6 +353,7 @@ CREATE TABLE `mesures_piscina` (
     `humitat` DECIMAL(5,2) DEFAULT NULL,
     `terbolesa` DECIMAL(6,2) DEFAULT NULL,
     `recirculacio` DECIMAL(14,2) DEFAULT NULL,
+    `recirculacio_2` DECIMAL(14,2) DEFAULT NULL COMMENT 'Segon comptador de recirculació (opcional)',
     `aigua_nova` DECIMAL(14,2) DEFAULT NULL,
     `observacions` TEXT DEFAULT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
