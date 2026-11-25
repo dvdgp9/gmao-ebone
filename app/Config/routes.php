@@ -104,6 +104,7 @@ $router->post('registre/undo', RegistreController::class, 'undo');
 
 // Paràmetres de l'aigua de piscina
 $router->get('parametres', MesuraPiscinaController::class, 'index');
+$router->get('parametres/excel', MesuraPiscinaController::class, 'excel');
 $router->post('parametres/store', MesuraPiscinaController::class, 'store');
 
 // Incidencies

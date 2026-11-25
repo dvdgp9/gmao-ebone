@@ -3,10 +3,13 @@
 namespace App\Controllers;
 
 use App\Core\Controller;
+use App\Models\Instalacio;
 use App\Models\MesuraPiscina;
 use App\Models\RegistreTasca;
 use App\Models\TascaCataleg;
 use App\Models\TascaPla;
+use App\Services\ParametresExcel;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
  * Paràmetres de l'aigua de piscina: el formulari de la Vista Diària desa la
@@ -96,12 +99,61 @@ class MesuraPiscinaController extends Controller
     public function index(): void
     {
         $this->requireAuth();
+        $instalacioId = $this->instalacioOrRedirect();
+        [$desde, $fins, $tascaPlaId] = $this->filtres();
+
+        $this->view('parametres.index', [
+            'title' => 'Paràmetres piscina',
+            'mesures' => MesuraPiscina::historial($instalacioId, $desde, $fins, $tascaPlaId),
+            'vasos' => MesuraPiscina::tasquesDeMesura($instalacioId),
+            'desde' => $desde,
+            'fins' => $fins,
+            'vasActual' => $tascaPlaId,
+            'isTecnic' => $this->esTecnic(),
+            'flash' => $this->getFlash(),
+        ]);
+    }
+
+    /** Excel per a inspeccions: les mateixes mesures que la pantalla amb els mateixos filtres, un full per vas. */
+    public function excel(): void
+    {
+        $this->requireAuth();
+        $instalacioId = $this->instalacioOrRedirect();
+        [$desde, $fins, $tascaPlaId] = $this->filtres();
+
+        $files = MesuraPiscina::agrupar(MesuraPiscina::historial($instalacioId, $desde, $fins, $tascaPlaId));
+        $instalacio = Instalacio::find($instalacioId);
+        $spreadsheet = ParametresExcel::build($files, [
+            'instalacio' => $instalacio['nom'] ?? '',
+            'desde' => $desde,
+            'fins' => $fins,
+        ], !$this->esTecnic());
+
+        $nom = 'parametres-piscina-' . $desde . '-a-' . $fins;
+        if ($tascaPlaId && $files) {
+            $nom .= '-' . (trim(preg_replace('/[^a-z0-9]+/', '-', strtolower(strtr($files[0]['vas'], ['à' => 'a', 'á' => 'a', 'è' => 'e', 'é' => 'e', 'í' => 'i', 'ï' => 'i', 'ò' => 'o', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ç' => 'c', 'ñ' => 'n', 'À' => 'a', 'È' => 'e', 'É' => 'e', 'Í' => 'i', 'Ò' => 'o', 'Ó' => 'o', 'Ú' => 'u', 'Ç' => 'c', 'Ñ' => 'n', '·' => '']))), '-') ?: 'vas');
+        }
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $nom . '.xlsx"');
+        header('Cache-Control: no-store');
+        (new Xlsx($spreadsheet))->save('php://output');
+        exit;
+    }
+
+    private function instalacioOrRedirect(): int
+    {
         $instalacioId = $this->currentInstalacioId();
         if (!$instalacioId) {
             $this->setFlash('error', 'Selecciona una instal·lació.');
             $this->redirect('dashboard');
         }
 
+        return (int)$instalacioId;
+    }
+
+    /** Filtres de la pantalla: [desde, fins, tasca_pla_id del vas o null]. Per defecte, els últims 30 dies. */
+    private function filtres(): array
+    {
         $valida = static function (string $d): ?string {
             $dt = \DateTime::createFromFormat('Y-m-d', $d);
             return $dt && $dt->format('Y-m-d') === $d ? $d : null;
@@ -111,19 +163,12 @@ class MesuraPiscinaController extends Controller
         if ($desde > $fins) {
             [$desde, $fins] = [$fins, $desde];
         }
-        $tascaPlaId = (int)$this->get('vas', 0) ?: null;
 
-        $isTecnic = empty($_SESSION['is_superadmin']) && $this->currentRole() === 'tecnic';
+        return [$desde, $fins, (int)$this->get('vas', 0) ?: null];
+    }
 
-        $this->view('parametres.index', [
-            'title' => 'Paràmetres piscina',
-            'mesures' => MesuraPiscina::historial($instalacioId, $desde, $fins, $tascaPlaId),
-            'vasos' => MesuraPiscina::tasquesDeMesura($instalacioId),
-            'desde' => $desde,
-            'fins' => $fins,
-            'vasActual' => $tascaPlaId,
-            'isTecnic' => $isTecnic,
-            'flash' => $this->getFlash(),
-        ]);
+    private function esTecnic(): bool
+    {
+        return empty($_SESSION['is_superadmin']) && $this->currentRole() === 'tecnic';
     }
 }

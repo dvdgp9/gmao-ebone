@@ -274,6 +274,53 @@ class MesuraPiscina extends Model
     }
 
     /** Historial entre dues dates, del més recent al més antic. */
+    /**
+     * Agrupa les mesures de historial() com el full de paràmetres: una fila per dia i vas,
+     * amb la mesura de cada moment, els paràmetres diaris (el primer valor que s'hagi desat),
+     * les observacions i qui ha mesurat. Manté l'ordre d'entrada.
+     */
+    public static function agrupar(array $mesures): array
+    {
+        $diaris = self::campsDiaris();
+        $files = [];
+        foreach ($mesures as $m) {
+            $clau = $m['data'] . '|' . $m['tasca_pla_id'];
+            if (!isset($files[$clau])) {
+                $files[$clau] = [
+                    'data' => $m['data'],
+                    'tasca_pla_id' => (int)$m['tasca_pla_id'],
+                    'vas' => ($m['espai_nom'] ?? '') ?: $m['tasca_nom'],
+                    'tasca_codi' => $m['tasca_codi'] ?? '',
+                    'moments' => [],
+                    'diaris' => array_fill_keys($diaris, null),
+                    'observacions' => [],
+                    'tecnics' => [],
+                ];
+            }
+            $f = &$files[$clau];
+            $f['moments'][$m['moment']] = $m;
+            foreach ($diaris as $camp) {
+                if ($m[$camp] !== null && $f['diaris'][$camp] === null) {
+                    $f['diaris'][$camp] = $m[$camp];
+                }
+            }
+            if (!empty($m['observacions'])) {
+                $f['observacions'][] = self::MOMENTS[$m['moment']] . ': ' . $m['observacions'];
+            }
+            $tecnic = trim(($m['usuari_nom'] ?? '') . ' ' . ($m['usuari_cognoms'] ?? ''));
+            if ($tecnic !== '' && !in_array($tecnic, $f['tecnics'], true)) {
+                $f['tecnics'][] = $tecnic;
+            }
+            unset($f);
+        }
+        foreach ($files as &$f) {
+            $f['estatsDiaris'] = self::avaluar($f['diaris']);
+        }
+        unset($f);
+
+        return array_values($files);
+    }
+
     public static function historial(int $instalacioId, string $desde, string $fins, ?int $tascaPlaId = null): array
     {
         $sql = 'SELECT mp.*, COALESCE(NULLIF(tp.codi, \'\'), tc.codi) AS tasca_codi, tc.nom AS tasca_nom,

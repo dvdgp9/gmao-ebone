@@ -93,6 +93,58 @@ $assertContains("'mesura piscina'", file_get_contents($root . '/app/Controllers/
 $assertSame(true, in_array('MESURA PISCINA', PlantillaBuilder::tasquesColumns(['espais']), true), 'La plantilla ha de tenir la columna MESURA PISCINA.');
 $routes = file_get_contents($root . '/app/Config/routes.php');
 $assertContains("'parametres/store'", $routes, 'Ha d\'existir la ruta per desar els paràmetres.');
+$assertContains("'parametres/excel'", $routes, 'Ha d\'existir la ruta per descarregar l\'Excel de paràmetres.');
+
+// Agrupació com el full de paràmetres i Excel per a inspeccions.
+$buit = array_fill_keys(array_keys(M::PARAMETRES), null);
+$mesura = static fn(string $data, int $tp, string $vas, string $moment, array $valors, string $obs = '', string $nom = 'Anna') => array_merge($buit, $valors, [
+    'data' => $data, 'tasca_pla_id' => $tp, 'espai_nom' => $vas, 'tasca_nom' => 'Mesura', 'tasca_codi' => 'TE-1',
+    'moment' => $moment, 'observacions' => $obs, 'usuari_nom' => $nom, 'usuari_cognoms' => 'Puig',
+]);
+$mesures = [
+    $mesura('2026-11-24', 1, 'Vas gran', 'migdia', ['clor_lliure' => 2.5, 'ph' => 7.4], 'Aigua tèrbola', 'Joan'),
+    $mesura('2026-11-24', 1, 'Vas gran', 'inici', ['clor_lliure' => 1.2, 'ph' => 9.5, 'temp_aigua' => 27.8, 'humitat' => 70]),
+    $mesura('2026-11-23', 1, 'Vas gran', 'inici', ['clor_lliure' => 1.0, 'ph' => 7.5]),
+    $mesura('2026-11-24', 2, 'Vas petit', 'inici', ['clor_lliure' => 0.8, 'ph' => 7.3, 'temp_aigua' => 30]),
+];
+$files = M::agrupar($mesures);
+$assertSame(3, count($files), 'Una fila per dia i vas.');
+$assertSame(['migdia', 'inici'], array_keys($files[0]['moments']), 'Els moments del mateix dia i vas van a la mateixa fila.');
+$assertSame(27.8, $files[0]['diaris']['temp_aigua'], 'Els paràmetres diaris surten a la fila del dia.');
+$assertSame(M::FORA, $files[0]['estatsDiaris']['humitat'] ?? null, 'La humitat alta és fora de norma.');
+$assertSame(['Joan', 'Anna'], array_map(static fn($t) => explode(' ', $t)[0], $files[0]['tecnics']), 'Surten tots els que han mesurat.');
+$assertSame(['Mant. 14 h: Aigua tèrbola'], $files[0]['observacions'], 'Les observacions porten el moment.');
+
+$xlsx = \App\Services\ParametresExcel::build($files, ['instalacio' => 'CEM Prova', 'desde' => '2026-11-23', 'fins' => '2026-11-24']);
+$assertSame(['Vas gran', 'Vas petit'], $xlsx->getSheetNames(), 'Un full per vas, en ordre alfabètic.');
+$full = $xlsx->getSheetByName('Vas gran');
+$cols = \App\Services\ParametresExcel::columnes();
+$col = static function (string $camp, ?string $moment = null) use ($cols): string {
+    foreach ($cols as $i => [$c, $m]) {
+        if ($c === $camp && $m === $moment) {
+            return \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
+        }
+    }
+    return '?';
+};
+$assertSame('23/11/2026', $full->getCell('A7')->getValue(), 'Els dies van en ordre ascendent, com el full en paper.');
+$assertSame('24/11/2026', $full->getCell('A8')->getValue(), 'El segon dia va a la fila següent.');
+$assertSame(1.2, $full->getCell($col('clor_lliure', 'inici') . '8')->getValue(), 'El clor de l\'inici va a la columna 1.');
+$assertSame(2.5, $full->getCell($col('clor_lliure', 'migdia') . '8')->getValue(), 'El clor de les 14 h va a la columna 2.');
+$assertSame(null, $full->getCell($col('clor_lliure', 'final') . '8')->getValue(), 'Sense mesura del final, la cel·la queda buida.');
+$color = static fn(string $cel): string => $full->getStyle($cel)->getFill()->getFillType() === 'solid' ? $full->getStyle($cel)->getFill()->getStartColor()->getRGB() : '';
+$assertSame(\App\Services\ParametresExcel::GROC, $color($col('clor_lliure', 'migdia') . '8'), 'El clor fora de norma surt en groc.');
+$assertSame(\App\Services\ParametresExcel::VERMELL, $color($col('ph', 'inici') . '8'), 'El pH de tancar el vas surt en vermell.');
+$assertSame('', $color($col('clor_lliure', 'inici') . '8'), 'Un valor correcte no té color.');
+$assertSame(\App\Services\ParametresExcel::GROC, $color($col('humitat') . '8'), 'Els paràmetres diaris també es marquen.');
+$assertContains('Aigua tèrbola', (string)$full->getCell($col('observacions') . '8')->getValue(), 'Les observacions surten a l\'Excel.');
+$assertContains('CEM Prova', (string)$full->getCell('A2')->getValue(), 'La capçalera porta la instal·lació.');
+$assertSame('?', (function () { foreach (\App\Services\ParametresExcel::columnes(false) as [$c]) { if ($c === 'tecnic') return 'tecnic'; } return '?'; })(), 'Els tècnics no tenen la columna Tècnic.');
+$assertSame(['Sense mesures'], \App\Services\ParametresExcel::build([], ['desde' => '2026-11-01', 'fins' => '2026-11-02'])->getSheetNames(), 'Sense mesures surt un full que ho explica.');
+$llargs = M::agrupar([$mesura('2026-11-24', 3, 'Piscina coberta: vas d\'aprenentatge [nou]', 'inici', []), $mesura('2026-11-24', 4, 'Piscina coberta: vas d\'aprenentatge [nou] 2', 'inici', [])]);
+$noms = \App\Services\ParametresExcel::build($llargs, ['desde' => '2026-11-24', 'fins' => '2026-11-24'])->getSheetNames();
+$assertSame(2, count(array_unique($noms)), 'Noms de pestanya únics encara que es tallin.');
+$assertSame(true, max(array_map('mb_strlen', $noms)) <= 31, 'Els noms de pestanya no passen de 31 caràcters.');
 
 if ($failures !== []) {
     fwrite(STDERR, "MesuresPiscinaTest failed:\n- " . implode("\n- ", $failures) . "\n");

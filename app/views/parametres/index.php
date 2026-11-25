@@ -20,48 +20,32 @@ $format = static function ($valor, string $camp): string {
 };
 
 // Com el full de paràmetres: una fila per dia i vas, amb les mesures de cada moment.
-$files = [];
-foreach ($mesures as $m) {
-    $clau = $m['data'] . '|' . $m['tasca_pla_id'];
-    if (!isset($files[$clau])) {
-        $files[$clau] = [
-            'data' => $m['data'],
-            'vas' => $m['espai_nom'] ?: $m['tasca_nom'],
-            'moments' => [],
-            'diaris' => array_fill_keys($campsDiaris, null),
-            'observacions' => [],
-            'tecnics' => [],
-        ];
-    }
-    $f = &$files[$clau];
-    $f['moments'][$m['moment']] = $m;
-    foreach ($campsDiaris as $camp) {
-        if ($m[$camp] !== null && $f['diaris'][$camp] === null) {
-            $f['diaris'][$camp] = $m[$camp];
-        }
-    }
-    if (!empty($m['observacions'])) {
-        $f['observacions'][] = $moments[$m['moment']] . ': ' . $m['observacions'];
-    }
-    $tecnic = trim(($m['usuari_nom'] ?? '') . ' ' . ($m['usuari_cognoms'] ?? ''));
-    if ($tecnic !== '' && !in_array($tecnic, $f['tecnics'], true)) {
-        $f['tecnics'][] = $tecnic;
-    }
-    unset($f);
-}
+$files = MesuraPiscina::agrupar($mesures);
 $perDia = [];
 foreach ($files as $f) {
-    $f['estatsDiaris'] = MesuraPiscina::avaluar($f['diaris']);
     $perDia[$f['data']][] = $f;
 }
+$excelUrl = url('parametres/excel') . '?' . http_build_query(array_filter([
+    'vas' => $vasActual ?: null,
+    'desde' => $desde,
+    'fins' => $fins,
+]));
 $estatMoment = static fn(array $f, string $moment, string $camp): string
     => isset($f['moments'][$moment]) ? ($classeEstat[MesuraPiscina::avaluar($f['moments'][$moment])[$camp] ?? ''] ?? '') : '';
 ob_start();
 ?>
 
-<div class="mb-4">
-    <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Paràmetres piscina</h2>
-    <p class="text-gray-500 text-sm mt-1">Una fila per dia i vas, com el full de paràmetres: clor i pH a l'inici de la jornada (1), a les 14 h (2) i al final (3); la resta, un cop al dia. En groc, fora de norma; en vermell, cal tancar el vas.</p>
+<div class="mb-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+    <div>
+        <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Paràmetres piscina</h2>
+        <p class="text-gray-500 text-sm mt-1">Una fila per dia i vas, com el full de paràmetres: clor i pH a l'inici de la jornada (1), a les 14 h (2) i al final (3); la resta, un cop al dia. En groc, fora de norma; en vermell, cal tancar el vas.</p>
+    </div>
+    <?php if (!empty($mesures)): ?>
+    <a href="<?= e($excelUrl) ?>" class="shrink-0 inline-flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition" title="Descarrega les mesures del vas i les dates filtrades, un full per vas">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+        Descarregar Excel
+    </a>
+    <?php endif; ?>
 </div>
 
 <form method="GET" action="<?= url('parametres') ?>" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
