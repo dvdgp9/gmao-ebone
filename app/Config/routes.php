@@ -17,6 +17,7 @@ use App\Controllers\ImportController;
 use App\Controllers\TornController;
 use App\Controllers\SistemaController;
 use App\Controllers\IncidenciaController;
+use App\Controllers\GuiaController;
 
 /** @var \App\Core\Router $router */
 
@@ -32,6 +33,9 @@ $router->post('acces/{token}', AccesController::class, 'desar');
 // Dashboard
 $router->get('', DashboardController::class, 'index');
 $router->get('dashboard', DashboardController::class, 'index');
+
+// Guia d'ús
+$router->get('guia', GuiaController::class, 'index');
 
 // Switch instal·lació
 $router->post('switch-instalacio', InstalacioController::class, 'switchInstalacio');
